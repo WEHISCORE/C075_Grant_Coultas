@@ -1,0 +1,1 @@
+/wehisan/general/user_managed/grpu_naik.s_2/Indexes/GRCm38.p6
