@@ -53,3 +53,14 @@ multiplot(
     ylim(0, 100) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)),
   cols = 2)
+
+pdf(here("tmp", "quickQC.pdf"), width = 12, height = 6)
+plotPlatePosition(sce, sce$well_position, shape_by = "sample", point_size = 6, colour_by = "log10_total_counts") +
+  scale_shape_manual(values = c("20 cells.control" = 15, "20 cells.mutant" = 16, "single cell.control" = 17, "single cell.mutant" = 18))
+plotPlatePosition(sce, sce$well_position, shape_by = "sample", point_size = 6, colour_by = "log10_total_features_by_counts") +
+  scale_shape_manual(values = c("20 cells.control" = 15, "20 cells.mutant" = 16, "single cell.control" = 17, "single cell.mutant" = 18))
+plotPlatePosition(sce, sce$well_position, shape_by = "sample", point_size = 6, colour_by = "pct_counts_ERCC") +
+  scale_shape_manual(values = c("20 cells.control" = 15, "20 cells.mutant" = 16, "single cell.control" = 17, "single cell.mutant" = 18))
+plotPlatePosition(sce, sce$well_position, shape_by = "sample", point_size = 6, colour_by = "pct_counts_Mt") +
+  scale_shape_manual(values = c("20 cells.control" = 15, "20 cells.mutant" = 16, "single cell.control" = 17, "single cell.mutant" = 18))
+dev.off()
