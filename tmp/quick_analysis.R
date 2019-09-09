@@ -68,16 +68,12 @@ dev.off()
 
 # Check expression of mutant gene (Kat7)
 plotExpression(sce, "Kat7", x = "sample", exprs_values = "counts")
-genes_of_interest <- c(
-  "Col4a1", "Col4a2", "Epas1", "Cdh5", "Ptprb", "Pecam1", "Vwf", "Itgb1",
-  "Calcrl", "Plvap", "Tie1", "Cldn5", "Acvrl1", "Eng", "Kdr", "Kat7")
-plotExpression(sce, genes_of_interest, x = "sample", exprs_values = "counts")
+table(sce$sample, counts(sce)["Kat7", ] > 0)
 
 sce <- sce[, sce$sample_name == "single cell"]
 sce$sample <- factor(sce$sample)
 sce$sample_name <- factor(sce$sample_name)
 
-# TODO: Relax cutoffs if ddownstream is uninformative
 libsize_drop <- isOutlier(
   metric = sce$total_counts,
   nmads = 3,
@@ -90,7 +86,7 @@ feature_drop <- isOutlier(
   log = TRUE)
 spike_drop <- isOutlier(
   metric = sce$pct_counts_ERCC,
-  nmads = 3,
+  nmads = 5,
   type = "higher")
 sce_pre_QC_outlier_removal <- sce
 sce <- sce[, !(libsize_drop | feature_drop | spike_drop)]
@@ -157,7 +153,6 @@ plot(
 
 sce <- computeSpikeFactors(sce, type = "ERCC", general.use = FALSE)
 sce <- normalize(sce)
-plotExpression(sce, genes_of_interest, x = "sample")
 
 var.fit <- trendVar(sce, parametric=TRUE, loess.args=list(span=0.4))
 var.out <- decomposeVar(sce, var.fit)
@@ -184,19 +179,13 @@ table(my.clusters)
 sce$cluster <- factor(my.clusters)
 plotTSNE(sce, colour_by="cluster")
 
-markers <- findMarkers(sce, my.clusters, direction="up")
-marker.set <- markers[["4"]]
-head(marker.set)
-
 library(SingleR)
 mouse_se <- MouseRNAseqData()
-
 as.data.frame(colData(mouse_se)) %>%
   tabyl(label.main) %>%
   adorn_pct_formatting(1) %>%
   knitr::kable(
     caption = "Summary of main cell types in the `MouseRNAseqData` reference set.")
-
 rmarkdown::paged_table(
   as.data.frame(colData(mouse_se)) %>%
     dplyr::count(label.main, label.fine) %>%
@@ -238,6 +227,15 @@ plotScoreHeatmap(
     sample = sce$sample,
     row.names = rownames(pred_mouse_cell_fine)))
 
+genes_of_interest <- c(
+  "Col4a1", "Col4a2", "Epas1", "Cdh5", "Ptprb", "Pecam1", "Vwf", "Itgb1",
+  "Calcrl", "Plvap", "Tie1", "Cldn5", "Acvrl1", "Eng", "Kdr", "Kat7")
+plotExpression(sce, genes_of_interest, x = "sample")
+data.frame(
+  gene = genes_of_interest,
+  median_expression = signif(rowMedians(as.matrix(logcounts(sce)[genes_of_interest, ])), 3)) %>%
+  dplyr::arrange(desc(median_expression)) %>%
+  knitr::kable()
 p <- lapply(genes_of_interest, function(g) {
   plotTSNE(sce, colour_by = g) +
     ggtitle(g)
