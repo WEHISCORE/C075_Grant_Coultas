@@ -1,6 +1,6 @@
 # Process NN158 (C075) with scPipe
 # Peter Hickey
-# 2019-09-05
+# 2020-01-02
 
 # Setup ------------------------------------------------------------------------
 
@@ -14,7 +14,7 @@ library(stringr)
 library(stringi)
 library(tidyr)
 
-options("mc.cores" = 1L)
+options("mc.cores" = 8L)
 
 # Construct NN158 sample sheet -------------------------------------------------
 
@@ -46,7 +46,7 @@ sample_sheet_nn158 <- read_excel(
   #       guessed columns
   #       (https://github.com/tidyverse/readxl/issues/414#issuecomment-352437730)
   guess_max = 1048576)
-# Restrict to Wang's plates
+# Restrict to Zoe's plates
 sample_sheet_nn158 <- filter(
   sample_sheet_nn158,
   `Plate#` %in% c("LC279"))
@@ -63,14 +63,17 @@ colnames(sample_sheet_nn158) <- gsub(
   "\\_[0-9]+$",
   "",
   colnames(sample_sheet_nn158))
-# NOTE: FACS data in columns >= "K"
+
+# Update FACS data (FACS data in columns >= "K")
 facs_data_idx <- seq(which(LETTERS == "K"), ncol(sample_sheet_nn158))
+
 # Filter out those without a cell index sequence, with no cell, or that were
 # otherwise removed.
 sample_sheet_nn158 <- sample_sheet_nn158 %>%
   filter(
     !is.na(rd1_index_cell_index_index_sequence_as_in_c_rt1_primer),
     !cell_type_descriptor %in% c("No Cell", "removed", "no cell"))
+
 # Ensure FACS columns are stored as numeric (readxl sometimes fails, presumably
 # to weird pattern of empty cells).
 sample_sheet_nn158 <- sample_sheet_nn158 %>%
@@ -93,9 +96,78 @@ sample_sheet_nn158 <- sample_sheet_nn158 %>%
     sequencing_run = "NN158") %>%
   arrange(plate_number, well_position)
 
+# Construct NN176 sample sheet -------------------------------------------------
+
+file_nn176 <- here(
+  "data",
+  "sample_sheets",
+  "C075_NN176_Zoe Grant_SeqPrimer layout_Dec19.xlsx")
+
+# NOTE: Header row is split across 2 lines, which I combine into 1 before
+#       reading in the rest of the spreadsheet.
+header_row <- read_excel(
+  path = file_nn176,
+  sheet = "Sample & Index",
+  skip = 2,
+  n_max = 1)
+
+# NOTE: FACS data in columns >= "J"
+facs_data_idx <- seq(which(LETTERS == "J"), ncol(header_row))
+header_row <- c(
+  paste0(colnames(header_row[, -facs_data_idx]), header_row[1, -facs_data_idx]),
+  unlist(header_row[1, facs_data_idx], use.names = FALSE))
+header_row <- gsub("^\\.\\.\\.[0-9]+", "", header_row)
+sample_sheet_nn176 <- read_excel(
+  path = file_nn176,
+  sheet = "Sample & Index",
+  skip = 4,
+  col_names = header_row,
+  # NOTE: Setting the max guess_max value avoids problems with incorrectly
+  #       guessed columns
+  #       (https://github.com/tidyverse/readxl/issues/414#issuecomment-352437730)
+  guess_max = 1048576)
+
+# Tidy up names and empty rows/columns.
+sample_sheet_nn176 <- bind_cols(
+  clean_names(sample_sheet_nn176[, -facs_data_idx]),
+  clean_names(sample_sheet_nn176[, facs_data_idx], case = "parsed"))
+sample_sheet_nn176 <- remove_empty(sample_sheet_nn176)
+
+# Filter out those without a cell index sequence, with no cell, or that were
+# otherwise removed.
+sample_sheet_nn176 <- sample_sheet_nn176 %>%
+  filter(
+    sample_name != "HRP control",
+    !is.na(rd1_index_cell_index_index_sequence_as_in_c_rt1_primer) &
+      !rd1_index_cell_index_index_sequence_as_in_c_rt1_primer %in%
+      c("no primer", "No primer"),
+    !cell_type_descriptor %in% c("No Cell", "empty", "no cell"))
+
+# Ensure FACS columns are stored as numeric (readxl sometimes fails, presumably
+# to weird pattern of empty cells).
+sample_sheet_nn176 <- sample_sheet_nn176 %>%
+  mutate_at(facs_data_idx, as.numeric)
+
+# Some final tidying.
+sample_sheet_nn176 <- sample_sheet_nn176 %>%
+  mutate(
+    # NOTE: There are some wonky well_positions (e.g., 'I19=A1') that need to
+    #       be fixed (these occur because it means well I19 with primer A1,
+    #       in SCORE's terminology. I've asked for this to be avoided going
+    #       forward.).
+    well_position = gsub(" ", "", well_position),
+    well_position = sapply(strsplit(well_position, "="), "[[", 1),
+    well_position = factor(
+      x = well_position,
+      levels = unlist(
+        lapply(LETTERS[1:16], function(x) paste0(x, 1:24)),
+        use.names = TRUE)),
+    sequencing_run = "NN176") %>%
+  arrange(plate_number, well_position)
+
 # Construct final sample sheet -------------------------------------------------
 
-sample_sheet <- sample_sheet_nn158 %>%
+sample_sheet <- bind_rows(sample_sheet_nn158, sample_sheet_nn176) %>%
   mutate(rowname = paste0(plate_number, "_", well_position)) %>%
   tibble::column_to_rownames("rowname") %>%
   DataFrame(., check.names = FALSE)
@@ -129,46 +201,59 @@ gene_id_type <- "ensembl_gene_id"
 # Input files ------------------------------------------------------------------
 
 # FASTQ files
-r1_fq <- grep(
-  pattern = "Undetermined",
-  x = list.files(
-    path = here("extdata", "NN158", "merged"),
-    full.names = TRUE,
-    pattern = glob2rx("*R1.fastq.gz")),
-  invert = TRUE,
-  value = TRUE)
+r1_fq <- c(
+  grep(
+    pattern = "Undetermined",
+    x = list.files(
+      path = here("extdata", "NN158", "merged"),
+      full.names = TRUE,
+      pattern = glob2rx("*R1.fastq.gz")),
+    invert = TRUE,
+    value = TRUE),
+  grep(
+    pattern = "Undetermined",
+    x = list.files(
+      path = here("extdata", "NN176", "merged"),
+      full.names = TRUE,
+      pattern = glob2rx("*R1.fastq.gz")),
+    invert = TRUE,
+    value = TRUE))
+
 r2_fq <- gsub("R1", "R2", r1_fq)
 stopifnot(all(file.exists(r2_fq)))
 tx_fq <- file.path(extdir, paste0(plates, ".R2.fastq.gz"))
 names(tx_fq) <- plates
 barcode_fq <- gsub("R2", "R1", tx_fq)
 
+# NOTE: Concatenate FASTQs at the plate-level (this is safe because each plate
+#       has a different pair of RPIs, one for the single-cells and one for the
+#       20 cells).
 mclapply(plates, function(plate) {
   message(plate)
-  rpi <- sub(
+  rpis <- sub(
     " ",
     "-",
     unique(
       sample_sheet$illumina_index_index_number_separate_index_read[sample_sheet$plate_number == plate]))
-  system(
+  cmd <- paste0(
+    "cat ",
     paste0(
-      "cat ",
-      paste0(
-        sapply(
-          rpi,
-          function(x) grep(x, r1_fq, value = TRUE)),
-          collapse = " "),
-      " > ",
-      barcode_fq[[plate]],
-      "\n",
-      "cat ",
-      paste0(
-        sapply(
-          rpi,
-          function(x) grep(x, r2_fq, value = TRUE)),
-          collapse = " "),
-      " > ",
-      tx_fq[[plate]]))
+      sapply(
+        rpis,
+        function(x) grep(paste0(x, "_"), r1_fq, value = TRUE)),
+      collapse = " "),
+    " > ",
+    barcode_fq[[plate]],
+    "\n",
+    "cat ",
+    paste0(
+      sapply(
+        rpis,
+        function(x) grep(paste0(x, "_"), r2_fq, value = TRUE)),
+      collapse = " "),
+    " > ",
+    tx_fq[[plate]])
+  system(cmd)
 })
 
 # Genome index
@@ -299,6 +384,8 @@ sce <- Reduce(function(x, y) .combine(x, y, rowData_by = NULL), list_of_sce)
 assay(sce, withDimnames = FALSE) <- as(
   assay(sce, withDimnames = FALSE),
   "dgCMatrix")
+sce <- splitAltExps(sce, ifelse(isSpike(sce), "ERCC", "Endogenous"))
+sce <- clearSpikes(sce)
 saveRDS(
   sce,
   file.path(outdir, "C075_Grant_Coultas.scPipe.SCE.rds"),
