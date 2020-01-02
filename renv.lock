@@ -18,6 +18,18 @@
       "Source": "Bioconductor",
       "Hash": "c5f3f140470b1941580859d3fc5c6bc0"
     },
+    "AnnotationFilter": {
+      "Package": "AnnotationFilter",
+      "Version": "1.10.0",
+      "Source": "Bioconductor",
+      "Hash": "32e2c269be734c9b07bc530b0ca97540"
+    },
+    "AnnotationHub": {
+      "Package": "AnnotationHub",
+      "Version": "2.18.0",
+      "Source": "Bioconductor",
+      "Hash": "4b655fac74af6201509cdd923c3b2b2a"
+    },
     "BH": {
       "Package": "BH",
       "Version": "1.72.0-2",
@@ -68,6 +80,12 @@
       "Source": "Bioconductor",
       "Hash": "9cfc09bcdebfd3ef5d54ee6f789c94cd"
     },
+    "BiocVersion": {
+      "Package": "BiocVersion",
+      "Version": "3.10.1",
+      "Source": "Bioconductor",
+      "Hash": "b69e4e634db423b8e6c58103d579ec95"
+    },
     "Biostrings": {
       "Package": "Biostrings",
       "Version": "2.54.0",
@@ -107,6 +125,18 @@
       "Source": "Bioconductor",
       "Hash": "1071302d3371eb4170b03b9ebf66760a"
     },
+    "EnsDb.Mmusculus.v79": {
+      "Package": "EnsDb.Mmusculus.v79",
+      "Version": "2.99.0",
+      "Source": "Bioconductor",
+      "Hash": "53790b2a7c414e74dfd2e6f41a0e4c47"
+    },
+    "ExperimentHub": {
+      "Package": "ExperimentHub",
+      "Version": "1.12.0",
+      "Source": "Bioconductor",
+      "Hash": "b8b129c93ae4b4f76c076166f1acfaca"
+    },
     "GGally": {
       "Package": "GGally",
       "Version": "1.4.0",
@@ -131,6 +161,12 @@
       "Version": "1.22.1",
       "Source": "Bioconductor",
       "Hash": "0bc774dd3636e0aff56a80da6f928211"
+    },
+    "GenomicFeatures": {
+      "Package": "GenomicFeatures",
+      "Version": "1.38.0",
+      "Source": "Bioconductor",
+      "Hash": "d78d8eac00aa82ce9bc5dca99ae680df"
     },
     "GenomicRanges": {
       "Package": "GenomicRanges",
@@ -163,6 +199,12 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "39ea11fb3ad0d759f9f1c053fd442957"
+    },
+    "ProtGenerics": {
+      "Package": "ProtGenerics",
+      "Version": "1.18.0",
+      "Source": "Bioconductor",
+      "Hash": "40797f337889e6cde32c07c41a1aaebe"
     },
     "R6": {
       "Package": "R6",
@@ -255,6 +297,12 @@
       "Version": "1.8.0",
       "Source": "Bioconductor",
       "Hash": "cfacead44b3a501a8d782af94cc7e2c9"
+    },
+    "SingleR": {
+      "Package": "SingleR",
+      "Version": "1.0.3",
+      "Source": "Bioconductor",
+      "Hash": "5cb30396992db39b804937ee9c6923d4"
     },
     "SummarizedExperiment": {
       "Package": "SummarizedExperiment",
@@ -461,6 +509,12 @@
       "Repository": "CRAN",
       "Hash": "7067d90c1c780bfe80c0d497e3d7b49d"
     },
+    "ensembldb": {
+      "Package": "ensembldb",
+      "Version": "2.10.2",
+      "Source": "Bioconductor",
+      "Hash": "e9d088b5ad5e9d6fad8b966a85a4aaf4"
+    },
     "evaluate": {
       "Package": "evaluate",
       "Version": "0.14",
@@ -614,6 +668,12 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "fffa635f747cd07ffc56bc13a23701e4"
+    },
+    "interactiveDisplayBase": {
+      "Package": "interactiveDisplayBase",
+      "Version": "1.24.0",
+      "Source": "Bioconductor",
+      "Hash": "96b89e42697cbf6c1669142ebd1ebe0c"
     },
     "irlba": {
       "Package": "irlba",
