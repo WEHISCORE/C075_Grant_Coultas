@@ -4,7 +4,6 @@ sce <- readRDS(here("data/SCEs/C075_Grant_Coultas.scPipe.SCE.rds"))
 library(scater)
 library(dplyr)
 library(janitor)
-sce <- calculateQCMetrics(sce)
 
 as.data.frame(colData(sce)) %>%
   group_by(plate_number, cell_type_descriptor, sample_name) %>%
@@ -34,58 +33,76 @@ location <- mapIds(
 rowData(sce)$CHR <- location
 
 is_mito <- rowData(sce)$CHR == "MT"
-sce <- calculateQCMetrics(sce, feature_controls = list(Mt = which(is_mito)))
+sce <- addPerCellQC(sce, subsets = list(Mt = which(is_mito)))
 
 sce$sample <- paste0(
-  sce$sample_name,
+  sce$plate_number,
   ".",
-  ifelse(grepl("Control", sce$cell_type_descriptor), "control", "mutant"))
-multiplot(
-  plotColData(sce, "log10_total_counts", x = "sample", colour_by = "cell_type_descriptor") +
-    ylim(0, NA) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  plotColData(sce, "log10_total_features_by_counts", x = "sample", colour_by = "cell_type_descriptor") +
-    ylim(0, NA) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  plotColData(sce, "pct_counts_ERCC", x = "sample", colour_by = "cell_type_descriptor") +
-    ylim(0, 100) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  plotColData(sce, "pct_counts_Mt", x = "sample", colour_by = "cell_type_descriptor") +
-    ylim(0, 100) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  cols = 2)
-
-pdf(here("tmp", "quickQC.pdf"), width = 12, height = 6)
-plotPlatePosition(sce, sce$well_position, shape_by = "sample", point_size = 6, colour_by = "log10_total_counts") +
-  scale_shape_manual(values = c("20 cells.control" = 15, "20 cells.mutant" = 16, "single cell.control" = 17, "single cell.mutant" = 18))
-plotPlatePosition(sce, sce$well_position, shape_by = "sample", point_size = 6, colour_by = "log10_total_features_by_counts") +
-  scale_shape_manual(values = c("20 cells.control" = 15, "20 cells.mutant" = 16, "single cell.control" = 17, "single cell.mutant" = 18))
-plotPlatePosition(sce, sce$well_position, shape_by = "sample", point_size = 6, colour_by = "pct_counts_ERCC") +
-  scale_shape_manual(values = c("20 cells.control" = 15, "20 cells.mutant" = 16, "single cell.control" = 17, "single cell.mutant" = 18))
-plotPlatePosition(sce, sce$well_position, shape_by = "sample", point_size = 6, colour_by = "pct_counts_Mt") +
-  scale_shape_manual(values = c("20 cells.control" = 15, "20 cells.mutant" = 16, "single cell.control" = 17, "single cell.mutant" = 18))
-dev.off()
+  stringr::str_extract(sce$cell_type_descriptor, "# [0-9]+"))
+sce$group <- ifelse(grepl("Mutant", sce$cell_type_descriptor), "mutant", "control")
+plotColData(
+  sce,
+  y = "sum",
+  x = "sample",
+  colour_by = "group",
+  other_fields = "sample_name") +
+  scale_y_log10() +
+  facet_grid(~sample_name) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+plotColData(
+  sce,
+  y = "detected",
+  x = "sample",
+  colour_by = "group",
+  other_fields = "sample_name") +
+  scale_y_log10() +
+  facet_grid(~sample_name) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+plotColData(
+  sce,
+  y = "altexps_ERCC_percent",
+  x = "sample",
+  colour_by = "group",
+  other_fields = "sample_name") +
+  ylim(0, 100) +
+  facet_grid(~sample_name) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+plotColData(
+  sce,
+  y = "subsets_Mt_percent",
+  x = "sample",
+  colour_by = "group",
+  other_fields = "sample_name") +
+  ylim(0, 100) +
+  facet_grid(~sample_name) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
 
 # Check expression of mutant gene (Kat7)
-plotExpression(sce, "Kat7", x = "sample", exprs_values = "counts")
-table(sce$sample, counts(sce)["Kat7", ] > 0)
+plotExpression(
+  sce,
+  "Kat7",
+  x = "sample",
+  exprs_values = "counts",
+  colour_by = "group") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+table(sce$cell_type_descriptor, counts(sce)["Kat7", ] > 0)
 
 sce <- sce[, sce$sample_name == "single cell"]
 sce$sample <- factor(sce$sample)
 sce$sample_name <- factor(sce$sample_name)
 
 libsize_drop <- isOutlier(
-  metric = sce$total_counts,
+  metric = sce$sum,
   nmads = 3,
   type = "lower",
   log = TRUE)
 feature_drop <- isOutlier(
-  metric = sce$total_features_by_counts,
+  metric = sce$detected,
   nmads = 3,
   type = "lower",
   log = TRUE)
 spike_drop <- isOutlier(
-  metric = sce$pct_counts_ERCC,
+  metric = sce$altexps_ERCC_percent,
   nmads = 5,
   type = "higher")
 sce_pre_QC_outlier_removal <- sce
@@ -107,11 +124,11 @@ data.frame(
   knitr::kable(
     caption = "Number of samples removed by each QC step and the number of samples remaining.")
 cbind(
-  "pre-QC" = table(sce_pre_QC_outlier_removal$sample),
-  "post-QC" = table(sce$sample))
+  "pre-QC" = table(sce_pre_QC_outlier_removal$cell_type_descriptor),
+  "post-QC" = table(sce$cell_type_descriptor))
 
 plotHighestExprs(sce, n = 50)
-plotHighestExprs(sce[!grepl("^ERCC", rownames(sce))], n = 50)
+plotHighestExprs(sce[!grepl("^mt|^Rpl|^Rps", rownames(sce))], n = 50)
 
 ave_counts <- calcAverage(sce, use_size_factors = FALSE)
 par(mfrow = c(1, 1))
@@ -144,32 +161,34 @@ sce <- computeSumFactors(
 summary(sizeFactors(sce))
 
 plot(
-  x = sce$total_counts / 1e3,
+  x = sce$sum / 1e3,
   y = sizeFactors(sce),
   log = "xy",
   xlab = "Library size (thousands)",
   ylab = "Size factor",
   pch = 16)
 
-sce <- computeSpikeFactors(sce, type = "ERCC", general.use = FALSE)
-sce <- normalize(sce)
+sce <- computeSpikeFactors(sce, spikes = "ERCC", general.use = FALSE)
+sce <- logNormCounts(sce)
 
-var.fit <- trendVar(sce, parametric=TRUE, loess.args=list(span=0.4))
-var.out <- decomposeVar(sce, var.fit)
+var.out <- modelGeneVarWithSpikes(sce, "ERCC")
 plot(var.out$mean, var.out$total, pch=16, cex=0.6, xlab="Mean log-expression",
      ylab="Variance of log-expression")
-points(var.out$mean[isSpike(sce)], var.out$total[isSpike(sce)], col="red", pch=16)
-curve(var.fit$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+fit <- metadata(var.out)
+points(fit$mean, fit$var, col="red", pch=16)
+curve(fit$trend(x), col="dodgerblue", add=TRUE, lwd=2)
 
 chosen.genes <- order(var.out$bio, decreasing=TRUE)[1:10]
 plotExpression(sce, rownames(var.out)[chosen.genes])
 set.seed(1000)
-sce <- denoisePCA(sce, technical=var.fit$trend, BSPARAM=BiocSingular::ExactParam())
+sce <- denoisePCA(sce, technical=fit$trend, BSPARAM=BiocSingular::IrlbaParam())
 ncol(reducedDim(sce, "PCA"))
 
 set.seed(1000)
 sce <- runTSNE(sce, use_dimred="PCA", perplexity=50)
-plotTSNE(sce, colour_by = "sample")
+plotTSNE(sce, colour_by = "group")
+plotTSNE(sce, colour_by = "cell_type_descriptor")
+plotTSNE(sce, colour_by = "plate_number")
 
 snn.gr <- buildSNNGraph(sce, use.dimred="PCA")
 cluster.out <- igraph::cluster_walktrap(snn.gr)
@@ -206,7 +225,7 @@ plotScoreHeatmap(
   pred_mouse_cell_main,
   annotation_col = data.frame(
     cluster = sce$cluster,
-    sample = sce$sample,
+    sample = sce$cell_type_descriptor,
     row.names = rownames(pred_mouse_cell_main)))
 
 pred_mouse_cell_fine <- SingleR(
@@ -224,13 +243,13 @@ plotScoreHeatmap(
   pred_mouse_cell_fine,
   annotation_col = data.frame(
     cluster = sce$cluster,
-    sample = sce$sample,
+    sample = sce$cell_type_descriptor,
     row.names = rownames(pred_mouse_cell_fine)))
 
 genes_of_interest <- c(
   "Col4a1", "Col4a2", "Epas1", "Cdh5", "Ptprb", "Pecam1", "Vwf", "Itgb1",
   "Calcrl", "Plvap", "Tie1", "Cldn5", "Acvrl1", "Eng", "Kdr", "Kat7")
-plotExpression(sce, genes_of_interest, x = "sample")
+plotExpression(sce, genes_of_interest, x = "cell_type_descriptor", colour_by = "group")
 data.frame(
   gene = genes_of_interest,
   median_expression = signif(rowMedians(as.matrix(logcounts(sce)[genes_of_interest, ])), 3)) %>%
