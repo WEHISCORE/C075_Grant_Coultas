@@ -1,4 +1,4 @@
-# Process NN158 (C075) with scPipe
+# Process NN158 and NN176 (C075) with scPipe
 # Peter Hickey
 # 2020-01-02
 
