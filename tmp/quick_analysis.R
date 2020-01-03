@@ -77,6 +77,26 @@ plotColData(
   facet_grid(~sample_name) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
 
+p <- lapply(sort(unique(sce$plate_number)), function(p) {
+  z <- sce[, sce$plate_number == p]
+  plotPlatePosition(
+    z,
+    as.character(z$well_position),
+    colour_by = "altexps_ERCC_percent",
+    point_size = 2,
+    point_alpha = 1,
+    theme_size = 5,
+    shape_by = "group",
+    by_show_single = TRUE) +
+    ggtitle(p) +
+    scale_colour_viridis_c(
+      limits = c(0, 60),
+      breaks = seq(0, 60, 10)) +
+    scale_shape_manual(values = c(control = 16, mutant = 17)) +
+    guides(shape = FALSE)
+})
+multiplot(plotlist = p, cols = 3)
+
 # Check expression of mutant gene (Kat7)
 plotExpression(
   sce,
@@ -151,8 +171,7 @@ clusters <- quickCluster(
   sce,
   min.size = 60,
   use.ranks = FALSE,
-  # NOTE: Data are small enough to use exact PCA.
-  BSPARAM = BiocSingular::ExactParam())
+  BSPARAM = BiocSingular::IrlbaParam())
 table(clusters)
 sce <- computeSumFactors(
   sce,
@@ -160,18 +179,28 @@ sce <- computeSumFactors(
   min.mean = 0.1)
 summary(sizeFactors(sce))
 
-plot(
-  x = sce$sum / 1e3,
-  y = sizeFactors(sce),
-  log = "xy",
-  xlab = "Library size (thousands)",
-  ylab = "Size factor",
-  pch = 16)
+xlim <- c(1, max(sce$sum) / 1e3)
+ylim <- range(sizeFactors(sce))
+par(mfrow = c(3, 3))
+lapply(sort(unique(sce$plate_number)), function(p) {
+  sce <- sce[, sce$plate_number == p]
+  plot(
+    x = sce$sum / 1e3,
+    y = sizeFactors(sce),
+    log = "xy",
+    xlab = "Library size (thousands)",
+    ylab = "Size factor",
+    main = p,
+    xlim = xlim,
+    ylim = ylim,
+    pch = 16)
+})
 
 sce <- computeSpikeFactors(sce, spikes = "ERCC", general.use = FALSE)
 sce <- logNormCounts(sce)
 
 var.out <- modelGeneVarWithSpikes(sce, "ERCC")
+par(mfrow = c(1, 1))
 plot(var.out$mean, var.out$total, pch=16, cex=0.6, xlab="Mean log-expression",
      ylab="Variance of log-expression")
 fit <- metadata(var.out)
@@ -189,6 +218,65 @@ sce <- runTSNE(sce, use_dimred="PCA", perplexity=50)
 plotTSNE(sce, colour_by = "group")
 plotTSNE(sce, colour_by = "cell_type_descriptor")
 plotTSNE(sce, colour_by = "plate_number")
+plotTSNE(sce, colour_by = "subsets_Mt_percent")
+
+# TODO: Figure out if its MT, X, and/or Y that's causing the clustering.
+# NOTE: Remove MT, X, and Y and re-do t-SNE.
+sce <- sce[which(!rowData(sce)$CHR %in% c("MT", "X", "Y")), ]
+# sce <- sce[which(!rowData(sce)$CHR %in% c("MT")), ]
+set.seed(1011220)
+clusters <- quickCluster(
+  sce,
+  min.size = 60,
+  use.ranks = FALSE,
+  BSPARAM = BiocSingular::IrlbaParam())
+table(clusters)
+sce <- computeSumFactors(
+  sce,
+  clusters = clusters,
+  min.mean = 0.1)
+summary(sizeFactors(sce))
+
+xlim <- c(1, max(sce$sum) / 1e3)
+ylim <- range(sizeFactors(sce))
+par(mfrow = c(3, 3))
+lapply(sort(unique(sce$plate_number)), function(p) {
+  sce <- sce[, sce$plate_number == p]
+  plot(
+    x = sce$sum / 1e3,
+    y = sizeFactors(sce),
+    log = "xy",
+    xlab = "Library size (thousands)",
+    ylab = "Size factor",
+    main = p,
+    xlim = xlim,
+    ylim = ylim,
+    pch = 16)
+})
+
+sce <- computeSpikeFactors(sce, spikes = "ERCC", general.use = FALSE)
+sce <- logNormCounts(sce)
+
+var.out <- modelGeneVarWithSpikes(sce, "ERCC")
+par(mfrow = c(1, 1))
+plot(var.out$mean, var.out$total, pch=16, cex=0.6, xlab="Mean log-expression",
+     ylab="Variance of log-expression")
+fit <- metadata(var.out)
+points(fit$mean, fit$var, col="red", pch=16)
+curve(fit$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+
+chosen.genes <- order(var.out$bio, decreasing=TRUE)[1:10]
+plotExpression(sce, rownames(var.out)[chosen.genes])
+set.seed(1000)
+sce <- denoisePCA(sce, technical=fit$trend, BSPARAM=BiocSingular::IrlbaParam())
+ncol(reducedDim(sce, "PCA"))
+
+set.seed(1000)
+sce <- runTSNE(sce, use_dimred="PCA", perplexity=50)
+plotTSNE(sce, colour_by = "group")
+plotTSNE(sce, colour_by = "cell_type_descriptor")
+plotTSNE(sce, colour_by = "plate_number")
+plotTSNE(sce, colour_by = "subsets_Mt_percent")
 
 snn.gr <- buildSNNGraph(sce, use.dimred="PCA")
 cluster.out <- igraph::cluster_walktrap(snn.gr)
