@@ -379,7 +379,7 @@ list_of_sce <- lapply(plates, function(plate) {
     report = FALSE)
 })
 
-source(here("analysis", "helper_functions.R"))
+source(here("code", "helper_functions.R"))
 sce <- Reduce(function(x, y) .combine(x, y, rowData_by = NULL), list_of_sce)
 assay(sce, withDimnames = FALSE) <- as(
   assay(sce, withDimnames = FALSE),
