@@ -873,7 +873,7 @@ sessioninfo::session_info()
 
 # TODOs
 
-- [ ] Zoe to send me actual sample sheet for LC279.
+- [x] Zoe to send me actual sample sheet for LC279.
   - We did sequence LC279 but I processed it with scPipe using what is actually the sample sheet for LC280. LC279 actually contains only control cells from a single mouse and should have a fair number of empty wells.
 - [ ] Nominally empty wells on LC279 have reads; why?
 - [ ] LC398 might be out of alignment, so interpret with care.
