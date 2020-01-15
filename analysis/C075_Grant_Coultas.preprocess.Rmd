@@ -97,25 +97,12 @@ mouse_colours <- setNames(
 ### Summarising the data
 
 This dataset contains samples from `r nlevels(sce$plate_number)` 384-well plates.
-However, Zoe asked that we disregard samples from plate LC279 from further analysis^["Please disregard LC279 from any further analysis, it was not supposed to be sequenced and does not correspond to the plate layout you have (actually contains many empty wells, which is why the spike in RNA counts are so high). I am only interested in the other plates LC280, 294, 358, 392, 396, 398." - email from Zoe on 2020-01-07.]
 
-```{r, eval = FALSE}
-# TODO: Evaluate this chunk after checking claim that this plate has many high ERCC% wells
-sce <- sce[, sce$plate_number != "LC279"]
-# NOTE: Update the factor columns.
-colData(sce) <- DataFrame(
-  lapply(colData(sce), function(x) {
-    if (is.factor(x)) {
-      factor(x)
-    } else {
-      x
-    }
-  }),
-  row.names = colnames(sce))
-```
+**TODO:** Revisit the removal of LC279 after re-running scPipe with the correct sample sheet. I don't think there is any need to remove; that it only contains a control sample still makes it marginally useful.
 
 Figure \@ref(fig:breakdown-by-plate-number) shows that each plate has cells from a knockout and a wildtype mouse.
-**TODO:** Check with Zoe if these are all sib pairs.
+Each pair of mice on a plate are siblings.
+Mouse `#1824` acts as a control sample on two plates.
 
 ```{r breakdown-by-plate-number, fig.asp = 2 / 3, layout = "l-body-outset", fig.cap = "Breakdown of of the samples by plate."}
 plot_grid(
@@ -443,7 +430,7 @@ p <- lapply(levels(sce$plate_number), function(p) {
     theme_size = 8,
     by_show_single = TRUE) +
     ggtitle(p) +
-    # TODO: Tweak limits (especially is LC279 is removed)
+    # TODO: Tweak limits
     scale_colour_viridis_c(
       limits = c(0, 50),
       breaks = seq(0, 50, 10))
@@ -475,7 +462,7 @@ p <- lapply(levels(sce$plate_number), function(p) {
     by_show_single = TRUE) +
     ggtitle(p) +
     scale_colour_viridis_c(
-      # TODO: Tweak limits (especially is LC279 is removed)
+      # TODO: Tweak limits
       limits = c(0, 50),
       breaks = seq(0, 50, 10))
 })
@@ -489,7 +476,7 @@ ggsave(
 knitr::include_graphics(fig_path)
 ```
 
-Again, there is no systematic trend (**TODO**: Apart from that on LC279)
+Again, there is no systematic trend (**TODO**: Re-visit)
 
 ## Identifying outliers by each metric
 
@@ -883,3 +870,10 @@ The analysis and this document were prepared using the following software:
 ```{r}
 sessioninfo::session_info()
 ```
+
+# TODOs
+
+- [ ] Zoe to send me actual sample sheet for LC279.
+  - We did sequence LC279 but I processed it with scPipe using what is actually the sample sheet for LC280. LC279 actually contains only control cells from a single mouse and should have a fair number of empty wells.
+- [ ] Nominally empty wells on LC279 have reads; why?
+- [ ] LC398 might be out of alignment, so interpret with care.
