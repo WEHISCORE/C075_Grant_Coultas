@@ -1,6 +1,6 @@
 # Process NN158 and NN176 (C075) with scPipe
 # Peter Hickey
-# 2020-01-02
+# 2020-01-17
 
 # Setup ------------------------------------------------------------------------
 
@@ -72,7 +72,7 @@ facs_data_idx <- seq(which(LETTERS == "K"), ncol(sample_sheet_nn158))
 sample_sheet_nn158 <- sample_sheet_nn158 %>%
   filter(
     !is.na(rd1_index_cell_index_index_sequence_as_in_c_rt1_primer),
-    !cell_type_descriptor %in% c("No Cell", "removed", "no cell"))
+    !cell_type_descriptor %in% c("No Cell", "removed", "no cell", "No cell"))
 
 # Ensure FACS columns are stored as numeric (readxl sometimes fails, presumably
 # to weird pattern of empty cells).
@@ -313,7 +313,7 @@ Rsubread::align(
   index = genome_index,
   readfile1 = combined_fq,
   output_file = subread_bam,
-  nthreads = 24)
+  nthreads = 12)
 
 # Assigning reads to annotated exons -------------------------------------------
 
