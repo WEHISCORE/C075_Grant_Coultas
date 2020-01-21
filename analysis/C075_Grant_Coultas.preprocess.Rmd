@@ -916,13 +916,3 @@ The analysis and this document were prepared using the following software:
 ```{r}
 sessioninfo::session_info()
 ```
-
-# TODOs
-
-- [x] Zoe to send me actual sample sheet for LC279.
-  - We did sequence LC279 but I processed it with scPipe using what is actually the sample sheet for LC280. LC279 actually contains only control cells from a single mouse and should have a fair number of empty wells.
-- [x] Nominally empty wells on LC279 have reads; why?
-  - Issue disappeared after getting correct LC279 sample sheet.
-- [x] LC398 might be out of alignment, so interpret with care.
-- [x] Discuss high mito% on LC249 and LC258 with Zoe. We'd like to retain these cells unless there's a strong reason not to.
-  - Zoe says she doesn't know of any good reason for this result. Therefore, we will try to retain as many of these cells as possible and perhaps exclude chrM from HVGs?
