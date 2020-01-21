@@ -97,12 +97,8 @@ mouse_colours <- setNames(
 ### Summarising the data
 
 This dataset contains samples from `r nlevels(sce$plate_number)` 384-well plates.
-
-**TODO:** Revisit the removal of LC279 after re-running scPipe with the correct sample sheet. I don't think there is any need to remove; that it only contains a control sample still makes it marginally useful.
-
-Figure \@ref(fig:breakdown-by-plate-number) shows that each plate has cells from a knockout and a wildtype mouse.
-Each pair of mice on a plate are siblings.
-Mouse `#1824` acts as a control sample on two plates.
+Figure \@ref(fig:breakdown-by-plate-number) shows that most plates have cells from a knockout and a wildtype mouse with each pair of mice on a plate are from the same sibship^[Mouse `#1824` acts as a control sample on two plates.].
+The exception is the initial pilot plate, LC279, which has cells from a single control mouse.
 
 ```{r breakdown-by-plate-number, fig.asp = 2 / 3, layout = "l-body-outset", fig.cap = "Breakdown of of the samples by plate."}
 plot_grid(
@@ -183,7 +179,6 @@ location <- mapIds(
 rowData(sce)$CHR <- location
 ```
 
-
 # Quality control of cells
 
 ## Defining the quality control metrics
@@ -191,12 +186,9 @@ rowData(sce)$CHR <- location
 Low-quality cells need to be removed to ensure that technical effects do not distort downstream analysis results.
 We use several quality control (QC) metrics to measure the quality of the cells:
 
-- `sum`: This measures the library size of the cells, which is the total sum of counts across both genes and spike-in transcripts. 
-We want cells to have high library sizes as this means more RNA has been successfully captured during library preparation. 
-- `detected`: This is the number of expressed features^[The number of expressed genes refers to the number of genes which have non-zero counts (ie. they have been identified in the cell at least once)] in each cell. 
-Cells with few expressed features are likely to be of poor quality, as the diverse transcript population has not been successfull captured. 
-- `altexps_ERCC_detected`: This measures the proportion of reads which are mapped to spike-in transcipts relative to the library size of each cell. 
-High proportions are indicative of poor-quality cells, where endogenous RNA has been lost during processing (e.g., due to cell lysis or RNA degradation). 
+- `sum`: This measures the library size of the cells, which is the total sum of counts across both genes and spike-in transcripts. We want cells to have high library sizes as this means more RNA has been successfully captured during library preparation. 
+- `detected`: This is the number of expressed features^[The number of expressed genes refers to the number of genes which have non-zero counts (ie. they have been identified in the cell at least once)] in each cell. Cells with few expressed features are likely to be of poor quality, as the diverse transcript population has not been successfull captured. 
+- `altexps_ERCC_detected`: This measures the proportion of reads which are mapped to spike-in transcipts relative to the library size of each cell. High proportions are indicative of poor-quality cells, where endogenous RNA has been lost during processing (e.g., due to cell lysis or RNA degradation). 
 The same amount of spike-in RNA to each cell, so an enrichment in spike-in counts is symptomatic of loss of endogenous RNA.
 - `subsets_Mt_percent`: This measures the proportion of reads which are mapped to mitochondrial RNA. If there is a higher than expected proportion of mitochondrial RNA this is often symptomatic of a cell which is under stress and is therefore of low quality and will not be used for the analysis. 
 
@@ -393,11 +385,6 @@ plot(
 
 Overall, most single-cell samples have performed similarly in terms of library size, number of genes detected, and percentage of reads coming from the ERCC spike-ins and mitochondria transcripts.
 As expected, the 20 cell samples typically have larger library sizes, more genes detected, and a lower percentage of reads coming from ERCC spike-ins and mitochondrial transcripts.
-
-There are some plates with a higher average percentage of reads coming from the ERCC spike-ins (LC294 and LC358) or with a subset of samples with notably larger values (LC279 and LC398).
-Similarly, there are some plates with a higher average percentage of reads coming from the mitochondrial transcripts (LC358 and LC294).
-We will investigate these futher in [Investigating plates with large ERCC percentages].
-
 For now, however, we focus on the single cell data and remove the 20-cell samples.
 
 ```{r}
@@ -414,11 +401,16 @@ colData(sce) <- DataFrame(
   row.names = colnames(sce))
 ```
 
+
+There are some plates with a higher average percentage of reads coming from the ERCC spike-ins (LC294 and LC358) or with a subset of samples with notably larger values (LC398).
+Similarly, there are some plates with a higher average percentage of reads coming from the mitochondrial transcripts (LC358 and LC294).
+We will investigate these futher in [Investigating plates with large ERCC percentages].
+
 ### Investigating plates with large ERCC and mitochondrial percentages
 
 Figure \@ref(fig:plate-map-ercc) shows the percentage of reads coming from the ERCC spike-ins by plate position, which can sometimes help identify whether a plate has come out of alignment during the sort.
 
-```{r plate-map-ercc, fig.cap = "Percentage of reads coming from ERCC spike-ins for all single-cell samples in the dataset plotted by plate position. The colour scale runs from dark blue (0% of reads coming from ERCC spike-ins) to bright yellow (50% of reads coming from ERCC spike-ins)."}
+```{r plate-map-ercc, fig.cap = "Percentage of reads coming from ERCC spike-ins for all single-cell samples in the dataset plotted by plate position. The colour scale runs from dark blue (0% of reads coming from ERCC spike-ins) to bright yellow (45% of reads coming from ERCC spike-ins) with mutant cells drawn as triangles and control cells as circles."}
 p <- lapply(levels(sce$plate_number), function(p) {
   z <- sce[, sce$plate_number == p]
   plotPlatePosition(
@@ -428,12 +420,14 @@ p <- lapply(levels(sce$plate_number), function(p) {
     point_size = 4,
     point_alpha = 1,
     theme_size = 8,
-    by_show_single = TRUE) +
+    by_show_single = TRUE,
+    shape = "genotype") +
     ggtitle(p) +
-    # TODO: Tweak limits
     scale_colour_viridis_c(
-      limits = c(0, 50),
-      breaks = seq(0, 50, 10))
+      limits = c(0, 45),
+      breaks = seq(0, 45, 10)) +
+    scale_shape_manual(values = c("Control" = 16, "Mutant" = 17)) + 
+    theme(legend.position = "none")
 })
 fig_path <- "C075_Grant_Coultas.preprocess_files/plate-map-ercc.png"
 ggsave(
@@ -445,11 +439,12 @@ ggsave(
 knitr::include_graphics(fig_path)
 ```
 
-There is no systematic trend here that suggests that any of the plates came out of alignment.
+For plate LC398, we see that there is a systematic trend of mutant cells on the right hand side of the plate having higher percentage of reads coming from the ERCC spike-ins.
+This may be due to the plate coming out of alignment and means that caution is warranted when interpreting mutant cells from this plate.
 
 Figure \@ref(fig:plate-map-mt) shows the percentage of reads coming from mitochondrial transcripts by plate position.
 
-```{r plate-map-mt, fig.cap = "Percentage of reads coming from mitochondrial transcripts for all single-cell samples in the dataset plotted by plate position. The colour scale runs from dark blue (0% of reads coming from mitochondrial transcripts) to bright yellow (50% of reads coming from mitochondrial transcripts)."}
+```{r plate-map-mt, fig.cap = "Percentage of reads coming from mitochondrial transcripts for all single-cell samples in the dataset plotted by plate position. The colour scale runs from dark blue (0% of reads coming from mitochondrial transcripts) to bright yellow (45% of reads coming from mitochondrial transcripts) with mutant cells drawn as triangles and control cells as circles."}
 p <- lapply(levels(sce$plate_number), function(p) {
   z <- sce[, sce$plate_number == p]
   plotPlatePosition(
@@ -462,9 +457,10 @@ p <- lapply(levels(sce$plate_number), function(p) {
     by_show_single = TRUE) +
     ggtitle(p) +
     scale_colour_viridis_c(
-      # TODO: Tweak limits
-      limits = c(0, 50),
-      breaks = seq(0, 50, 10))
+      limits = c(0, 45),
+      breaks = seq(0, 45, 10)) +
+    scale_shape_manual(values = c("Control" = 16, "Mutant" = 17)) + 
+    theme(legend.position = "none")
 })
 fig_path <- "C075_Grant_Coultas.preprocess_files/plate-map-mt.png"
 ggsave(
@@ -476,7 +472,7 @@ ggsave(
 knitr::include_graphics(fig_path)
 ```
 
-Again, there is no systematic trend (**TODO**: Re-visit)
+There is no systematic trend by plate position for the percentage of reads coming from mitochondrial transcripts.
 
 ## Identifying outliers by each metric
 
@@ -484,31 +480,88 @@ Outliers are defined based on the median absolute deviation (MADs) from the medi
 We remove small and large outliers for the library size and the number of expressed features, and large outliers for the spike-in proportions. 
 Removal of low-quality cells is then performed by combining the filters for all of the metrics.
 
-Due to the differences in the QC metrics by plate, we will perform our outlier removal at the plate-level.
+Due to the differences in the QC metrics by plate, we will compute our outlier thresholds at the plate-level.
+However, if an entire plate failed, outlier detection will not be able to act as an appropriate QC filter for that plate.
+In this case, it is generally better to compute a shared median and MAD from the other plates and use those estimates to obtain an appropriate filter threshold for cells in the problematic plates.
 
-```{r}
+```{r, results = "hide"}
+# NOTE: This is useful rule of thumb way to identifying problematic batches
+#       https://osca.bioconductor.org/quality-control.html#quality-control-outlier
 libsize_drop <- isOutlier(
   metric = sce$sum, 
   nmads = 3,
   type = "lower", 
   log = TRUE,
   batch = sce$plate_number)
+libsize_drop_thresholds <- attributes(libsize_drop)$thresholds["lower", ]
+libsize_drop_subset <- names(
+  libsize_drop_thresholds)[isOutlier(
+    libsize_drop_thresholds,
+    type = "lower",
+    log = TRUE)]
 feature_drop <- isOutlier(
-  metric = sce$detected,
-  nmads = 3, 
+  metric = sce$detected, 
+  nmads = 3,
   type = "lower", 
   log = TRUE,
   batch = sce$plate_number)
+feature_drop_thresholds <- attributes(feature_drop)$thresholds["lower", ]
+feature_drop_subset <- names(
+  feature_drop_thresholds)[isOutlier(
+    feature_drop_thresholds,
+    type = "lower",
+    log = TRUE)]
 spike_drop <- isOutlier(
   metric = sce$altexps_ERCC_percent, 
   nmads = 3, 
   type = "higher",
   batch = sce$plate_number)
+spike_drop_thresholds <- attributes(spike_drop)$thresholds["higher", ]
+spike_drop_subset <- names(
+  spike_drop_thresholds)[isOutlier(spike_drop_thresholds, type = "higher")]
 mito_drop <- isOutlier(
   metric = sce$subsets_Mt_percent, 
   nmads = 3, 
   type = "higher",
   batch = sce$plate_number)
+mito_drop_thresholds <- attributes(mito_drop)$thresholds["higher", ]
+mito_drop_subset <- names(
+  mito_drop_thresholds)[isOutlier(mito_drop_thresholds, type = "higher")]
+
+libsize_drop <- isOutlier(
+  metric = sce$sum, 
+  nmads = 3,
+  type = "lower", 
+  log = TRUE,
+  batch = sce$plate_number,
+  subset = !sce$plate_number %in% libsize_drop_subset)
+feature_drop <- isOutlier(
+  metric = sce$detected,
+  nmads = 3, 
+  type = "lower", 
+  log = TRUE,
+  batch = sce$plate_number,
+  subset = !sce$plate_number %in% feature_drop_subset)
+spike_drop <- isOutlier(
+  metric = sce$altexps_ERCC_percent, 
+  nmads = 3, 
+  type = "higher",
+  batch = sce$plate_number,
+  # NOTE: Force LC398 to be included in subset.
+  subset = !sce$plate_number %in% union(spike_drop_subset, "LC398"))
+mito_drop <- isOutlier(
+  metric = sce$subsets_Mt_percent, 
+  nmads = 3, 
+  type = "higher",
+  batch = sce$plate_number,
+  # NOTE: LC294 and LC358 are outliers for mito%, although Zoe says she doesn't
+  #       know of any good reason for this result. We don't `subset` these
+  #       plates because otherwise almost all cells on these plates are 
+  #       excluded. Instead, we will just keep an eye on these cells in 
+  #       downstream analysis and possible exclude mitochondrial transcripts 
+  #       from some analyses.
+  # subset = !sce$plate_number %in% mito_drop_subset
+  )
 ```
 
 The following table summarises the QC cutoffs:
@@ -536,17 +589,15 @@ qc_cutoffs_df %>%
   knitr::kable(caption = "QC cutoffs", digits = 1)
 ```
 
-The vast majority of cells are retained for most plates.
-More cells are removed based on low library size and number of expressed genes than by high percentages of ERCC transcripts or mitochondrial RNA. 
-
-The table below summarises the number of cells per plate left following removal of outliers based on the QC metrics.
-
 ```{r}
 sce_pre_QC_outlier_removal <- sce
 keep <- !(libsize_drop | feature_drop | spike_drop | mito_drop)
 sce <- sce[, keep]
 ```
 
+The table below summarises the number of cells per plate left following removal of outliers based on the QC metrics.
+The vast majority of cells are retained for most plates, with the exception of plate LC398.
+More cells are removed based high percentages of ERCC transcripts or mitochondrial RNA than on low library size and number of expressed genes.
 In total, we remove `r sum(!keep)` cells based on these QC metrics, and retain `r sum(keep)` cells.
 
 ```{r}
@@ -581,14 +632,12 @@ data.frame(
     caption = "Number of samples removed by each QC step and the number of samples remaining, ordered by the percentage of cells remaining.")
 ```
 
-**TODO:** Consider global cutoffs, too.
-
 ### Summary
 
 Finally, we look at the QC metrics for the cells remaining after outlier removal.
 Figure \@ref(fig:qcplot-post-outlier-removal-by-plate-by-mouse) shows most plates have similar QC metrics, as is to be expected following quality control.
 
-```{r qcplot-post-outlier-removal-by-plate-mouse, fig.cap = "Distribution of QC metrics for each plate in the dataset. Each point represents a cell and is colored according to whether it was discarded during the QC process.", layout = "l-page", fig.asp = 0.7}
+```{r qcplot-post-outlier-removal-by-plate-mouse, fig.cap = "Distribution of QC metrics for each plate in the dataset. Each point represents a cell and is colored according to whether it was discarded during the QC process. Note that a cell will only be kept if it passes the relevant threshold for all four QC metrics.", layout = "l-page", fig.asp = 0.7}
 sce_pre_QC_outlier_removal$keep <- keep
 
 plot_grid(
@@ -741,8 +790,6 @@ Figure \@ref(fig:topgenes-filtered) shows the most highly expressed non-mitochdo
 plotHighestExprs(sce[!grepl("^mt|^Rps|^Rpl", rownames(sce)), ], n = 50)
 ```
 
-**TODO:** Are these biologically relevant, discuss with Zoe.
-
 ## Filtering out low-abundance genes
 
 Low-abundance genes are problematic as zero or near-zero counts do not contain much information for reliable statistical inference [@bourgon2010independent].
@@ -829,7 +876,6 @@ Each value is defined as the log~2~-ratio of each count to the size factor for t
 Division by the size factor ensures that any cell-specific biases are removed.
 
 ```{r}
-# TODO: Should I be using multiBatchNorm()?
 sce <- logNormCounts(sce)
 ```
 
@@ -875,5 +921,8 @@ sessioninfo::session_info()
 
 - [x] Zoe to send me actual sample sheet for LC279.
   - We did sequence LC279 but I processed it with scPipe using what is actually the sample sheet for LC280. LC279 actually contains only control cells from a single mouse and should have a fair number of empty wells.
-- [ ] Nominally empty wells on LC279 have reads; why?
-- [ ] LC398 might be out of alignment, so interpret with care.
+- [x] Nominally empty wells on LC279 have reads; why?
+  - Issue disappeared after getting correct LC279 sample sheet.
+- [x] LC398 might be out of alignment, so interpret with care.
+- [x] Discuss high mito% on LC249 and LC258 with Zoe. We'd like to retain these cells unless there's a strong reason not to.
+  - Zoe says she doesn't know of any good reason for this result. Therefore, we will try to retain as many of these cells as possible and perhaps exclude chrM from HVGs?
