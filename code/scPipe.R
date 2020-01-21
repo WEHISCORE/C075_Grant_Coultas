@@ -393,6 +393,11 @@ saveRDS(
 
 # Create QC report -------------------------------------------------------------
 
+library(readr)
+library(plotly)
+library(DT)
+library(scran)
+library(Rtsne)
 # NOTE: Needs a fix for https://github.com/LuyiTian/scPipe/issues/100.
 dir.create(here("output", "scPipe"), recursive = TRUE)
 # NOTE: Tends to crap itself if using mclapply().
