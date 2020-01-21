@@ -1,0 +1,498 @@
+---
+title: "Merging the samples from the Grant (C075) retinal epithelial cells data set"
+description: |
+author:
+  - name: Peter Hickey 
+    url: https://peterhickey.org
+    affiliation: WEHI SCORE
+    affiliation_url: https://www.wehi.edu.au/people/shalin-naik/3310/score
+date: "`r Sys.Date()`"
+output: distill::distill_article
+editor_options: 
+  chunk_output_type: console
+bibliography: ref.bib
+---
+
+```{r setup}
+library(SingleCellExperiment)
+library(here)
+library(rmarkdown)
+library(BiocStyle)
+library(scran)
+library(janitor)
+library(ggplot2)
+library(cowplot)
+
+source(here("code", "helper_functions.R"))
+
+# NOTE: Using >= 4 cores siezes up my laptop. Can use more on RStudio server.
+options(
+  "mc.cores" = ifelse(gsub("^rstudio-[0-9]+", "", Sys.info()[["nodename"]]) ==
+                        ".hpc.wehi.edu.au", 8L, 2L))
+register(MulticoreParam(workers = getOption("mc.cores")))
+
+knitr::opts_chunk$set(fig.path = "C075_Grant_Coultas.merge_files/")
+```
+
+# Introduction
+
+Large scRNA-seq projects usually need to generate data across multiple batches due to logistical constraints. 
+However, the processing of different batches is often subject to uncontrollable differences, e.g., changes in operator, differences in reagent quality. 
+This results in systematic differences in the observed expression in cells from different batches, which we refer to as "batch effects". 
+Batch effects are problematic as they can be major drivers of heterogeneity in the data, masking the relevant biological differences and complicating interpretation of the results.
+
+Computational correction of these effects is critical for eliminating batch-to-batch variation, allowing data across multiple batches to be combined for common downstream analysis.
+
+# Preparing the data
+
+We start from the preprocessed *SingleCellExperiment* object created in ['Preprocessing the Grant (C075) retinal epithelial cells data set'](C075_Grant_Coultas.preprocess.html).
+
+```{r}
+sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.preprocessed.SCE.rds"))
+```
+
+```{r}
+# Some useful colours
+plate_number_colours <- setNames(
+  RColorBrewer::brewer.pal(nlevels(sce$plate_number), "Set2"),
+  levels(sce$plate_number))
+sample_type_colours <- setNames(
+  RColorBrewer::brewer.pal(nlevels(sce$sample_type), "Accent"),
+  levels(sce$sample_type))
+sample_type_colours <- sample_type_colours[!is.na(names(sample_type_colours))]
+genotype_colours <- setNames(
+  RColorBrewer::brewer.pal(nlevels(sce$genotype), "Set1"),
+  levels(sce$genotype))
+genotype_colours <- genotype_colours[!is.na(names(genotype_colours))]
+mouse_colours <- setNames(
+  Polychrome::dark.colors(nlevels(sce$mouse)),
+  levels(sce$mouse))
+```
+
+
+This dataset contains samples from `r nlevels(sce$plate_number)` 384-well plates, `r nlevels(sce$mouse)` mice, and `r nlevels(sce$genotype)` genotypes, summarised in Figure \@ref(fig:breakdown-by-plate-number).
+
+```{r breakdown-by-plate-number, fig.asp = 2 / 3, layout = "l-body-outset", fig.cap = "Breakdown of of the samples by plate."}
+plot_grid(
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
+      aes(x = plate_number, fill = sample_type),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = sample_type_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
+      aes(x = plate_number, fill = genotype),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = genotype_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
+      aes(x = plate_number, fill = mouse),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = mouse_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(aes(x = plate_number, fill = plate_number)) +
+    coord_flip() +
+    ylab("Number of wells") +
+    scale_fill_manual(values = plate_number_colours) +
+    theme_cowplot(font_size = 6),
+  align = "v",
+  ncol = 2)
+```
+
+Here, we will treat each plate as a 'batch', i.e. `r nlevels(sce$plate_number)` batches in total.
+
+```{r}
+sce$batch <- sce$plate_number
+# NOTE: Can reuse plate colours
+batch_colours <- plate_number_colours
+```
+
+We will merge the batches using the mutual nearest neighbours (MNN) method [@haghverdi2018batch], as implemented in the `fastMNN()` function from the `r BiocStyle::Biocpkg("scran")` R/Bioconductor package, to place them on the same coordinate system.
+The MNN approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches.
+This allows us to perform downstream procedures like dimensionality reduction and clustering without needing to model sample-to-sample variation in expression.
+
+# Feature selection
+
+## Motivation
+
+We often use scRNA-seq data in exploratory analyses to characterize heterogeneity across cells. 
+Procedures like clustering and dimensionality reduction compare cells based on their gene expression profiles, which involves aggregating per-gene differences into a single (dis)similarity metric between a pair of cells.
+The choice of genes to use in this calculation has a major impact on the behavior of the metric and the performance of downstream methods.
+We want to select genes that contain useful information about the biology of the system while removing genes that contain random noise.
+This aims to preserve interesting biological structure without the variance that obscures that structure, and to reduce the size of the data to improve computational efficiency of later steps.
+
+The simplest approach to feature selection is to select the most variable genes based on their expression across the population.
+This assumes that genuine biological differences will manifest as increased variation in the affected genes, compared to other genes that are only affected by technical noise or a baseline level of "uninteresting" biological variation (e.g., from transcriptional bursting).
+
+## Quantifying per-gene variation
+
+### Variance of the log-counts
+
+The simplest approach to quantifying per-gene variation is to simply compute the variance of the log-normalized expression values (referred to as "log-counts" for simplicity) for each gene across all cells in the population [@lun2016step].
+This has an advantage in that the feature selection is based on the same log-values that are used for later downstream steps.
+In particular, genes with the largest variances in log-values will contribute the most to the Euclidean distances between cells.
+By using log-values here, we ensure that our quantitative definition of heterogeneity is consistent throughout the entire analysis.
+
+Calculation of the per-gene variance is simple but feature selection requires modelling of the mean-variance relationship.
+
+### Quantifying technical noise
+
+To account for the mean-variance relationship, we fit a trend to the variance with respect to abundance across the ERCC spike-in transcripts.
+The premise here is that spike-ins should not be affected by biological variation, so the fitted value of the spike-in trend should represent a better estimate of the technical component for each gene.
+
+### Accounting for blocking factors
+
+Data containing multiple batches will often exhibit batch effects.
+We are usually not interested in highly variable genes (HVGs) that are driven by batch effects. 
+Rather, we want to focus on genes that are highly variable within each batch.
+This is naturally achieved by performing trend fitting and variance decomposition separately for each batch.
+
+```{r}
+dec <- modelGeneVarWithSpikes(sce, "ERCC", block = sce$batch)
+```
+
+The use of a batch-specific trend fit is useful as it accommodates differences in the mean-variance trends between batches.
+This is especially important if batches exhibit systematic technical differences, e.g., differences in coverage or in the amount of spike-in RNA added.
+
+Figure \@ref(fig:trendplots) visualizes the quality of the batch-specific trend fits and Figure \@ref(fig:trendplots-fits) highlights the need for batch-specific estimates of these fits.
+The analysis of each plate yields estimates of the biological and technical components for each gene, which are averaged across plates to take advantage of information from multiple batches.
+
+```{r trendplots, fig.cap = "Variance of normalized log-expression values for each gene in each plate, plotted against the mean log-expression. The coloured line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red).", results = "hide", fig.asp = 1 / 2, layout = "l-page"}
+xlim <- c(0, max(sapply(dec$per.block, function(x) max(x$mean))))
+ylim <- c(0, max(sapply(dec$per.block, function(x) max(x$total))))
+par(mfrow = c(2, 4))
+blocked_stats <- dec$per.block
+for (i in colnames(blocked_stats)) {
+  current <- blocked_stats[[i]]
+  plot(
+    current$mean,
+    current$total,
+    main = i,
+    pch = 16,
+    cex = 0.5,
+    xlab = "Mean of log-expression",
+    ylab = "Variance of log-expression",
+    xlim = xlim,
+    ylim = ylim)
+  curfit <- metadata(current)
+  points(curfit$mean, curfit$var, col = "red", pch = 16)
+  curve(curfit$trend(x), col = batch_colours[[i]], add = TRUE, lwd = 2) 
+}
+```
+
+```{r trendplots-fits, fig.cap = "An overlay of the trend fits from the previous figure, highlighting the need for the batch-specific trend fits. Each line is a the trend line for a particular batch (with colours matching the previous plot).", results = "hide", fig.asp = 1}
+par(mfrow = c(1, 1))
+# NOTE: 'Fake' plot with right dimensions to overlay trends.
+plot(
+  x = current$mean, 
+  y = current$total, 
+  pch = 0,
+  cex = 0.6, 
+  xlab = "Mean log-expression", 
+  ylab = "Variance of log-expression", 
+  main = "Trends", 
+  xlim = xlim, 
+  ylim = ylim,
+  col = "white")
+lapply(colnames(blocked_stats), function(b) {
+  curve(
+    metadata(dec$per.block[[b]])$trend(x), 
+    col = batch_colours[b], 
+    lwd = 1, 
+    add = TRUE)
+})
+legend(
+  "topright", 
+  legend = levels(sce$batch), 
+  col = batch_colours,
+  lwd = 1,
+  title = "Plate number",
+  ncol = 2,
+  cex = 0.8)
+```
+
+As an aside, the wave-like shape observed above is typical of the mean-variance trend for log-expression values^[The same wave is present but generally less pronounced for UMI data.].
+
+## Selecting highly variable genes
+
+Once we have quantified the per-gene variation, the next step is to select the subset of HVGs to use in downstream analyses.
+A larger subset will reduce the risk of discarding interesting biological signal by retaining more potentially relevant genes, at the cost of increasing noise from irrelevant genes that might obscure said signal.
+It is difficult to determine the optimal trade-off for any given application as noise in one context may be useful signal in another.
+For example, heterogeneity in T cell activation responses is an interesting phenomena but may be irrelevant noise in studies that only care about distinguishing the major immunophenotypes.
+
+We opt to only remove the obviously uninteresting genes with variances below the trend.
+By doing so, we avoid the need to make any judgement calls regarding what level of variation is interesting enough to retain.
+This approach represents one extreme of the bias-variance trade-off where bias is minimized at the cost of maximizing noise.
+
+```{r}
+hvg <- getTopHVGs(dec, var.threshold = 0)
+```
+
+There are `r length(hvg)` HVGs by this approach.
+Figure \@ref(fig:hvgs) shows the expression of the top-10 HVGs.
+
+```{r hvgs, fig.cap = "Violin plots of normalized log-expression values for the top-10 HVGs. Each point represents the log-expression value in a single cell."}
+library(scater)
+plotExpression(object = sce, features = hvg[1:10])
+```
+
+# Dimensionality reduction
+
+Many scRNA-seq analysis procedures involve comparing cells based on their expression values across multiple genes.
+In these applications, each individual gene represents a dimension of the data. 
+If we had a scRNA-seq data set with two genes, we could make a two-dimensional plot where each axis represents the expression of one gene and each point in the plot represents a cell.
+Dimensionality reduction extends this idea to data sets with thousands of genes where each cell’s expression profile defines its location in the high-dimensional expression space.
+
+As the name suggests, dimensionality reduction aims to reduce the number of separate dimensions in the data.
+This is possible because different genes are correlated if they are affected by the same biological process.
+Thus, we do not need to store separate information for individual genes, but can instead compress multiple features into a single dimension.
+This reduces computational work in downstream analyses, as calculations only need to be performed for a few dimensions rather than thousands of genes; reduces noise by averaging across multiple genes to obtain a more precise representation of the patterns in the data; and enables effective plotting of the data, for those of us who are not capable of visualizing more than 3 dimensions.
+
+## Principal component analysis
+
+Principal components analysis (PCA) discovers axes in high-dimensional space that capture the largest amount of variation.
+In PCA, the first axis (or "principal component", PC) is chosen such that it captures the greatest variance across cells.
+The next PC is chosen such that it is orthogonal to the first and captures the greatest remaining amount of variation, and so on.
+
+By definition, the top PCs capture the dominant factors of heterogeneity in the data set.
+Thus, we can perform dimensionality reduction by restricting downstream analyses to the top PCs.
+This strategy is simple, highly effective and widely used throughout the data sciences.
+
+When applying PCA to scRNA-seq data, our assumption is that biological processes affect multiple genes in a coordinated manner.
+This means that the earlier PCs are likely to represent biological structure as more variation can be captured by considering the correlated behaviour of many genes.
+By comparison, random technical or biological noise is expected to affect each gene independently.
+There is unlikely to be an axis that can capture random variation across many genes, meaning that noise should mostly be concentrated in the later PCs.
+This motivates the use of the earlier PCs in our downstream analyses, which concentrates the biological signal to simultaneously reduce computational work and remove noise.
+
+We perform the PCA on the log-normalized expression values.
+PCA is generally robust to random noise but an excess of it may cause the earlier PCs to capture noise instead of biological structure.
+This effect can be avoided - or at least mitigated - by restricting the PCA to a subset of HVGs, as done in [Feature selection].
+
+The choice of the number of PCs is a decision that is analogous to the choice of the number of HVGs to use.
+Using more PCs will avoid discarding biological signal in later PCs, at the cost of retaining more noise.
+
+We use the strategy of retaining all PCs until the percentage of total variation explained reaches some threshold.
+We derive a suitable value for this threshold by calculating the proportion of variance in the data that is attributed to the biological component.
+This is done using the the variance modelling results from [Quantifying per-gene variation].
+
+```{r}
+sce <- denoisePCA(sce, technical = dec, subset.row = hvg)
+```
+
+This retains `r ncol(reducedDim(sce, "PCA"))` dimensions, which represents the lower bound on the number of PCs required to retain all biological variation.
+Any fewer PCs will definitely discard some aspect of biological signal^[Note that the converse is not true, i.e., there is no guarantee that the retained PCs capture all of the signal, which is only generally possible if no dimensionality reduction is performed at all.]. 
+This approach provides a reasonable choice when we want to retain as much signal as possible while still removing some noise.
+
+# Batch correction with MNN
+
+We will merge the batches using the mutual nearest neighbours (MNN) method [@haghverdi2018batch], as implemented in the `fastMNN()` function from the `r BiocStyle::Biocpkg("batchelor")` R/Bioconductor package, to place them on the same coordinate system.
+The MNN approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches.
+This allows us to perform downstream procedures like dimensionality reduction and clustering without needing to model sample-to-sample variation in expression.
+
+## Algorithm overview
+
+Consider a cell $a$ in batch $A$, and identify the cells in batch $B$ that are nearest neighbours to $a$ in the expression space defined by the selected features.
+Repeat this for a cell $b$ in batch $B$, identifying its nearest neighbours in $A$.
+Mutual nearest neighbours are pairs of cells from different batches that belong in each other’s set of nearest neighbours.
+The reasoning is that MNN pairs represent cells from the same biological state prior to the application of a batch effect - see [@haghverdi2018batch] for full theoretical details.
+Thus, the difference between cells in MNN pairs can be used as an estimate of the batch effect, the subtraction of which yields batch-corrected values.
+
+MNN correction does not assume that the population composition is the same or known beforehand.
+This is because it learns the shared population structure via identification of MNN pairs and uses this information to obtain an appropriate estimate of the batch effect.
+Instead, the key assumption of MNN-based approaches is that the batch effect is orthogonal to the biology in high-dimensional expression space.
+Violations reduce the effectiveness and accuracy of the correction, with the most common case arising from variations in the direction of the batch effect between clusters.
+Nonetheless, the assumption is usually reasonable in practice.
+
+## Application
+
+The `r BiocStyle::Biocpkg("batchelor")` package provides an implementation of the MNN approach via the `fastMNN()` function. 
+We treat each plate as a batch and merge these in a hierarchical manner:
+
+- Merge `LC358`, `LC294`, `LC392`, and `LC280` (which all have both a mutant and control mouse)
+- Merge `LC396` and `LC398` (which share a common control mouse)
+- Merge `LC358`+`LC294`+`LC392`+`LC280` with `LC396`+`LC398` (which all have a mutant and a control mouse)
+- Merge `LC358`+`LC294`+`LC392`+`LC280`+`LC396`+`LC398` with `LC279` (which only has a control mouse)
+
+```{r, results = "hide"}
+library(batchelor)
+mnn_out <- fastMNN(
+  multiBatchNorm(sce, batch = sce$plate_number),
+  batch = sce$plate_number,
+  cos.norm = FALSE,
+  d = ncol(reducedDim(sce, "PCA")),
+  # auto.merge = TRUE,
+  merge.order = list(
+    list("LC358", "LC294", "LC392", "LC280"),
+    list("LC396", "LC398"),
+    list("LC279")),
+  subset.row = hvg)
+metadata(mnn_out)$merge.info
+metadata(mnn_out)$merge.info$lost.var
+```
+
+We store the MNN-corrected values for use in downstream analyses, such as clustering.
+
+```{r}
+reducedDim(sce, "corrected") <- reducedDim(mnn_out)
+```
+
+# Visual inspection of merge results
+
+We use uniform manifold approximation and projection (UMAP) plots [@McInnes2018-hy] to perform further dimensionality reduction for visualization.
+In the uncorrected data, there is a clear association between batch (plate number) and UMAP co-ordinates (Figure \@ref(fig:beforeplot-umap)).
+
+**TODO:** Re-visit above if changing HVGs
+
+```{r beforeplot-umap, fig.cap = "UMAP plot of the data set before MNN correction. Each point represents a cell with the colour explained in the legend."}
+set.seed(572968)
+uncorrected <- runUMAP(sce, dimred = "PCA")
+uncorrected_umap <- cbind(
+  data.frame(
+    x = reducedDim(uncorrected, "UMAP")[, 1],
+    y = reducedDim(uncorrected, "UMAP")[, 2]),
+  as.data.frame(colData(uncorrected)))
+
+ggplot(aes(x = x, y = y), data = uncorrected_umap) +
+  geom_point(aes(colour = plate_number), size = 1) +
+  scale_colour_manual(values = plate_number_colours) +
+  cowplot::theme_cowplot(font_size = 10) + 
+  ggtitle("Original") +
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+```
+
+After correction, cells from most batches are merged together in the majority of subpopulations, consistent with the removal of the inter-batch differences, which simplifies annotation and interpretation in downstream analyses.
+However, there is a notable exception of a subpopulation of cells on plats `LC294` and `LC358`.
+
+```{r afterplot-umap, fig.cap = "UMAP plot of the data set after MNN correction. Each point represents a cell with the colour explained in the legend."}
+set.seed(55788)
+sce <- runUMAP(sce, dimred = "corrected")
+corrected_umap <- cbind(
+  data.frame(
+    x = reducedDim(sce, "UMAP")[, 1],
+    y = reducedDim(sce, "UMAP")[, 2]),
+  as.data.frame(colData(sce)))
+
+ggplot(aes(x = x, y = y), data = corrected_umap) +
+    geom_point(aes(colour = plate_number), size = 1) +
+    scale_colour_manual(values = plate_number_colours) +
+    cowplot::theme_cowplot(font_size = 10) + 
+    ggtitle("Original") +
+    xlab("Dimension 1") + 
+    ylab("Dimension 2")
+```
+
+Now that we have adjusted for technical differences between samples, we can start to explore what biological factors might be driving the UMAP results.
+
+```{r afterplot-umap-genotype, fig.cap = "UMAP plot of the data set after MNN correction, highlighting the effect of genotype. Each panel highlights a particular genotype with cells highlighted by genotype or grey if they are not from the featured genotype."}
+bg <- dplyr::select(corrected_umap, -genotype)
+ggplot(aes(x = x, y = y), data = corrected_umap) +
+  geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 1) +
+  geom_point(aes(colour = batch), alpha = 1, size = 1) +
+  scale_fill_manual(values = batch_colours, name = "batch") + 
+  scale_colour_manual(values = batch_colours, name = "batch") +
+  theme_cowplot(font_size = 10) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2") +
+  facet_grid(. ~ genotype)
+```
+
+**TODO:** Write a summary
+
+We expect to see the circulating hybrid cells in different locations on the UMAP to the CD45+ control cells, as this would indicate that there are differences between the cell types. 
+If this was the case, we would see grey areas on each of the UMAP plots which is indicative of that cell type not being in that area of the UMAP. 
+Since both cell types occupy all areas of the UMAP, at this stage we cannot identify differences between the two cell types. 
+
+Figures \@ref(fig:umap-with-facs) and \@ref(fig:tsne-with-facs) overlay the index sorting data on the UMAP and TSNE plots respectively. 
+
+```{r umap-with-facs, fig.asp = 8/2, fig.cap = "Overlay of index sorting data on UMAP plot. For each marker, the left-hand plot shows the 'raw' or 'pseudo-logged' fluorescence intensity and the right-side plots the 'scaled rank' of the raw intensity. The pseudo-log transformation is a transformation mapping numbers to a signed logarithmic scale with a smooth transition to linear scale around 0. This transformation is commonly used when plotting fluorescence intensities from FACS. The scaled rank is applied within each patient and assigns the maximum fluorescence intensity a value of one and the minimum fluorescence intensities a value of zero. It can be thought of as a crude normalization of the FACS data that allows us to compare fluorescence intensities from different patients.", layout = "l-page"}
+facs_markers <- grep(
+  "^B|^V|^R|^Y|^FSC|^SSC",
+  colnames(colData(sce)),
+  value = TRUE)
+
+p <- lapply(facs_markers, function(m) {
+  new_umap <- corrected_umap[!is.na(dplyr::select(corrected_umap, m)),]
+  p1 <- ggplot(aes(x = x, y = y), data = new_umap) +
+    geom_point(aes_string(colour = m, fill = m), alpha = 1, size = 0.2) +
+    scale_fill_viridis_c(trans = ifelse(
+      grepl("^FSC|^SSC", m), 
+      "identity",
+      scales::pseudo_log_trans(sigma = 150 / 2)),
+      breaks = c(0, 10, 100, 1000, 10000, 100000),
+      name = "") +
+    scale_colour_viridis_c(trans = ifelse(
+      grepl("^FSC|^SSC", m), 
+      "identity",
+      scales::pseudo_log_trans(sigma = 150 / 2)),
+      breaks = c(0, 10, 100, 1000, 10000, 100000),
+      name = "") +
+    theme_cowplot(font_size = 8) + 
+    xlab("Dimension 1") + 
+    ylab("Dimension 2") + 
+    ggtitle(ifelse(grepl("^FSC|^SSC", m), "Raw", "Pseudo-logged"), m) + 
+    facet_grid(. ~ genotype)
+  
+  new_umap$scaled_rank <- as.data.frame(colData(sce[, !is.na(sce[[m]])])) %>%
+    dplyr::group_by(plate_number) %>%
+    dplyr::mutate(
+      rank = rank(!!sym(m), na.last = "keep"),
+      max_rank = max(rank, na.rm = TRUE),
+      scaled_rank = rank / max_rank) %>%
+    dplyr::pull(scaled_rank)
+  
+  p2 <- ggplot(aes(x = x, y = y), data = new_umap) +
+    geom_point(aes(colour = scaled_rank, fill = scaled_rank), alpha = 1, size = 0.2) +
+    scale_fill_viridis_c(name = "") +
+    scale_colour_viridis_c(name = "") +
+    theme_cowplot(font_size = 8) + 
+    xlab("Dimension 1") + 
+    ylab("Dimension 2") + 
+    ggtitle("Scaled rank", m) +
+    facet_grid(. ~ genotype)
+  list(p1, p2)
+})
+multiplot(
+  plotlist = unlist(p, recursive = FALSE),
+  layout = matrix(seq_len(length(p) * 2), ncol = 2, byrow = TRUE))
+```
+
+# Concluding remarks
+
+```{r}
+saveRDS(
+  sce,
+  here("data", "SCEs", "C075_Grant_Coultas.merged.SCE.rds"),
+  compress = "xz")
+```
+
+The processed *SingleCellExperiment* object is available (see [`data/SCEs/C075_Grant_Coultas.merged.SCE.rds`](../data/SCEs/C075_Grant_Coultas.merged.SCE.rds)).
+This will be used in downstream analyses, e.g., annotating cell types, differential expression analysis between conditions within each cluster, and differential abundance analyses between conditions for each cluster.
+
+# Additional information {.appendix}
+
+The following are available on request:
+
+- Full CSV tables of any data presented.
+- PDF/PNG files of any static plots.
+
+# Session info {.appendix}
+
+The analysis and this document were prepared using the following software:
+
+```{r}
+sessioninfo::session_info()
+```
+
+# TODOs
+
+- [ ] What are the sex of the mice? Can estimate from `plotExpression(sce, "Xist", x = "plate_number.mouse")` and have asked Zoe for info.
