@@ -6,13 +6,13 @@ navbar:
     - text: "Introduction"
       href: index.html
     - text: "Preprocessing"
-      href: C075_Grant_Coultas_preprocess.html
+      href: C075_Grant_Coultas.preprocess.html
     - text: "Merging batches"
-      href: C075_Grant_Coultas_merge.html
+      href: C075_Grant_Coultas.merge.html
     - text: "Annotating cells"
-      href: C075_Grant_Coultas_annotate.html
+      href: C075_Grant_Coultas.annotate.html
     - text: "Differential analyses"
-      href: C075_Grant_Coultas_multi-sample_comparisons.html
+      href: C075_Grant_Coultas.multi-sample_comparisons.html
     - text: "Supplementary files"
       menu:
         - text: "FastQC reports"
