@@ -61,12 +61,15 @@ sample_type_colours <- setNames(
   levels(sce$sample_type))
 sample_type_colours <- sample_type_colours[!is.na(names(sample_type_colours))]
 genotype_colours <- setNames(
-  RColorBrewer::brewer.pal(nlevels(sce$genotype), "Set1"),
+  RColorBrewer::brewer.pal(4, "Set1")[3:4],
   levels(sce$genotype))
 genotype_colours <- genotype_colours[!is.na(names(genotype_colours))]
 mouse_colours <- setNames(
   Polychrome::dark.colors(nlevels(sce$mouse)),
   levels(sce$mouse))
+sex_colours <- setNames(
+  RColorBrewer::brewer.pal(4, "Set1")[1:2],
+  levels(sce$sex))
 ```
 
 
@@ -351,6 +354,8 @@ We use uniform manifold approximation and projection (UMAP) plots [@McInnes2018-
 In the uncorrected data, there is a clear association between batch (plate number) and UMAP co-ordinates (Figure \@ref(fig:beforeplot-umap)).
 
 **TODO:** Re-visit above if changing HVGs
+
+**TODO:** Does sex explain separation in UMAP (preliminary results say, no).
 
 ```{r beforeplot-umap, fig.cap = "UMAP plot of the data set before MNN correction. Each point represents a cell with the colour explained in the legend."}
 set.seed(572968)

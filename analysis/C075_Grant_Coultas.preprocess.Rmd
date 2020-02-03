@@ -47,11 +47,18 @@ sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.scPipe.SCE.rds"))
 Cell-based annotations are included in the *colData* of the *SingleCellExperiment*.
 For our analysis, we will only retain relevant metadata fields.
 
-In particular, we keep the plate number (`plate_number`), well position (`well_position`), the sample type (`sample_type`), the genotype (`genotype`), and the mouse (`mouse`), and the sequencing run (`sequencing_run`).
+In particular, we keep the plate number (`plate_number`), well position (`well_position`), the sample type (`sample_type`), the genotype (`genotype`), and the mouse (`mouse`), the sex of the mouse (`sex`), and the sequencing run (`sequencing_run`).
 
 We also include the FACS data used for gating and index sorting.
 
 ```{r}
+mouse_sex <- read.csv(
+  here("data", "sample_sheets", "mouse_sex.csv"),
+  header = FALSE,
+  comment.char = "",
+  stringsAsFactors = FALSE)
+colnames(mouse_sex) <- c("mouse", "sex")
+
 # Construct new_colData
 new_colData <- DataFrame(
   plate_number = factor(sce$plate_number),
@@ -65,6 +72,10 @@ new_colData <- DataFrame(
       " ",
       "",
       sub("(Control|Mutant) sample", "", sce$cell_type_descriptor))))
+new_colData[["sex"]] <- dplyr::inner_join(
+  dplyr::tibble(mouse = new_colData$mouse), mouse_sex) %>%
+  dplyr::pull(sex) %>%
+  factor()
 # NOTE: The FACS data column names all start with 'B', 'V', 'Y', 'R', 'FSC' or
 #       'SSC'.
 facs_markers <- grep(
@@ -86,12 +97,15 @@ sample_type_colours <- setNames(
   levels(sce$sample_type))
 sample_type_colours <- sample_type_colours[!is.na(names(sample_type_colours))]
 genotype_colours <- setNames(
-  RColorBrewer::brewer.pal(nlevels(sce$genotype), "Set1"),
+  RColorBrewer::brewer.pal(4, "Set1")[3:4],
   levels(sce$genotype))
 genotype_colours <- genotype_colours[!is.na(names(genotype_colours))]
 mouse_colours <- setNames(
   Polychrome::dark.colors(nlevels(sce$mouse)),
   levels(sce$mouse))
+sex_colours <- setNames(
+  RColorBrewer::brewer.pal(4, "Set1")[1:2],
+  levels(sce$sex))
 ```
 
 ### Summarising the data
@@ -100,7 +114,7 @@ This dataset contains samples from `r nlevels(sce$plate_number)` 384-well plates
 Figure \@ref(fig:breakdown-by-plate-number) shows that most plates have cells from a knockout and a wildtype mouse with each pair of mice on a plate are from the same sibship^[Mouse `#1824` acts as a control sample on two plates.].
 The exception is the initial pilot plate, LC279, which has cells from a single control mouse.
 
-```{r breakdown-by-plate-number, fig.asp = 2 / 3, layout = "l-body-outset", fig.cap = "Breakdown of of the samples by plate."}
+```{r breakdown-by-plate-number, fig.asp = 1 / 3, layout = "l-body-outset", fig.cap = "Breakdown of of the samples by plate."}
 plot_grid(
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
@@ -127,13 +141,21 @@ plot_grid(
     scale_fill_manual(values = mouse_colours) +
     theme_cowplot(font_size = 6),
   ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
+      aes(x = plate_number, fill = sex),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = sex_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
     geom_bar(aes(x = plate_number, fill = plate_number)) +
     coord_flip() +
     ylab("Number of wells") +
     scale_fill_manual(values = plate_number_colours) +
     theme_cowplot(font_size = 6),
   align = "v",
-  ncol = 2)
+  ncol = 3)
 ```
 
 The complete metadata table (excluding FACS data) is shown below.
@@ -561,7 +583,7 @@ mito_drop <- isOutlier(
   #       downstream analysis and possible exclude mitochondrial transcripts 
   #       from some analyses.
   # subset = !sce$plate_number %in% mito_drop_subset
-  )
+)
 ```
 
 The following table summarises the QC cutoffs:
