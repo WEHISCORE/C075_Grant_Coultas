@@ -71,7 +71,8 @@ new_colData <- DataFrame(
     gsub(
       " ",
       "",
-      sub("(Control|Mutant) sample", "", sce$cell_type_descriptor))))
+      sub("(Control|Mutant) sample", "", sce$cell_type_descriptor))),
+  row.names = colnames(sce))
 new_colData[["sex"]] <- dplyr::inner_join(
   dplyr::tibble(mouse = new_colData$mouse), mouse_sex) %>%
   dplyr::pull(sex) %>%
@@ -422,7 +423,6 @@ colData(sce) <- DataFrame(
   }),
   row.names = colnames(sce))
 ```
-
 
 There are some plates with a higher average percentage of reads coming from the ERCC spike-ins (LC294 and LC358) or with a subset of samples with notably larger values (LC398).
 Similarly, there are some plates with a higher average percentage of reads coming from the mitochondrial transcripts (LC358 and LC294).
