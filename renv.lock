@@ -364,6 +364,12 @@
       "Repository": "CRAN",
       "Hash": "543776ae6848fde2f48ff3816d0628bc"
     },
+    "batchelor": {
+      "Package": "batchelor",
+      "Version": "1.2.4",
+      "Source": "Bioconductor",
+      "Hash": "a8d0dc0d9bb3afcd93cfeafc8e4234ba"
+    },
     "beachmat": {
       "Package": "beachmat",
       "Version": "2.2.1",
@@ -446,11 +452,23 @@
       "Repository": "CRAN",
       "Hash": "08cf4045c149a0f0eaf405324c7495bd"
     },
+    "colorblindr": {
+      "Package": "colorblindr",
+      "Version": "0.1.0",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "colorblindr",
+      "RemoteUsername": "clauswilke",
+      "RemoteRef": "master",
+      "RemoteSha": "1ac3d4d62dad047b68bb66c06cee927a4517d678",
+      "Hash": "b945174cdc34bfe058f4ab6dc69029fe"
+    },
     "colorspace": {
       "Package": "colorspace",
       "Version": "1.4-1",
       "Source": "Repository",
-      "Repository": "R-Forge",
+      "Repository": "CRAN",
       "Hash": "6b436e95723d1f0e861224dd9b094dfb"
     },
     "cowplot": {
@@ -888,6 +906,13 @@
       "Source": "Bioconductor",
       "Hash": "97c1a688b1dd53dc9469ab3122fa8161"
     },
+    "pheatmap": {
+      "Package": "pheatmap",
+      "Version": "1.0.12",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "db1fb0021811b6693741325bbe916e58"
+    },
     "pillar": {
       "Package": "pillar",
       "Version": "1.4.3",
@@ -1101,6 +1126,12 @@
       "Version": "1.8.0",
       "Source": "Bioconductor",
       "Hash": "96dbe230d12477825fb3768b2fa4c3a5"
+    },
+    "scRNAseq": {
+      "Package": "scRNAseq",
+      "Version": "2.0.2",
+      "Source": "Bioconductor",
+      "Hash": "504370dd53d27893fab340720029fbb9"
     },
     "scales": {
       "Package": "scales",
