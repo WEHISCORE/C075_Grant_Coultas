@@ -56,10 +56,6 @@ sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.preprocessed.SCE.rds"))
 plate_number_colours <- setNames(
   RColorBrewer::brewer.pal(nlevels(sce$plate_number), "Set2"),
   levels(sce$plate_number))
-sample_type_colours <- setNames(
-  RColorBrewer::brewer.pal(nlevels(sce$sample_type), "Accent"),
-  levels(sce$sample_type))
-sample_type_colours <- sample_type_colours[!is.na(names(sample_type_colours))]
 genotype_colours <- setNames(
   RColorBrewer::brewer.pal(4, "Set1")[3:4],
   levels(sce$genotype))
@@ -77,14 +73,6 @@ This dataset contains samples from `r nlevels(sce$plate_number)` 384-well plates
 
 ```{r breakdown-by-plate-number, fig.asp = 2 / 3, layout = "l-body-outset", fig.cap = "Breakdown of of the samples by plate."}
 plot_grid(
-  ggplot(as.data.frame(colData(sce))) + 
-    geom_bar(
-      aes(x = plate_number, fill = sample_type),
-      position = position_fill(reverse = TRUE)) +
-    coord_flip() +
-    ylab("Frequency") +
-    scale_fill_manual(values = sample_type_colours) +
-    theme_cowplot(font_size = 6),
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
       aes(x = plate_number, fill = genotype),
@@ -169,10 +157,10 @@ This is especially important if batches exhibit systematic technical differences
 Figure \@ref(fig:trendplots) visualizes the quality of the batch-specific trend fits and Figure \@ref(fig:trendplots-fits) highlights the need for batch-specific estimates of these fits.
 The analysis of each plate yields estimates of the biological and technical components for each gene, which are averaged across plates to take advantage of information from multiple batches.
 
-```{r trendplots, fig.cap = "Variance of normalized log-expression values for each gene in each plate, plotted against the mean log-expression. The coloured line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red).", results = "hide", fig.asp = 1 / 2, layout = "l-page"}
+```{r trendplots, fig.cap = "Variance of normalized log-expression values for each gene in each plate, plotted against the mean log-expression. The coloured line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red).", results = "hide", fig.asp = 1, layout = "l-page"}
 xlim <- c(0, max(sapply(dec$per.block, function(x) max(x$mean))))
 ylim <- c(0, max(sapply(dec$per.block, function(x) max(x$total))))
-par(mfrow = c(2, 4))
+par(mfrow = c(3, 3))
 blocked_stats <- dec$per.block
 for (i in colnames(blocked_stats)) {
   current <- blocked_stats[[i]]
@@ -353,10 +341,6 @@ reducedDim(sce, "corrected") <- reducedDim(mnn_out)
 We use uniform manifold approximation and projection (UMAP) plots [@McInnes2018-hy] to perform further dimensionality reduction for visualization.
 In the uncorrected data, there is a clear association between batch (plate number) and UMAP co-ordinates (Figure \@ref(fig:beforeplot-umap)).
 
-**TODO:** Re-visit above if changing HVGs
-
-**TODO:** Does sex explain separation in UMAP (preliminary results say, no).
-
 ```{r beforeplot-umap, fig.cap = "UMAP plot of the data set before MNN correction. Each point represents a cell with the colour explained in the legend."}
 set.seed(572968)
 uncorrected <- runUMAP(sce, dimred = "PCA")
@@ -376,7 +360,7 @@ ggplot(aes(x = x, y = y), data = uncorrected_umap) +
 ```
 
 After correction, cells from most batches are merged together in the majority of subpopulations, consistent with the removal of the inter-batch differences, which simplifies annotation and interpretation in downstream analyses.
-However, there is a notable exception of a subpopulation of cells on plats `LC294` and `LC358`.
+However, Figures \@ref(fig:afterplot-umap) and \@ref(fig:afterplot-umap-facetted) show that there is a notable subpopulation of cells on plates `LC294` and `LC358` which are still somewhat separated from the main group of cells.
 
 ```{r afterplot-umap, fig.cap = "UMAP plot of the data set after MNN correction. Each point represents a cell with the colour explained in the legend."}
 set.seed(55788)
@@ -388,36 +372,70 @@ corrected_umap <- cbind(
   as.data.frame(colData(sce)))
 
 ggplot(aes(x = x, y = y), data = corrected_umap) +
-    geom_point(aes(colour = plate_number), size = 1) +
-    scale_colour_manual(values = plate_number_colours) +
-    cowplot::theme_cowplot(font_size = 10) + 
-    ggtitle("Original") +
-    xlab("Dimension 1") + 
-    ylab("Dimension 2")
+  geom_point(aes(colour = plate_number), size = 1) +
+  scale_colour_manual(values = plate_number_colours) +
+  cowplot::theme_cowplot(font_size = 10) + 
+  ggtitle("Original") +
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+```
+
+```{r afterplot-umap-facetted, fig.cap = "UMAP plot of the data set after MNN correction, highlighting the effect of plate number. Each panel highlights a particular plate number with cells coloured if they are from the featured plate number or grey otherwise.", fig.asp = 2}
+bg <- dplyr::select(corrected_umap, -plate_number)
+ggplot(aes(x = x, y = y), data = corrected_umap) +
+  geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 0.5) +
+  geom_point(aes(colour = plate_number), alpha = 1, size = 1) +
+  scale_fill_manual(values = plate_number_colours, name = "batch") + 
+  scale_colour_manual(values = plate_number_colours, name = "batch") +
+  theme_cowplot(font_size = 10) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2") +
+  facet_wrap(. ~ plate_number, ncol = 2)
 ```
 
 Now that we have adjusted for technical differences between samples, we can start to explore what biological factors might be driving the UMAP results.
+Figures \@ref(fig:afterplot-umap-genotype) to \@ref(fig:afterplot-umap-mouse) suggests that any differences between the genotypes may be dominated by differences between mice (even those of the same genotype and sex) or by differences between plates.
 
 ```{r afterplot-umap-genotype, fig.cap = "UMAP plot of the data set after MNN correction, highlighting the effect of genotype. Each panel highlights a particular genotype with cells highlighted by genotype or grey if they are not from the featured genotype."}
 bg <- dplyr::select(corrected_umap, -genotype)
 ggplot(aes(x = x, y = y), data = corrected_umap) +
-  geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 1) +
-  geom_point(aes(colour = batch), alpha = 1, size = 1) +
-  scale_fill_manual(values = batch_colours, name = "batch") + 
-  scale_colour_manual(values = batch_colours, name = "batch") +
+  geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 0.5) +
+  geom_point(aes(colour = genotype), alpha = 1, size = 1) +
+  scale_fill_manual(values = genotype_colours, name = "batch") + 
+  scale_colour_manual(values = genotype_colours, name = "batch") +
   theme_cowplot(font_size = 10) + 
   xlab("Dimension 1") + 
   ylab("Dimension 2") +
   facet_grid(. ~ genotype)
 ```
 
-**TODO:** Write a summary
+```{r afterplot-umap-sex, fig.cap = "UMAP plot of the data set after MNN correction, highlighting the effect of sex. Each panel highlights a particular genotype with cells highlighted by genotype or grey if they are not from the featured sex"}
+bg <- dplyr::select(corrected_umap, -sex)
+ggplot(aes(x = x, y = y), data = corrected_umap) +
+  geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 0.5) +
+  geom_point(aes(colour = sex), alpha = 1, size = 1) +
+  scale_fill_manual(values = sex_colours, name = "batch") + 
+  scale_colour_manual(values = sex_colours, name = "batch") +
+  theme_cowplot(font_size = 10) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2") +
+  facet_grid(. ~ sex)
+```
 
-We expect to see the circulating hybrid cells in different locations on the UMAP to the CD45+ control cells, as this would indicate that there are differences between the cell types. 
-If this was the case, we would see grey areas on each of the UMAP plots which is indicative of that cell type not being in that area of the UMAP. 
-Since both cell types occupy all areas of the UMAP, at this stage we cannot identify differences between the two cell types. 
+```{r afterplot-umap-mouse, fig.cap = "UMAP plot of the data set after MNN correction, highlighting the effect of sex. Each panel highlights a particular genotype with cells highlighted by genotype or grey if they are not from the featured sex", fig.asp = 4 / 3}
+bg <- dplyr::select(corrected_umap, -mouse)
+ggplot(aes(x = x, y = y), data = corrected_umap) +
+  geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 0.5) +
+  geom_point(aes(colour = mouse), alpha = 1, size = 1) +
+  scale_fill_manual(values = mouse_colours, name = "mouse") + 
+  scale_colour_manual(values = mouse_colours, name = "mouse") +
+  theme_cowplot(font_size = 10) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2") +
+  facet_wrap(. ~ mouse, ncol = 3)
+```
 
-Figures \@ref(fig:umap-with-facs) and \@ref(fig:tsne-with-facs) overlay the index sorting data on the UMAP and TSNE plots respectively. 
+Figure \@ref(fig:umap-with-facs) overlays the index sorting data on the UMAP plot. 
 
 ```{r umap-with-facs, fig.asp = 8/2, fig.cap = "Overlay of index sorting data on UMAP plot. For each marker, the left-hand plot shows the 'raw' or 'pseudo-logged' fluorescence intensity and the right-side plots the 'scaled rank' of the raw intensity. The pseudo-log transformation is a transformation mapping numbers to a signed logarithmic scale with a smooth transition to linear scale around 0. This transformation is commonly used when plotting fluorescence intensities from FACS. The scaled rank is applied within each patient and assigns the maximum fluorescence intensity a value of one and the minimum fluorescence intensities a value of zero. It can be thought of as a crude normalization of the FACS data that allows us to compare fluorescence intensities from different patients.", layout = "l-page"}
 facs_markers <- grep(
@@ -497,7 +515,3 @@ The analysis and this document were prepared using the following software:
 ```{r}
 sessioninfo::session_info()
 ```
-
-# TODOs
-
-- [ ] What are the sex of the mice? Can estimate from `plotExpression(sce, "Xist", x = "plate_number.mouse")` and have asked Zoe for info.
