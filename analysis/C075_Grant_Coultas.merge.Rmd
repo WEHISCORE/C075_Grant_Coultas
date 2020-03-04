@@ -68,7 +68,6 @@ sex_colours <- setNames(
   levels(sce$sex))
 ```
 
-
 This dataset contains samples from `r nlevels(sce$plate_number)` 384-well plates, `r nlevels(sce$mouse)` mice, and `r nlevels(sce$genotype)` genotypes, summarised in Figure \@ref(fig:breakdown-by-plate-number).
 
 ```{r breakdown-by-plate-number, fig.asp = 2 / 3, layout = "l-body-outset", fig.cap = "Breakdown of of the samples by plate."}
