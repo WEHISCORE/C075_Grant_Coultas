@@ -432,7 +432,7 @@ We will investigate these futher in [Investigating plates with large ERCC percen
 
 Figure \@ref(fig:plate-map-ercc) shows the percentage of reads coming from the ERCC spike-ins by plate position, which can sometimes help identify whether a plate has come out of alignment during the sort.
 
-```{r plate-map-ercc, fig.cap = "Percentage of reads coming from ERCC spike-ins for all single-cell samples in the dataset plotted by plate position. The colour scale runs from dark blue (0% of reads coming from ERCC spike-ins) to bright yellow (45% of reads coming from ERCC spike-ins) with mutant cells drawn as triangles and control cells as circles."}
+```{r plate-map-ercc, fig.cap = "Percentage of reads coming from ERCC spike-ins for all single-cell samples in the dataset plotted by plate position. The colour scale runs from dark blue (0% of reads coming from ERCC spike-ins) to bright yellow (50% of reads coming from ERCC spike-ins) with mutant cells drawn as triangles and control cells as circles."}
 p <- lapply(levels(sce$plate_number), function(p) {
   z <- sce[, sce$plate_number == p]
   plotPlatePosition(
@@ -445,9 +445,14 @@ p <- lapply(levels(sce$plate_number), function(p) {
     by_show_single = TRUE,
     shape = "genotype") +
     ggtitle(p) +
+    # NOTE: plotPlatePosition() sometimes uses `colour` and other times `fill` 
+    #       as the aesthetic. Unsure why, but just fix both scales.
     scale_colour_viridis_c(
-      limits = c(0, 45),
-      breaks = seq(0, 45, 10)) +
+      limits = c(0, 50),
+      breaks = seq(0, 50, 10)) +
+    scale_fill_viridis_c(
+      limits = c(0, 50),
+      breaks = seq(0, 50, 10)) +
     scale_shape_manual(values = c("Control" = 16, "Mutant" = 17)) + 
     theme(legend.position = "none")
 })
@@ -466,7 +471,7 @@ This may be due to the plate coming out of alignment and means that caution is w
 
 Figure \@ref(fig:plate-map-mt) shows the percentage of reads coming from mitochondrial transcripts by plate position.
 
-```{r plate-map-mt, fig.cap = "Percentage of reads coming from mitochondrial transcripts for all single-cell samples in the dataset plotted by plate position. The colour scale runs from dark blue (0% of reads coming from mitochondrial transcripts) to bright yellow (45% of reads coming from mitochondrial transcripts) with mutant cells drawn as triangles and control cells as circles."}
+```{r plate-map-mt, fig.cap = "Percentage of reads coming from mitochondrial transcripts for all single-cell samples in the dataset plotted by plate position. The colour scale runs from dark blue (0% of reads coming from mitochondrial transcripts) to bright yellow (50% of reads coming from mitochondrial transcripts) with mutant cells drawn as triangles and control cells as circles."}
 p <- lapply(levels(sce$plate_number), function(p) {
   z <- sce[, sce$plate_number == p]
   plotPlatePosition(
@@ -478,9 +483,14 @@ p <- lapply(levels(sce$plate_number), function(p) {
     theme_size = 8,
     by_show_single = TRUE) +
     ggtitle(p) +
+    # NOTE: plotPlatePosition() sometimes uses `colour` and other times `fill` 
+    #       as the aesthetic. Unsure why, but just fix both scales.
     scale_colour_viridis_c(
-      limits = c(0, 45),
-      breaks = seq(0, 45, 10)) +
+      limits = c(0, 50),
+      breaks = seq(0, 50, 10)) +
+    scale_fill_viridis_c(
+      limits = c(0, 50),
+      breaks = seq(0, 50, 10)) +
     scale_shape_manual(values = c("Control" = 16, "Mutant" = 17)) + 
     theme(legend.position = "none")
 })
