@@ -7,7 +7,7 @@ author:
     affiliation: Single Cell Open Research Endeavour (SCORE), WEHI
     affiliation_url: https://www.wehi.edu.au/people/shalin-naik/3310/score
 date: "`r Sys.Date()`"
-output: radix::radix_article
+output: distill::distill_article
 editor_options: 
   chunk_output_type: console
 bibliography: ref.bib
@@ -171,7 +171,6 @@ scater::plotMDS(
 ```
 
 ```{r mds-with-plate-number, fig.cap = "Pseudobulk-level multidimensional scaling (MDS) plot. Each point represents one cluster-sample instance; points are colored by plate number and shaped by group ID."}
-# TODO: Looks like the same separation of samples as we saw in the UMAP.
 scater::plotMDS(
   summed,
   colour_by = "mouse",
@@ -190,11 +189,14 @@ for (i in levels(summed$label)) {
   y <- DGEList(counts(current), samples = colData(current))
   discarded <- isOutlier(y$samples$lib.size, log = TRUE, type = "lower", nmads = 3)
   y <- y[, !discarded]
-  keep <- filterByExpr(y, group = current$Treatment)
+  keep <- filterByExpr(y, group = current$genotype)
   y <- y[keep, ]
   y <- calcNormFactors(y)
-  design <- model.matrix(~plate_number + genotype, y$samples)
-  colnames(design) <- sub("plate_number|genotype", "", colnames(design))
+  design <- model.matrix(~factor(plate_number) + genotype, y$samples)
+  colnames(design) <- sub(
+    "factor\\(plate_number\\)|genotype",
+    "",
+    colnames(design))
   if (qr(design)$rank == nrow(design) ||
       qr(design)$rank < ncol(design)) {
     # Skipping labels without contrasts or without 
@@ -392,7 +394,7 @@ dev.off()
 
 The [`output/DEGs/cluster_labels/`](../output/DEGs/cluster_labels/) directory also contains plots of expression values for all cells in a given cluster for the cluster-specific differentially expressed genes ($FDR < 0.05$; up to 100 genes shown).
 
-```{r}
+```{r, results = "hide"}
 library(Hmisc) # Needed for stat_summary()
 for (label in names(degs_mutant_vs_control)) {
   degs <- degs_mutant_vs_control[[label]]
@@ -506,7 +508,6 @@ scater::plotMDS(
 ```
 
 ```{r mds-ignoring-plate-number, fig.cap = "Pseudobulk-level multidimensional scaling (MDS) plot. Each point represents one cluster-sample instance; points are colored by plate number and shaped by group ID."}
-# TODO: Looks like the same separation of samples as we saw in the UMAP.
 scater::plotMDS(
   summed,
   colour_by = "mouse",
@@ -525,11 +526,14 @@ for (i in levels(summed$label)) {
   y <- DGEList(counts(current), samples = colData(current))
   discarded <- isOutlier(y$samples$lib.size, log = TRUE, type = "lower", nmads = 3)
   y <- y[, !discarded]
-  keep <- filterByExpr(y, group = current$Treatment)
+  keep <- filterByExpr(y, group = current$genotype)
   y <- y[keep, ]
   y <- calcNormFactors(y)
-  design <- model.matrix(~plate_number + genotype, y$samples)
-  colnames(design) <- sub("plate_number|genotype", "", colnames(design))
+  design <- model.matrix(~factor(plate_number) + genotype, y$samples)
+  colnames(design) <- sub(
+    "factor\\(plate_number\\)|genotype",
+    "",
+    colnames(design))
   if (qr(design)$rank == nrow(design) ||
       qr(design)$rank < ncol(design)) {
     # Skipping labels without contrasts or without 
@@ -598,7 +602,7 @@ degs_mutant_vs_control <- lapply(
 names(degs_mutant_vs_control) <- names(de_results)
 ```
 
-Figure \@ref(fig:degs-heatmap-ignoring-clustesrs) is a heatmap of the pseudobulk-level log-expression values the differentially expressed genes between mutant and control cells.
+Figure \@ref(fig:degs-heatmap-ignoring-clustesrs) is a heatmap of the pseudobulk-level log-expression values the top-100 differentially expressed genes between mutant and control cells.
 
 ```{r degs-heatmap-ignoring-clustesrs, fig.cap = "Heatmap of pseudobulk-level log-expression values normalized to the mean of control samples; rows correspond to genes, columns to samples. Genes are DEGs. Top and bottom 1% logFC quantiles were truncated for visualization.", fig.asp = 1.2}
 degs <- Reduce(
@@ -607,6 +611,7 @@ degs <- Reduce(
     rownames(
       topTags(glmQLFTest(x, coef = "Mutant"), p.value = fdr, n = Inf))
   }))
+degs <- head(degs, 100)
 mat <- logcounts(summed)[degs, ]
 row_means <- rowMeans(mat[, summed$genotype == "Control"])
 mat <- apply(mat, 2, `-`, row_means)
@@ -739,8 +744,11 @@ For a DA analysis of cluster abundances, filtering is generally not required as 
 
 ```{r}
 keep <- filterByExpr(y, group = y$samples$genotype)
-design <- model.matrix(~plate_number + genotype, y$samples)
-colnames(design) <- sub("plate_number|genotype", "", colnames(design))
+design <- model.matrix(~factor(plate_number) + genotype, y$samples)
+colnames(design) <- sub(
+  "factor\\(plate_number\\)|genotype",
+  "",
+  colnames(design))
 y <- estimateDisp(y, design, trend = "none")
 fit <- glmQLFit(y, design, robust = TRUE, abundance.trend = FALSE)
 ```

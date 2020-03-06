@@ -275,6 +275,7 @@ We derive a suitable value for this threshold by calculating the proportion of v
 This is done using the the variance modelling results from [Quantifying per-gene variation].
 
 ```{r}
+set.seed(2719)
 sce <- denoisePCA(sce, technical = dec, subset.row = hvg)
 ```
 
@@ -307,7 +308,7 @@ Nonetheless, the assumption is usually reasonable in practice.
 The `r BiocStyle::Biocpkg("batchelor")` package provides an implementation of the MNN approach via the `fastMNN()` function. 
 We treat each plate as a batch and merge these in a hierarchical manner:
 
-- Merge `LC358`, `LC294`, `LC392`, and `LC280` (which all have both a mutant and control mouse)
+- Merge `LC392`, and `LC280` (which all have both a mutant and control mouse)
 - Merge `LC396` and `LC398` (which share a common control mouse)
 - Merge `LC358`+`LC294`+`LC392`+`LC280` with `LC396`+`LC398` (which all have a mutant and a control mouse)
 - Merge `LC358`+`LC294`+`LC392`+`LC280`+`LC396`+`LC398` with `LC279` (which only has a control mouse)
@@ -315,13 +316,14 @@ We treat each plate as a batch and merge these in a hierarchical manner:
 ```{r, results = "hide"}
 library(batchelor)
 mnn_out <- fastMNN(
-  multiBatchNorm(sce, batch = sce$plate_number),
-  batch = sce$plate_number,
+  multiBatchNorm(sce, batch = factor(sce$plate_number)),
+  batch = factor(sce$plate_number),
   cos.norm = FALSE,
   d = ncol(reducedDim(sce, "PCA")),
   # auto.merge = TRUE,
   merge.order = list(
-    list("LC358", "LC294", "LC392", "LC280"),
+    # list("LC358", "LC294", "LC392", "LC280"),
+    list("LC392", "LC280"),
     list("LC396", "LC398"),
     list("LC279")),
   subset.row = hvg)
@@ -374,7 +376,7 @@ ggplot(aes(x = x, y = y), data = corrected_umap) +
   geom_point(aes(colour = plate_number), size = 1) +
   scale_colour_manual(values = plate_number_colours) +
   cowplot::theme_cowplot(font_size = 10) + 
-  ggtitle("Original") +
+  ggtitle("MNN-corrected") +
   xlab("Dimension 1") + 
   ylab("Dimension 2")
 ```

@@ -24,8 +24,8 @@
   
   
   <!--  https://schema.org/Article -->
-  <meta property="article:published" itemprop="datePublished" content="2020-02-10"/>
-  <meta property="article:created" itemprop="dateCreated" content="2020-02-10"/>
+  <meta property="article:published" itemprop="datePublished" content="2020-03-06"/>
+  <meta property="article:created" itemprop="dateCreated" content="2020-03-06"/>
   <meta name="article:author" content="Peter Hickey"/>
   
   <!--  https://developers.facebook.com/docs/sharing/webmasters#markup -->
@@ -46,7 +46,7 @@
   <!--radix_placeholder_rmarkdown_metadata-->
   
   <script type="text/json" id="radix-rmarkdown-metadata">
-  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output","editor_options","bibliography"]}},"value":[{"type":"character","attributes":{},"value":["Merging the samples from the Grant (C075) retinal epithelial cells data set"]},{"type":"NULL"},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","affiliation","affiliation_url"]}},"value":[{"type":"character","attributes":{},"value":["Peter Hickey"]},{"type":"character","attributes":{},"value":["https://peterhickey.org"]},{"type":"character","attributes":{},"value":["WEHI SCORE"]},{"type":"character","attributes":{},"value":["https://www.wehi.edu.au/people/shalin-naik/3310/score"]}]}]},{"type":"character","attributes":{},"value":["2020-02-10"]},{"type":"character","attributes":{},"value":["distill::distill_article"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["chunk_output_type"]}},"value":[{"type":"character","attributes":{},"value":["console"]}]},{"type":"character","attributes":{},"value":["ref.bib"]}]}
+  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output","editor_options","bibliography"]}},"value":[{"type":"character","attributes":{},"value":["Merging the samples from the Grant (C075) retinal epithelial cells data set"]},{"type":"NULL"},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","affiliation","affiliation_url"]}},"value":[{"type":"character","attributes":{},"value":["Peter Hickey"]},{"type":"character","attributes":{},"value":["https://peterhickey.org"]},{"type":"character","attributes":{},"value":["WEHI SCORE"]},{"type":"character","attributes":{},"value":["https://www.wehi.edu.au/people/shalin-naik/3310/score"]}]}]},{"type":"character","attributes":{},"value":["2020-03-06"]},{"type":"character","attributes":{},"value":["distill::distill_article"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["chunk_output_type"]}},"value":[{"type":"character","attributes":{},"value":["console"]}]},{"type":"character","attributes":{},"value":["ref.bib"]}]}
   </script>
   <!--/radix_placeholder_rmarkdown_metadata-->
   <!--radix_placeholder_navigation_in_header-->
@@ -1277,7 +1277,7 @@
 <!--radix_placeholder_front_matter-->
 
 <script id="distill-front-matter" type="text/json">
-{"title":"Merging the samples from the Grant (C075) retinal epithelial cells data set","authors":[{"author":"Peter Hickey","authorURL":"https://peterhickey.org","affiliation":"WEHI SCORE","affiliationURL":"https://www.wehi.edu.au/people/shalin-naik/3310/score"}],"publishedDate":"2020-02-10T00:00:00.000+11:00","citationText":"Hickey, 2020"}
+{"title":"Merging the samples from the Grant (C075) retinal epithelial cells data set","authors":[{"author":"Peter Hickey","authorURL":"https://peterhickey.org","affiliation":"WEHI SCORE","affiliationURL":"https://www.wehi.edu.au/people/shalin-naik/3310/score"}],"publishedDate":"2020-03-06T00:00:00.000+11:00","citationText":"Hickey, 2020"}
 </script>
 
 <!--/radix_placeholder_front_matter-->
@@ -1325,7 +1325,7 @@ Supplementary files
 <div class="d-byline">
   Peter Hickey <a href="https://peterhickey.org" class="uri">https://peterhickey.org</a> (WEHI SCORE)<a href="https://www.wehi.edu.au/people/shalin-naik/3310/score" class="uri">https://www.wehi.edu.au/people/shalin-naik/3310/score</a>
   
-<br/>2020-02-10
+<br/>2020-03-06
 </div>
 
 <div class="d-article">
@@ -1371,14 +1371,14 @@ Figure 1: Breakdown of of the samples by plate.
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>We will merge the batches using the mutual nearest neighbours (MNN) method <span class="citation" data-cites="haghverdi2018batch">(Haghverdi et al. <a href="#ref-haghverdi2018batch">2018</a>)</span>, as implemented in the <code>fastMNN()</code> function from the <em><a href="https://bioconductor.org/packages/3.10/scran">scran</a></em> R/Bioconductor package, to place them on the same coordinate system. The MNN approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches. This allows us to perform downstream procedures like dimensionality reduction and clustering without needing to model sample-to-sample variation in expression.</p>
+<p>We will merge the batches using the mutual nearest neighbours (MNN) method <span class="citation" data-cites="haghverdi2018batch">(Haghverdi et al. <a href="#ref-haghverdi2018batch" role="doc-biblioref">2018</a>)</span>, as implemented in the <code>fastMNN()</code> function from the <em><a href="https://bioconductor.org/packages/3.10/scran">scran</a></em> R/Bioconductor package, to place them on the same coordinate system. The MNN approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches. This allows us to perform downstream procedures like dimensionality reduction and clustering without needing to model sample-to-sample variation in expression.</p>
 <h1 id="feature-selection">Feature selection</h1>
 <h2 id="motivation">Motivation</h2>
 <p>We often use scRNA-seq data in exploratory analyses to characterize heterogeneity across cells. Procedures like clustering and dimensionality reduction compare cells based on their gene expression profiles, which involves aggregating per-gene differences into a single (dis)similarity metric between a pair of cells. The choice of genes to use in this calculation has a major impact on the behavior of the metric and the performance of downstream methods. We want to select genes that contain useful information about the biology of the system while removing genes that contain random noise. This aims to preserve interesting biological structure without the variance that obscures that structure, and to reduce the size of the data to improve computational efficiency of later steps.</p>
 <p>The simplest approach to feature selection is to select the most variable genes based on their expression across the population. This assumes that genuine biological differences will manifest as increased variation in the affected genes, compared to other genes that are only affected by technical noise or a baseline level of “uninteresting” biological variation (e.g., from transcriptional bursting).</p>
 <h2 id="quantifying-per-gene-variation">Quantifying per-gene variation</h2>
 <h3 id="variance-of-the-log-counts">Variance of the log-counts</h3>
-<p>The simplest approach to quantifying per-gene variation is to simply compute the variance of the log-normalized expression values (referred to as “log-counts” for simplicity) for each gene across all cells in the population <span class="citation" data-cites="lun2016step">(Lun, McCarthy, and Marioni <a href="#ref-lun2016step">2016</a>)</span>. This has an advantage in that the feature selection is based on the same log-values that are used for later downstream steps. In particular, genes with the largest variances in log-values will contribute the most to the Euclidean distances between cells. By using log-values here, we ensure that our quantitative definition of heterogeneity is consistent throughout the entire analysis.</p>
+<p>The simplest approach to quantifying per-gene variation is to simply compute the variance of the log-normalized expression values (referred to as “log-counts” for simplicity) for each gene across all cells in the population <span class="citation" data-cites="lun2016step">(Lun, McCarthy, and Marioni <a href="#ref-lun2016step" role="doc-biblioref">2016</a>)</span>. This has an advantage in that the feature selection is based on the same log-values that are used for later downstream steps. In particular, genes with the largest variances in log-values will contribute the most to the Euclidean distances between cells. By using log-values here, we ensure that our quantitative definition of heterogeneity is consistent throughout the entire analysis.</p>
 <p>Calculation of the per-gene variance is simple but feature selection requires modelling of the mean-variance relationship.</p>
 <h3 id="quantifying-technical-noise">Quantifying technical noise</h3>
 <p>To account for the mean-variance relationship, we fit a trend to the variance with respect to abundance across the ERCC spike-in transcripts. The premise here is that spike-ins should not be affected by biological variation, so the fitted value of the spike-in trend should represent a better estimate of the technical component for each gene.</p>
@@ -1405,14 +1405,14 @@ Figure 3: An overlay of the trend fits from the previous figure, highlighting th
 </p>
 </div>
 </div>
-<p>As an aside, the wave-like shape observed above is typical of the mean-variance trend for log-expression values<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<p>As an aside, the wave-like shape observed above is typical of the mean-variance trend for log-expression values<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p>
 <h2 id="selecting-highly-variable-genes">Selecting highly variable genes</h2>
 <p>Once we have quantified the per-gene variation, the next step is to select the subset of HVGs to use in downstream analyses. A larger subset will reduce the risk of discarding interesting biological signal by retaining more potentially relevant genes, at the cost of increasing noise from irrelevant genes that might obscure said signal. It is difficult to determine the optimal trade-off for any given application as noise in one context may be useful signal in another. For example, heterogeneity in T cell activation responses is an interesting phenomena but may be irrelevant noise in studies that only care about distinguishing the major immunophenotypes.</p>
 <p>We opt to only remove the obviously uninteresting genes with variances below the trend. By doing so, we avoid the need to make any judgement calls regarding what level of variation is interesting enough to retain. This approach represents one extreme of the bias-variance trade-off where bias is minimized at the cost of maximizing noise.</p>
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>There are 18611 HVGs by this approach. Figure <a href="#fig:hvgs">4</a> shows the expression of the top-10 HVGs.</p>
+<p>There are 14094 HVGs by this approach. Figure <a href="#fig:hvgs">4</a> shows the expression of the top-10 HVGs.</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="figure"><span id="fig:hvgs"></span>
 <img src="C075_Grant_Coultas.merge_files/hvgs-1.png" alt="Violin plots of normalized log-expression values for the top-10 HVGs. Each point represents the log-expression value in a single cell." width="624" />
@@ -1434,16 +1434,16 @@ Figure 4: Violin plots of normalized log-expression values for the top-10 HVGs. 
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>This retains 26 dimensions, which represents the lower bound on the number of PCs required to retain all biological variation. Any fewer PCs will definitely discard some aspect of biological signal<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>. This approach provides a reasonable choice when we want to retain as much signal as possible while still removing some noise.</p>
+<p>This retains 34 dimensions, which represents the lower bound on the number of PCs required to retain all biological variation. Any fewer PCs will definitely discard some aspect of biological signal<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>. This approach provides a reasonable choice when we want to retain as much signal as possible while still removing some noise.</p>
 <h1 id="batch-correction-with-mnn">Batch correction with MNN</h1>
-<p>We will merge the batches using the mutual nearest neighbours (MNN) method <span class="citation" data-cites="haghverdi2018batch">(Haghverdi et al. <a href="#ref-haghverdi2018batch">2018</a>)</span>, as implemented in the <code>fastMNN()</code> function from the <em><a href="https://bioconductor.org/packages/3.10/batchelor">batchelor</a></em> R/Bioconductor package, to place them on the same coordinate system. The MNN approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches. This allows us to perform downstream procedures like dimensionality reduction and clustering without needing to model sample-to-sample variation in expression.</p>
+<p>We will merge the batches using the mutual nearest neighbours (MNN) method <span class="citation" data-cites="haghverdi2018batch">(Haghverdi et al. <a href="#ref-haghverdi2018batch" role="doc-biblioref">2018</a>)</span>, as implemented in the <code>fastMNN()</code> function from the <em><a href="https://bioconductor.org/packages/3.10/batchelor">batchelor</a></em> R/Bioconductor package, to place them on the same coordinate system. The MNN approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches. This allows us to perform downstream procedures like dimensionality reduction and clustering without needing to model sample-to-sample variation in expression.</p>
 <h2 id="algorithm-overview">Algorithm overview</h2>
-<p>Consider a cell <span class="math inline">\(a\)</span> in batch <span class="math inline">\(A\)</span>, and identify the cells in batch <span class="math inline">\(B\)</span> that are nearest neighbours to <span class="math inline">\(a\)</span> in the expression space defined by the selected features. Repeat this for a cell <span class="math inline">\(b\)</span> in batch <span class="math inline">\(B\)</span>, identifying its nearest neighbours in <span class="math inline">\(A\)</span>. Mutual nearest neighbours are pairs of cells from different batches that belong in each other’s set of nearest neighbours. The reasoning is that MNN pairs represent cells from the same biological state prior to the application of a batch effect - see <span class="citation" data-cites="haghverdi2018batch">(Haghverdi et al. <a href="#ref-haghverdi2018batch">2018</a>)</span> for full theoretical details. Thus, the difference between cells in MNN pairs can be used as an estimate of the batch effect, the subtraction of which yields batch-corrected values.</p>
+<p>Consider a cell <span class="math inline">\(a\)</span> in batch <span class="math inline">\(A\)</span>, and identify the cells in batch <span class="math inline">\(B\)</span> that are nearest neighbours to <span class="math inline">\(a\)</span> in the expression space defined by the selected features. Repeat this for a cell <span class="math inline">\(b\)</span> in batch <span class="math inline">\(B\)</span>, identifying its nearest neighbours in <span class="math inline">\(A\)</span>. Mutual nearest neighbours are pairs of cells from different batches that belong in each other’s set of nearest neighbours. The reasoning is that MNN pairs represent cells from the same biological state prior to the application of a batch effect - see <span class="citation" data-cites="haghverdi2018batch">(Haghverdi et al. <a href="#ref-haghverdi2018batch" role="doc-biblioref">2018</a>)</span> for full theoretical details. Thus, the difference between cells in MNN pairs can be used as an estimate of the batch effect, the subtraction of which yields batch-corrected values.</p>
 <p>MNN correction does not assume that the population composition is the same or known beforehand. This is because it learns the shared population structure via identification of MNN pairs and uses this information to obtain an appropriate estimate of the batch effect. Instead, the key assumption of MNN-based approaches is that the batch effect is orthogonal to the biology in high-dimensional expression space. Violations reduce the effectiveness and accuracy of the correction, with the most common case arising from variations in the direction of the batch effect between clusters. Nonetheless, the assumption is usually reasonable in practice.</p>
 <h2 id="application">Application</h2>
 <p>The <em><a href="https://bioconductor.org/packages/3.10/batchelor">batchelor</a></em> package provides an implementation of the MNN approach via the <code>fastMNN()</code> function. We treat each plate as a batch and merge these in a hierarchical manner:</p>
 <ul>
-<li>Merge <code>LC358</code>, <code>LC294</code>, <code>LC392</code>, and <code>LC280</code> (which all have both a mutant and control mouse)</li>
+<li>Merge <code>LC392</code>, and <code>LC280</code> (which all have both a mutant and control mouse)</li>
 <li>Merge <code>LC396</code> and <code>LC398</code> (which share a common control mouse)</li>
 <li>Merge <code>LC358</code>+<code>LC294</code>+<code>LC392</code>+<code>LC280</code> with <code>LC396</code>+<code>LC398</code> (which all have a mutant and a control mouse)</li>
 <li>Merge <code>LC358</code>+<code>LC294</code>+<code>LC392</code>+<code>LC280</code>+<code>LC396</code>+<code>LC398</code> with <code>LC279</code> (which only has a control mouse)</li>
@@ -1456,7 +1456,7 @@ Figure 4: Violin plots of normalized log-expression values for the top-10 HVGs. 
 
 </div>
 <h1 id="visual-inspection-of-merge-results">Visual inspection of merge results</h1>
-<p>We use uniform manifold approximation and projection (UMAP) plots <span class="citation" data-cites="McInnes2018-hy">(McInnes, Healy, and Melville <a href="#ref-McInnes2018-hy">2018</a>)</span> to perform further dimensionality reduction for visualization. In the uncorrected data, there is a clear association between batch (plate number) and UMAP co-ordinates (Figure <a href="#fig:beforeplot-umap">5</a>).</p>
+<p>We use uniform manifold approximation and projection (UMAP) plots <span class="citation" data-cites="McInnes2018-hy">(McInnes, Healy, and Melville <a href="#ref-McInnes2018-hy" role="doc-biblioref">2018</a>)</span> to perform further dimensionality reduction for visualization. In the uncorrected data, there is a clear association between batch (plate number) and UMAP co-ordinates (Figure <a href="#fig:beforeplot-umap">5</a>).</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="figure"><span id="fig:beforeplot-umap"></span>
 <img src="C075_Grant_Coultas.merge_files/beforeplot-umap-1.png" alt="UMAP plot of the data set before MNN correction. Each point represents a cell with the colour explained in the legend." width="624" />
@@ -1533,7 +1533,7 @@ Figure 11: Overlay of index sorting data on UMAP plot. For each marker, the left
 <pre><code>
 ─ Session info ─────────────────────────────────────────────────────
  setting  value                       
- version  R version 3.6.2 (2019-12-12)
+ version  R version 3.6.3 (2020-02-29)
  os       Ubuntu 18.04.4 LTS          
  system   x86_64, linux-gnu           
  ui       X11                         
@@ -1541,111 +1541,112 @@ Figure 11: Overlay of index sorting data on UMAP plot. For each marker, the left
  collate  en_AU.UTF-8                 
  ctype    en_AU.UTF-8                 
  tz       Australia/Melbourne         
- date     2020-02-10                  
+ date     2020-03-06                  
 
 ─ Packages ─────────────────────────────────────────────────────────
- ! package              * version   date       lib source        
- P assertthat             0.2.1     2019-03-21 [?] CRAN (R 3.5.3)
- P backports              1.1.5     2019-10-02 [?] CRAN (R 3.6.1)
- P batchelor            * 1.2.4     2020-01-02 [?] Bioconductor  
- P beeswarm               0.2.3     2016-04-25 [?] CRAN (R 3.6.0)
- P Biobase              * 2.46.0    2019-10-29 [?] Bioconductor  
- P BiocGenerics         * 0.32.0    2019-10-29 [?] Bioconductor  
- P BiocManager            1.30.10   2019-11-16 [?] CRAN (R 3.6.1)
- P BiocNeighbors          1.4.1     2019-11-01 [?] Bioconductor  
- P BiocParallel         * 1.20.1    2019-12-21 [?] Bioconductor  
- P BiocSingular           1.2.1     2019-12-23 [?] Bioconductor  
- P BiocStyle            * 2.14.4    2020-01-09 [?] Bioconductor  
- P bitops                 1.0-6     2013-08-17 [?] CRAN (R 3.5.0)
- P cli                    2.0.0     2019-12-09 [?] CRAN (R 3.6.1)
- P colorspace             1.4-1     2019-03-18 [?] CRAN (R 3.5.3)
- P cowplot              * 1.0.0     2019-07-11 [?] CRAN (R 3.6.1)
- P crayon                 1.3.4     2017-09-16 [?] CRAN (R 3.5.0)
- P DelayedArray         * 0.12.1    2019-12-17 [?] Bioconductor  
- P DelayedMatrixStats     1.8.0     2019-10-29 [?] Bioconductor  
- P digest                 0.6.23    2019-11-23 [?] CRAN (R 3.6.1)
- P distill                0.7       2019-05-03 [?] CRAN (R 3.6.1)
- P dplyr                  0.8.3     2019-07-04 [?] CRAN (R 3.6.1)
- P dqrng                  0.2.1     2019-05-17 [?] CRAN (R 3.6.0)
- P edgeR                  3.28.0    2019-10-29 [?] Bioconductor  
- P evaluate               0.14      2019-05-28 [?] CRAN (R 3.6.0)
- P fansi                  0.4.0     2018-10-05 [?] CRAN (R 3.5.1)
- P farver                 2.0.1     2019-11-13 [?] CRAN (R 3.6.1)
- P FNN                    1.1.3     2019-02-15 [?] CRAN (R 3.6.1)
- P GenomeInfoDb         * 1.22.0    2019-10-29 [?] Bioconductor  
- P GenomeInfoDbData       1.2.2     2019-10-31 [?] Bioconductor  
- P GenomicRanges        * 1.38.0    2019-10-29 [?] Bioconductor  
- P ggbeeswarm             0.6.0     2017-08-07 [?] CRAN (R 3.6.0)
- P ggplot2              * 3.2.1     2019-08-10 [?] CRAN (R 3.6.1)
- P glue                   1.3.1     2019-03-12 [?] CRAN (R 3.5.3)
- P gridExtra              2.3       2017-09-09 [?] CRAN (R 3.6.0)
- P gtable                 0.3.0     2019-03-25 [?] CRAN (R 3.5.3)
- P here                 * 0.1       2017-05-28 [?] CRAN (R 3.6.0)
- P highr                  0.8       2019-03-20 [?] CRAN (R 3.5.3)
- P htmltools              0.4.0     2019-10-04 [?] CRAN (R 3.6.1)
- P igraph                 1.2.4.2   2019-11-27 [?] CRAN (R 3.6.1)
- P IRanges              * 2.20.1    2019-11-20 [?] Bioconductor  
- P irlba                  2.3.3     2019-02-05 [?] CRAN (R 3.6.0)
- P janitor              * 1.2.0     2019-04-21 [?] CRAN (R 3.6.0)
- P knitr                  1.26      2019-11-12 [?] CRAN (R 3.6.1)
- P labeling               0.3       2014-08-23 [?] CRAN (R 3.5.0)
- P lattice                0.20-38   2018-11-04 [5] CRAN (R 3.5.1)
- P lazyeval               0.2.2     2019-03-15 [?] CRAN (R 3.5.3)
- P lifecycle              0.1.0     2019-08-01 [?] CRAN (R 3.6.1)
- P limma                  3.42.0    2019-10-29 [?] Bioconductor  
- P locfit                 1.5-9.1   2013-04-20 [?] CRAN (R 3.6.0)
- P magrittr               1.5       2014-11-22 [?] CRAN (R 3.5.0)
- P Matrix                 1.2-18    2019-11-27 [?] CRAN (R 3.6.1)
- P matrixStats          * 0.55.0    2019-09-07 [?] CRAN (R 3.6.1)
- P munsell                0.5.0     2018-06-12 [?] CRAN (R 3.5.0)
- P pillar                 1.4.3     2019-12-20 [?] CRAN (R 3.6.2)
- P pkgconfig              2.0.3     2019-09-22 [?] CRAN (R 3.6.1)
- P plyr                   1.8.5     2019-12-10 [?] CRAN (R 3.6.1)
- P Polychrome             1.2.3     2019-08-01 [?] CRAN (R 3.6.1)
- P purrr                  0.3.3     2019-10-18 [?] CRAN (R 3.6.1)
- P R6                     2.4.1     2019-11-12 [?] CRAN (R 3.6.1)
- P RColorBrewer           1.1-2     2014-12-07 [?] CRAN (R 3.5.0)
- P Rcpp                   1.0.3     2019-11-08 [?] CRAN (R 3.6.1)
- P RcppParallel           4.4.4     2019-09-27 [?] CRAN (R 3.6.1)
- P RCurl                  1.95-4.12 2019-03-04 [?] CRAN (R 3.5.2)
- P reshape2               1.4.3     2017-12-11 [?] CRAN (R 3.5.0)
- P rlang                  0.4.2     2019-11-23 [?] CRAN (R 3.6.1)
- P rmarkdown            * 2.0       2019-12-12 [?] CRAN (R 3.6.2)
- P rprojroot              1.3-2     2018-01-03 [?] CRAN (R 3.5.3)
- P RSpectra               0.16-0    2019-12-01 [?] CRAN (R 3.6.1)
- P rsvd                   1.0.2     2019-07-29 [?] CRAN (R 3.6.1)
- P S4Vectors            * 0.24.1    2019-12-01 [?] Bioconductor  
- P scales                 1.1.0     2019-11-18 [?] CRAN (R 3.6.1)
- P scater               * 1.14.6    2019-12-16 [?] Bioconductor  
- P scatterplot3d          0.3-41    2018-03-14 [?] CRAN (R 3.6.1)
- P scran                * 1.14.5    2019-11-19 [?] Bioconductor  
- P sessioninfo            1.1.1     2018-11-05 [?] CRAN (R 3.6.0)
- P SingleCellExperiment * 1.8.0     2019-10-29 [?] Bioconductor  
- P statmod                1.4.32    2019-05-29 [?] CRAN (R 3.6.0)
- P stringi                1.4.3     2019-03-12 [?] CRAN (R 3.5.3)
- P stringr                1.4.0     2019-02-10 [?] CRAN (R 3.5.2)
- P SummarizedExperiment * 1.16.1    2019-12-19 [?] Bioconductor  
- P tibble                 2.1.3     2019-06-06 [?] CRAN (R 3.6.0)
- P tidyselect             0.2.5     2018-10-11 [?] CRAN (R 3.5.1)
- P uwot                   0.1.5     2019-12-04 [?] CRAN (R 3.6.1)
- P vipor                  0.4.5     2017-03-22 [?] CRAN (R 3.6.0)
- P viridis                0.5.1     2018-03-29 [?] CRAN (R 3.6.0)
- P viridisLite            0.3.0     2018-02-01 [?] CRAN (R 3.5.0)
- P withr                  2.1.2     2018-03-15 [?] CRAN (R 3.5.0)
- P xfun                   0.11      2019-11-12 [?] CRAN (R 3.6.1)
- P XVector                0.26.0    2019-10-29 [?] Bioconductor  
- P yaml                   2.2.0     2018-07-25 [?] CRAN (R 3.5.1)
- P zlibbioc               1.32.0    2019-10-29 [?] Bioconductor  
+ ! package              * version  date       lib source        
+ P assertthat             0.2.1    2019-03-21 [?] CRAN (R 3.5.3)
+ P backports              1.1.5    2019-10-02 [?] CRAN (R 3.6.1)
+ P batchelor            * 1.2.4    2020-01-02 [?] Bioconductor  
+ P beeswarm               0.2.3    2016-04-25 [?] CRAN (R 3.6.0)
+ P Biobase              * 2.46.0   2019-10-29 [?] Bioconductor  
+ P BiocGenerics         * 0.32.0   2019-10-29 [?] Bioconductor  
+ P BiocManager            1.30.10  2019-11-16 [?] CRAN (R 3.6.1)
+ P BiocNeighbors          1.4.2    2020-02-29 [?] Bioconductor  
+ P BiocParallel         * 1.20.1   2019-12-21 [?] Bioconductor  
+ P BiocSingular           1.2.2    2020-02-14 [?] Bioconductor  
+ P BiocStyle            * 2.14.4   2020-01-09 [?] Bioconductor  
+ P bitops                 1.0-6    2013-08-17 [?] CRAN (R 3.5.0)
+ P cli                    2.0.2    2020-02-28 [?] CRAN (R 3.6.2)
+ P colorspace             1.4-1    2019-03-18 [?] CRAN (R 3.5.3)
+ P cowplot              * 1.0.0    2019-07-11 [?] CRAN (R 3.6.1)
+ P crayon                 1.3.4    2017-09-16 [?] CRAN (R 3.5.0)
+ P DelayedArray         * 0.12.2   2020-01-06 [?] Bioconductor  
+ P DelayedMatrixStats     1.8.0    2019-10-29 [?] Bioconductor  
+ P digest                 0.6.25   2020-02-23 [?] CRAN (R 3.6.2)
+ P distill                0.7      2019-05-03 [?] CRAN (R 3.6.1)
+ P dplyr                  0.8.4    2020-01-31 [?] CRAN (R 3.6.2)
+ P dqrng                  0.2.1    2019-05-17 [?] CRAN (R 3.6.0)
+ P edgeR                  3.28.1   2020-02-26 [?] Bioconductor  
+ P evaluate               0.14     2019-05-28 [?] CRAN (R 3.6.0)
+ P fansi                  0.4.1    2020-01-08 [?] CRAN (R 3.6.2)
+ P farver                 2.0.3    2020-01-16 [?] CRAN (R 3.6.2)
+ P FNN                    1.1.3    2019-02-15 [?] CRAN (R 3.6.1)
+ P GenomeInfoDb         * 1.22.0   2019-10-29 [?] Bioconductor  
+ P GenomeInfoDbData       1.2.2    2019-10-31 [?] Bioconductor  
+ P GenomicRanges        * 1.38.0   2019-10-29 [?] Bioconductor  
+ P ggbeeswarm             0.6.0    2017-08-07 [?] CRAN (R 3.6.0)
+ P ggplot2              * 3.2.1    2019-08-10 [?] CRAN (R 3.6.1)
+ P glue                   1.3.1    2019-03-12 [?] CRAN (R 3.5.3)
+ P gridExtra              2.3      2017-09-09 [?] CRAN (R 3.6.0)
+ P gtable                 0.3.0    2019-03-25 [?] CRAN (R 3.5.3)
+ P here                 * 0.1      2017-05-28 [?] CRAN (R 3.6.0)
+ P highr                  0.8      2019-03-20 [?] CRAN (R 3.5.3)
+ P htmltools              0.4.0    2019-10-04 [?] CRAN (R 3.6.1)
+ P igraph                 1.2.4.2  2019-11-27 [?] CRAN (R 3.6.1)
+ P IRanges              * 2.20.2   2020-01-13 [?] Bioconductor  
+ P irlba                  2.3.3    2019-02-05 [?] CRAN (R 3.6.0)
+ P janitor              * 1.2.1    2020-01-22 [?] CRAN (R 3.6.2)
+ P knitr                  1.28     2020-02-06 [?] CRAN (R 3.6.2)
+ P labeling               0.3      2014-08-23 [?] CRAN (R 3.5.0)
+ P lattice                0.20-40  2020-02-19 [?] CRAN (R 3.6.2)
+ P lazyeval               0.2.2    2019-03-15 [?] CRAN (R 3.5.3)
+ P lifecycle              0.1.0    2019-08-01 [?] CRAN (R 3.6.1)
+ P limma                  3.42.2   2020-02-03 [?] Bioconductor  
+ P locfit                 1.5-9.1  2013-04-20 [?] CRAN (R 3.6.0)
+ P magrittr               1.5      2014-11-22 [?] CRAN (R 3.5.0)
+ P Matrix                 1.2-18   2019-11-27 [?] CRAN (R 3.6.1)
+ P matrixStats          * 0.55.0   2019-09-07 [?] CRAN (R 3.6.1)
+ P munsell                0.5.0    2018-06-12 [?] CRAN (R 3.5.0)
+ P pillar                 1.4.3    2019-12-20 [?] CRAN (R 3.6.2)
+ P pkgconfig              2.0.3    2019-09-22 [?] CRAN (R 3.6.1)
+ P plyr                   1.8.6    2020-03-03 [?] CRAN (R 3.6.3)
+ P Polychrome             1.2.4    2020-02-03 [?] CRAN (R 3.6.2)
+ P purrr                  0.3.3    2019-10-18 [?] CRAN (R 3.6.1)
+ P R6                     2.4.1    2019-11-12 [?] CRAN (R 3.6.1)
+ P RColorBrewer           1.1-2    2014-12-07 [?] CRAN (R 3.5.0)
+ P Rcpp                   1.0.3    2019-11-08 [?] CRAN (R 3.6.1)
+ P RcppParallel           4.4.4    2019-09-27 [?] CRAN (R 3.6.1)
+ P RCurl                  1.98-1.1 2020-01-19 [?] CRAN (R 3.6.2)
+ P reshape2               1.4.3    2017-12-11 [?] CRAN (R 3.5.0)
+ P rlang                  0.4.5    2020-03-01 [?] CRAN (R 3.6.2)
+ P rmarkdown            * 2.1      2020-01-20 [?] CRAN (R 3.6.2)
+ P rprojroot              1.3-2    2018-01-03 [?] CRAN (R 3.5.3)
+ P RSpectra               0.16-0   2019-12-01 [?] CRAN (R 3.6.1)
+ P rsvd                   1.0.3    2020-02-17 [?] CRAN (R 3.6.2)
+ P S4Vectors            * 0.24.3   2020-01-18 [?] Bioconductor  
+ P scales                 1.1.0    2019-11-18 [?] CRAN (R 3.6.1)
+ P scater               * 1.14.6   2019-12-16 [?] Bioconductor  
+ P scatterplot3d          0.3-41   2018-03-14 [?] CRAN (R 3.6.1)
+ P scran                * 1.14.6   2020-02-03 [?] Bioconductor  
+ P sessioninfo            1.1.1    2018-11-05 [?] CRAN (R 3.6.0)
+ P SingleCellExperiment * 1.8.0    2019-10-29 [?] Bioconductor  
+ P statmod                1.4.34   2020-02-17 [?] CRAN (R 3.6.2)
+ P stringi                1.4.6    2020-02-17 [?] CRAN (R 3.6.2)
+ P stringr                1.4.0    2019-02-10 [?] CRAN (R 3.5.2)
+ P SummarizedExperiment * 1.16.1   2019-12-19 [?] Bioconductor  
+ P tibble                 2.1.3    2019-06-06 [?] CRAN (R 3.6.0)
+ P tidyselect             1.0.0    2020-01-27 [?] CRAN (R 3.6.2)
+ P uwot                   0.1.5    2019-12-04 [?] CRAN (R 3.6.1)
+ P vctrs                  0.2.3    2020-02-20 [?] CRAN (R 3.6.2)
+ P vipor                  0.4.5    2017-03-22 [?] CRAN (R 3.6.0)
+ P viridis                0.5.1    2018-03-29 [?] CRAN (R 3.6.0)
+ P viridisLite            0.3.0    2018-02-01 [?] CRAN (R 3.5.0)
+ P withr                  2.1.2    2018-03-15 [?] CRAN (R 3.5.0)
+ P xfun                   0.12     2020-01-13 [?] CRAN (R 3.6.2)
+ P XVector                0.26.0   2019-10-29 [?] Bioconductor  
+ P yaml                   2.2.1    2020-02-01 [?] CRAN (R 3.6.2)
+ P zlibbioc               1.32.0   2019-10-29 [?] Bioconductor  
 
 [1] /home/peter/SCORE/C075_Grant_Coultas/renv/library/R-3.6/x86_64-pc-linux-gnu
-[2] /tmp/RtmpsfpbYH/renv-system-library
+[2] /tmp/RtmpMEQ2rk/renv-system-library
 [3] /usr/local/lib/R/site-library
 [4] /usr/lib/R/site-library
 [5] /usr/lib/R/library
 
  P ── Loaded and on-disk path mismatch.</code></pre>
 </div>
-<div id="refs" class="references">
+<div id="refs" class="references" role="doc-bibliography">
 <div id="ref-haghverdi2018batch">
 <p>Haghverdi, L., A. T. L. Lun, M. D. Morgan, and J. C. Marioni. 2018. “Batch Effects in Single-Cell Rna-Sequencing Data Are Corrected by Matching Mutual Nearest Neighbors.” <em>Nat. Biotechnol.</em>, April.</p>
 </div>
@@ -1656,11 +1657,11 @@ Figure 11: Overlay of index sorting data on UMAP plot. For each marker, the left
 <p>McInnes, Leland, John Healy, and James Melville. 2018. “UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction,” February. <a href="http://arxiv.org/abs/1802.03426">http://arxiv.org/abs/1802.03426</a>.</p>
 </div>
 </div>
-<section class="footnotes">
+<section class="footnotes" role="doc-endnotes">
 <hr />
 <ol>
-<li id="fn1"><p>The same wave is present but generally less pronounced for UMI data.<a href="#fnref1" class="footnote-back">↩</a></p></li>
-<li id="fn2"><p>Note that the converse is not true, i.e., there is no guarantee that the retained PCs capture all of the signal, which is only generally possible if no dimensionality reduction is performed at all.<a href="#fnref2" class="footnote-back">↩</a></p></li>
+<li id="fn1" role="doc-endnote"><p>The same wave is present but generally less pronounced for UMI data.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2" role="doc-endnote"><p>Note that the converse is not true, i.e., there is no guarantee that the retained PCs capture all of the signal, which is only generally possible if no dimensionality reduction is performed at all.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
 </ol>
 </section>
 <!--radix_placeholder_article_footer-->
@@ -2765,14 +2766,13 @@ title = {{An integrated encyclopedia of DNA elements in the human genome}},
 year = {2012}
 }
 
-@ARTICLE{lun2016step,
-  title    = "A step-by-step workflow for low-level analysis of single-cell
-              {RNA-seq} data",
-  author   = "Lun, A. T. L. and McCarthy, D. J. and Marioni, J. C.",
-  journal  = "F1000Res.",
-  volume   =  5,
-  month    =  aug,
-  year     =  2016
+@article{lun2016step,
+  title={A step-by-step workflow for low-level analysis of single-cell {RNA-seq} data},
+  author={Lun, A. T. L. and McCarthy, D. J. and Marioni, J. C.},
+  journal ={F1000Res.},
+  volume={5},
+  month={aug},
+  year={2016}
 }
 </script>
 <!--/radix_placeholder_appendices-->

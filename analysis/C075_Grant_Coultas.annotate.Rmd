@@ -109,6 +109,7 @@ corrected_umap$cluster <- sce$cluster
 cluster_colours <- setNames(
   colorblindr::palette_OkabeIto,
   levels(sce$cluster))
+cluster_colours <- cluster_colours[!is.na(names(cluster_colours))]
 ```
 
 There are `r length(levels(sce$cluster))` clusters detected, summarised in Figure \@ref(fig:cluster-barplot).
@@ -290,7 +291,7 @@ for (n in names(markers_union_any)) {
 ```{r}
 chosen <- "2"
 interesting <- markers_union_any[[chosen]]
-stopifnot(all(unlist(interesting["Cdcp1", -c(1:3)]) > 0))
+# stopifnot(all(unlist(interesting["Cdcp1", -c(1:3)]) > 0))
 ```
 
 To demonstrate, we use cluster `r chosen` as our cluster of interest for this section.
@@ -1022,13 +1023,11 @@ For example, given a reference dataset containing mouse ESCs with known cell cyc
 We use the reference dataset to identify phase-specific markers from genes with annotated roles in cell cycle.
 The use of prior annotation aims to avoid detecting markers for other biological processes that happen to be correlated with the cell cycle in the reference dataset, which would reduce classification performance if those processes are absent or uncorrelated in the test dataset.
 
-
 ```{r}
 # Adapted from 
 # https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles
 library(scRNAseq)
 sce.ref <- BuettnerESCData()
-sce.ref
 # Find genes that are present in both datasets and are cell cycle-related.
 library(org.Mm.eg.db)
 cycle.anno <- select(
@@ -1074,7 +1073,7 @@ The key assumption here is that the cell cycle is orthogonal to cell type and ot
 This justifies the use of a reference involving cell types that are quite different from the cells in the test dataset, provided that the cell cycle transcriptional program is conserved across datasets^[Bertoli, Skotheim, and Bruin 2013; Conboy et al. 2007].
 However, it is not difficult to find routine violations of this assumption&[see https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles for an illustration].
 
-Thus, a healthy dose of skepticism is required when interpreting these assignments. 
+Thus, a healthy dose of scepticism is required when interpreting these assignments. 
 Our hope is that any systematic assignment error is consistent across clusters and conditions such that they cancel out in comparisons of phase frequencies, which is the more interesting analysis anyway.
 Indeed, while the availability of absolute phase calls may be more appealing, it may not make much practical difference to the conclusions if the frequencies are ultimately interpreted in a relative sense (e.g., using a chi-squared test).
 

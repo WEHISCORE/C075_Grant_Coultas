@@ -24,8 +24,8 @@
   
   
   <!--  https://schema.org/Article -->
-  <meta property="article:published" itemprop="datePublished" content="2020-02-10"/>
-  <meta property="article:created" itemprop="dateCreated" content="2020-02-10"/>
+  <meta property="article:published" itemprop="datePublished" content="2020-03-06"/>
+  <meta property="article:created" itemprop="dateCreated" content="2020-03-06"/>
   <meta name="article:author" content="Peter Hickey"/>
   
   <!--  https://developers.facebook.com/docs/sharing/webmasters#markup -->
@@ -45,7 +45,7 @@
   <!--radix_placeholder_rmarkdown_metadata-->
   
   <script type="text/json" id="radix-rmarkdown-metadata">
-  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output","editor_options","bibliography"]}},"value":[{"type":"character","attributes":{},"value":["Multi-sample comparisons with Grant (C075) retinal epithelial cells data set"]},{"type":"NULL"},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","affiliation","affiliation_url"]}},"value":[{"type":"character","attributes":{},"value":["Peter Hickey"]},{"type":"character","attributes":{},"value":["https://peterhickey.org"]},{"type":"character","attributes":{},"value":["Single Cell Open Research Endeavour (SCORE), WEHI"]},{"type":"character","attributes":{},"value":["https://www.wehi.edu.au/people/shalin-naik/3310/score"]}]}]},{"type":"character","attributes":{},"value":["2020-02-10"]},{"type":"character","attributes":{},"value":["radix::radix_article"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["chunk_output_type"]}},"value":[{"type":"character","attributes":{},"value":["console"]}]},{"type":"character","attributes":{},"value":["ref.bib"]}]}
+  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output","editor_options","bibliography"]}},"value":[{"type":"character","attributes":{},"value":["Multi-sample comparisons with Grant (C075) retinal epithelial cells data set"]},{"type":"NULL"},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","affiliation","affiliation_url"]}},"value":[{"type":"character","attributes":{},"value":["Peter Hickey"]},{"type":"character","attributes":{},"value":["https://peterhickey.org"]},{"type":"character","attributes":{},"value":["Single Cell Open Research Endeavour (SCORE), WEHI"]},{"type":"character","attributes":{},"value":["https://www.wehi.edu.au/people/shalin-naik/3310/score"]}]}]},{"type":"character","attributes":{},"value":["2020-03-06"]},{"type":"character","attributes":{},"value":["distill::distill_article"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["chunk_output_type"]}},"value":[{"type":"character","attributes":{},"value":["console"]}]},{"type":"character","attributes":{},"value":["ref.bib"]}]}
   </script>
   <!--/radix_placeholder_rmarkdown_metadata-->
   <!--radix_placeholder_navigation_in_header-->
@@ -1278,7 +1278,7 @@
 <!--radix_placeholder_front_matter-->
 
 <script id="distill-front-matter" type="text/json">
-{"title":"Multi-sample comparisons with Grant (C075) retinal epithelial cells data set","authors":[{"author":"Peter Hickey","authorURL":"https://peterhickey.org","affiliation":"Single Cell Open Research Endeavour (SCORE), WEHI","affiliationURL":"https://www.wehi.edu.au/people/shalin-naik/3310/score"}],"publishedDate":"2020-02-10T00:00:00.000+11:00","citationText":"Hickey, 2020"}
+{"title":"Multi-sample comparisons with Grant (C075) retinal epithelial cells data set","authors":[{"author":"Peter Hickey","authorURL":"https://peterhickey.org","affiliation":"Single Cell Open Research Endeavour (SCORE), WEHI","affiliationURL":"https://www.wehi.edu.au/people/shalin-naik/3310/score"}],"publishedDate":"2020-03-06T00:00:00.000+11:00","citationText":"Hickey, 2020"}
 </script>
 
 <!--/radix_placeholder_front_matter-->
@@ -1326,7 +1326,7 @@ Supplementary files
 <div class="d-byline">
   Peter Hickey <a href="https://peterhickey.org" class="uri">https://peterhickey.org</a> (Single Cell Open Research Endeavour (SCORE), WEHI)<a href="https://www.wehi.edu.au/people/shalin-naik/3310/score" class="uri">https://www.wehi.edu.au/people/shalin-naik/3310/score</a>
   
-<br/>2020-02-10
+<br/>2020-03-06
 </div>
 
 <div class="d-article">
@@ -1334,7 +1334,7 @@ Supplementary files
 <nav class="d-toc" id="TOC">
 <ul>
 <li><a href="#introduction">Introduction</a></li>
-<li><a href="#differential-expression-vs.differential-abundance">Differential expression vs. differential abundance</a></li>
+<li><a href="#differential-expression-vs.-differential-abundance">Differential expression vs. differential abundance</a></li>
 <li><a href="#differential-expression-between-conditions">Differential expression between conditions</a></li>
 <li><a href="#differential-abundance-between-conditions">Differential abundance between conditions</a></li>
 <li><a href="#concluding-remarks">Concluding remarks</a></li>
@@ -1355,7 +1355,7 @@ Supplementary files
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<h1 id="differential-expression-vs.differential-abundance">Differential expression vs. differential abundance</h1>
+<h1 id="differential-expression-vs.-differential-abundance">Differential expression vs. differential abundance</h1>
 <p>While useful, the distinction between DA and DE analyses is inherently artificial for scRNA-seq data. This is because the labels used in the former are defined based on the genes to be tested in the latter. To illustrate, consider a scRNA-seq experiment involving two biological conditions with several shared cell types. We focus on a cell type <span class="math inline">\(X\)</span> that is present in both conditions but contains some DEGs between conditions. This leads to two possible outcomes:</p>
 <ol type="1">
 <li>The DE between conditions causes <span class="math inline">\(X\)</span> to form two separate clusters (say, <span class="math inline">\(X_1\)</span> and <span class="math inline">\(X_2\)</span>) in expression space. This manifests as DA where <span class="math inline">\(X_1\)</span> is enriched in one condition and <span class="math inline">\(X_2\)</span> is enriched in the other condition.</li>
@@ -1367,7 +1367,7 @@ Supplementary files
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>We perform the DE analysis separately for all cells with the same ‘label’. The actual DE testing is performed on “pseudobulk” expression profiles <span class="citation" data-cites="tung2016batch">(Tung et al. <a href="#ref-tung2016batch">2017</a>)</span>, generated by summing counts together for all cells with the same combination of label and sample.</p>
+<p>We perform the DE analysis separately for all cells with the same ‘label’. The actual DE testing is performed on “pseudobulk” expression profiles <span class="citation" data-cites="tung2016batch">(Tung et al. <a href="#ref-tung2016batch" role="doc-biblioref">2017</a>)</span>, generated by summing counts together for all cells with the same combination of label and sample.</p>
 <p>This leverages the resolution offered by single-cell technologies to define the labels, and combines it with the statistical rigor of existing methods for DE analyses involving a small number of samples.</p>
 <p>Here we use the clusters as the cell labels, i.e. all cells from the same mouse assigned to the same cluster will have the same label. We also perform DE testing without regard for the cluster labels.</p>
 <p>The <a href="../output/DEGs/"><code>output/DEGs/</code></a> directory contains CSV files summarising the pseudobulk results and PDFs showing the single-cell expression data for each DEG.</p>
@@ -1404,146 +1404,102 @@ Figure 1: UMAP visualization colored by subpopulation ID (left) and group ID (ri
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">LC279.#1554</td>
-<td style="text-align: right;">20</td>
 <td style="text-align: right;">34</td>
-<td style="text-align: right;">6</td>
-<td style="text-align: right;">116</td>
-<td style="text-align: right;">38</td>
 <td style="text-align: right;">27</td>
-<td style="text-align: right;">24</td>
-<td style="text-align: right;">32</td>
+<td style="text-align: right;">28</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">69</td>
+<td style="text-align: right;">43</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">LC280.#1576</td>
-<td style="text-align: right;">34</td>
-<td style="text-align: right;">13</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">20</td>
-<td style="text-align: right;">36</td>
-<td style="text-align: right;">21</td>
 <td style="text-align: right;">10</td>
-<td style="text-align: right;">31</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">41</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">11</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">LC280.#1577</td>
-<td style="text-align: right;">9</td>
-<td style="text-align: right;">11</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">50</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">28</td>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">7</td>
 <td style="text-align: right;">18</td>
-<td style="text-align: right;">28</td>
-<td style="text-align: right;">11</td>
-<td style="text-align: right;">34</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">LC294.#1609</td>
-<td style="text-align: right;">8</td>
-<td style="text-align: right;">4</td>
-<td style="text-align: right;">50</td>
-<td style="text-align: right;">38</td>
-<td style="text-align: right;">16</td>
-<td style="text-align: right;">12</td>
-<td style="text-align: right;">28</td>
 <td style="text-align: right;">23</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">LC294.#1611</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">114</td>
 <td style="text-align: right;">17</td>
-<td style="text-align: right;">4</td>
-<td style="text-align: right;">8</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">17</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">LC358.#1695</td>
-<td style="text-align: right;">15</td>
-<td style="text-align: right;">7</td>
-<td style="text-align: right;">68</td>
-<td style="text-align: right;">18</td>
-<td style="text-align: right;">16</td>
-<td style="text-align: right;">13</td>
-<td style="text-align: right;">14</td>
-<td style="text-align: right;">24</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">LC358.#1696</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">124</td>
-<td style="text-align: right;">7</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">16</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">16</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">LC392.#1743</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">7</td>
-<td style="text-align: right;">3</td>
-<td style="text-align: right;">69</td>
-<td style="text-align: right;">19</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">21</td>
 <td style="text-align: right;">22</td>
-<td style="text-align: right;">16</td>
-<td style="text-align: right;">28</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">24</td>
+<td style="text-align: right;">34</td>
+<td style="text-align: right;">24</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">LC392.#1747</td>
-<td style="text-align: right;">25</td>
 <td style="text-align: right;">2</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">45</td>
-<td style="text-align: right;">30</td>
+<td style="text-align: right;">39</td>
 <td style="text-align: right;">19</td>
-<td style="text-align: right;">20</td>
-<td style="text-align: right;">31</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">22</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">21</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">LC396.#1819</td>
-<td style="text-align: right;">20</td>
 <td style="text-align: right;">8</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">52</td>
-<td style="text-align: right;">25</td>
+<td style="text-align: right;">20</td>
 <td style="text-align: right;">14</td>
-<td style="text-align: right;">19</td>
-<td style="text-align: right;">22</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">27</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">LC396.#1824</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">53</td>
-<td style="text-align: right;">10</td>
-<td style="text-align: right;">10</td>
-<td style="text-align: right;">10</td>
+<td style="text-align: right;">3</td>
 <td style="text-align: right;">8</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">28</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">LC398.#1823</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">23</td>
 <td style="text-align: right;">5</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">30</td>
-<td style="text-align: right;">20</td>
-<td style="text-align: right;">8</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">20</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">13</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">LC398.#1824</td>
 <td style="text-align: right;">1</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">19</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">6</td>
 <td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
 <td style="text-align: right;">6</td>
-<td style="text-align: right;">6</td>
-<td style="text-align: right;">6</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">5</td>
 </tr>
 </tbody>
 </table>
@@ -1586,52 +1542,46 @@ Figure 3: Pseudobulk-level multidimensional scaling (MDS) plot. Each point repre
 </thead>
 <tbody>
 <tr class="odd">
-<td>cluster_1</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">577</td>
-<td style="text-align: right;">0</td>
-</tr>
-<tr class="even">
 <td>cluster_2</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">303</td>
-<td style="text-align: right;">0</td>
-</tr>
-<tr class="odd">
-<td>cluster_3</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">28</td>
-<td style="text-align: right;">0</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">5838</td>
+<td style="text-align: right;">2</td>
 </tr>
 <tr class="even">
-<td>cluster_4</td>
-<td style="text-align: right;">11</td>
-<td style="text-align: right;">2977</td>
-<td style="text-align: right;">9</td>
+<td>cluster_3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">6286</td>
+<td style="text-align: right;">2</td>
 </tr>
 <tr class="odd">
+<td>cluster_4</td>
+<td style="text-align: right;">23</td>
+<td style="text-align: right;">7886</td>
+<td style="text-align: right;">22</td>
+</tr>
+<tr class="even">
 <td>cluster_5</td>
 <td style="text-align: right;">2</td>
-<td style="text-align: right;">1783</td>
-<td style="text-align: right;">0</td>
-</tr>
-<tr class="even">
-<td>cluster_6</td>
-<td style="text-align: right;">6</td>
-<td style="text-align: right;">2468</td>
-<td style="text-align: right;">6</td>
+<td style="text-align: right;">5039</td>
+<td style="text-align: right;">4</td>
 </tr>
 <tr class="odd">
-<td>cluster_7</td>
-<td style="text-align: right;">3</td>
-<td style="text-align: right;">718</td>
-<td style="text-align: right;">1</td>
+<td>cluster_6</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">2966</td>
+<td style="text-align: right;">4</td>
 </tr>
 <tr class="even">
+<td>cluster_7</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">4243</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
 <td>cluster_8</td>
-<td style="text-align: right;">6</td>
-<td style="text-align: right;">4074</td>
-<td style="text-align: right;">5</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4789</td>
+<td style="text-align: right;">1</td>
 </tr>
 </tbody>
 </table>
@@ -1643,7 +1593,7 @@ Figure 3: Pseudobulk-level multidimensional scaling (MDS) plot. Each point repre
 <div class="layout-chunk" data-layout="l-body">
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["Gene"],"name":[1],"type":["fctr"],"align":["left"]},{"label":["# Clusters gene is DE"],"name":[2],"type":["int"],"align":["right"]}],"data":[{"1":"Gm23935","2":"3"},{"1":"Mest","2":"3"},{"1":"Bsg","2":"2"},{"1":"Emp1","2":"2"},{"1":"Lars2","2":"2"},{"1":"Marcksl1","2":"2"},{"1":"Nampt","2":"2"},{"1":"Pltp","2":"2"},{"1":"Spock2","2":"2"},{"1":"Tfrc","2":"2"},{"1":"Vim","2":"2"},{"1":"Cdh13","2":"1"},{"1":"Cpe","2":"1"},{"1":"Cxcl12","2":"1"},{"1":"Eng","2":"1"},{"1":"Fnbp1l","2":"1"},{"1":"Fos","2":"1"},{"1":"Gas6","2":"1"},{"1":"Gm15564","2":"1"},{"1":"Gm24270","2":"1"},{"1":"Gm25911","2":"1"},{"1":"Ifitm3","2":"1"},{"1":"Igfbp4","2":"1"},{"1":"Irx3","2":"1"},{"1":"Itm2a","2":"1"},{"1":"Itm2b","2":"1"},{"1":"Lmo2","2":"1"},{"1":"Ly6e","2":"1"},{"1":"Marcks","2":"1"},{"1":"Nfatc3","2":"1"},{"1":"S100a13","2":"1"},{"1":"Sepp1","2":"1"},{"1":"Slc38a5","2":"1"},{"1":"Slc6a6","2":"1"},{"1":"Stmn2","2":"1"},{"1":"Tmem176b","2":"1"},{"1":"Wbp5","2":"1"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["Gene"],"name":[1],"type":["fctr"],"align":["left"]},{"label":["# Clusters gene is DE"],"name":[2],"type":["int"],"align":["right"]}],"data":[{"1":"Vim","2":"4"},{"1":"Bsg","2":"3"},{"1":"Igfbp3","2":"3"},{"1":"Slc6a6","2":"3"},{"1":"Spock2","2":"3"},{"1":"Col15a1","2":"2"},{"1":"Marcks","2":"2"},{"1":"Marcksl1","2":"2"},{"1":"Mest","2":"2"},{"1":"Pltp","2":"2"},{"1":"Sepp1","2":"2"},{"1":"Xist","2":"2"},{"1":"Actb","2":"1"},{"1":"Anxa1","2":"1"},{"1":"Birc5","2":"1"},{"1":"Btg1","2":"1"},{"1":"Calm2","2":"1"},{"1":"Cd34","2":"1"},{"1":"Ctla2a","2":"1"},{"1":"Cxcl12","2":"1"},{"1":"Egr1","2":"1"},{"1":"Emcn","2":"1"},{"1":"Emp1","2":"1"},{"1":"Erdr1","2":"1"},{"1":"Flna","2":"1"},{"1":"Fth1","2":"1"},{"1":"Ftl1","2":"1"},{"1":"Gm10073","2":"1"},{"1":"Gm10925","2":"1"},{"1":"Gm13192","2":"1"},{"1":"Gm13339","2":"1"},{"1":"Gm21887","2":"1"},{"1":"Gm24270","2":"1"},{"1":"Gm28438","2":"1"},{"1":"Gm6977","2":"1"},{"1":"Gm8730","2":"1"},{"1":"Gnl3","2":"1"},{"1":"H2-K1","2":"1"},{"1":"Ifitm3","2":"1"},{"1":"Itm2a","2":"1"},{"1":"Loxl2","2":"1"},{"1":"Lrp8","2":"1"},{"1":"mt-Atp6","2":"1"},{"1":"mt-Cytb","2":"1"},{"1":"mt-Nd1","2":"1"},{"1":"mt-Nd2","2":"1"},{"1":"mt-Rnr1","2":"1"},{"1":"Myh9","2":"1"},{"1":"Nampt","2":"1"},{"1":"Odc1","2":"1"},{"1":"Phgdh","2":"1"},{"1":"Rplp0","2":"1"},{"1":"Rps28","2":"1"},{"1":"S100a11","2":"1"},{"1":"Sat1","2":"1"},{"1":"Serpinb6a","2":"1"},{"1":"Slc1a4","2":"1"},{"1":"Slc38a5","2":"1"},{"1":"Slc7a5","2":"1"},{"1":"Snap23","2":"1"},{"1":"Sparcl1","2":"1"},{"1":"Stmn2","2":"1"},{"1":"Tfrc","2":"1"},{"1":"Timp3","2":"1"},{"1":"Tmsb10","2":"1"},{"1":"Tspo","2":"1"},{"1":"Ucp2","2":"1"},{"1":"Vwa1","2":"1"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 </div>
@@ -1662,9 +1612,7 @@ Figure 4: Heatmap of pseudobulk-level log-expression values normalized to the me
 </div>
 <p>The <a href="../output/DEGs/cluster_labels/"><code>output/DEGs/cluster_labels/</code></a> directory also contains plots of expression values for all cells in a given cluster for the cluster-specific differentially expressed genes (<span class="math inline">\(FDR &lt; 0.05\)</span>; up to 100 genes shown).</p>
 <div class="layout-chunk" data-layout="l-body">
-<pre><code>
-png 
-  2 </code></pre>
+
 </div>
 <h3 id="gene-set-analysis">Gene set analysis</h3>
 <p><strong>TODO:</strong> Need to decide of DE analysis makes any sense before going further.</p>
@@ -1696,22 +1644,6 @@ png
 <td style="text-align: right;">163</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">LC294.#1609</td>
-<td style="text-align: right;">179</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">LC294.#1611</td>
-<td style="text-align: right;">168</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">LC358.#1695</td>
-<td style="text-align: right;">175</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">LC358.#1696</td>
-<td style="text-align: right;">171</td>
-</tr>
-<tr class="even">
 <td style="text-align: left;">LC392.#1743</td>
 <td style="text-align: right;">166</td>
 </tr>
@@ -1729,11 +1661,11 @@ png
 </tr>
 <tr class="even">
 <td style="text-align: left;">LC398.#1823</td>
-<td style="text-align: right;">94</td>
+<td style="text-align: right;">88</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">LC398.#1824</td>
-<td style="text-align: right;">45</td>
+<td style="text-align: right;">43</td>
 </tr>
 </tbody>
 </table>
@@ -1777,9 +1709,9 @@ Figure 6: Pseudobulk-level multidimensional scaling (MDS) plot. Each point repre
 <tbody>
 <tr class="odd">
 <td>ignoring_cluster_labels</td>
-<td style="text-align: right;">99</td>
-<td style="text-align: right;">9751</td>
-<td style="text-align: right;">153</td>
+<td style="text-align: right;">133</td>
+<td style="text-align: right;">11877</td>
+<td style="text-align: right;">140</td>
 </tr>
 </tbody>
 </table>
@@ -1787,7 +1719,7 @@ Figure 6: Pseudobulk-level multidimensional scaling (MDS) plot. Each point repre
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>Figure <a href="#fig:degs-heatmap-ignoring-clustesrs">7</a> is a heatmap of the pseudobulk-level log-expression values the differentially expressed genes between mutant and control cells.</p>
+<p>Figure <a href="#fig:degs-heatmap-ignoring-clustesrs">7</a> is a heatmap of the pseudobulk-level log-expression values the top-100 differentially expressed genes between mutant and control cells.</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="figure"><span id="fig:degs-heatmap-ignoring-clustesrs"></span>
 <img src="C075_Grant_Coultas.multi-sample_comparisons_files/degs-heatmap-ignoring-clustesrs-1.png" alt="Heatmap of pseudobulk-level log-expression values normalized to the mean of control samples; rows correspond to genes, columns to samples. Genes are DEGs. Top and bottom 1% logFC quantiles were truncated for visualization." width="624" />
@@ -1821,10 +1753,6 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
 <th style="text-align: right;">LC279.#1554</th>
 <th style="text-align: right;">LC280.#1576</th>
 <th style="text-align: right;">LC280.#1577</th>
-<th style="text-align: right;">LC294.#1609</th>
-<th style="text-align: right;">LC294.#1611</th>
-<th style="text-align: right;">LC358.#1695</th>
-<th style="text-align: right;">LC358.#1696</th>
 <th style="text-align: right;">LC392.#1743</th>
 <th style="text-align: right;">LC392.#1747</th>
 <th style="text-align: right;">LC396.#1819</th>
@@ -1836,131 +1764,99 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">cluster_1</td>
-<td style="text-align: right;">20</td>
 <td style="text-align: right;">34</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">10</td>
 <td style="text-align: right;">9</td>
+<td style="text-align: right;">2</td>
 <td style="text-align: right;">8</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">15</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">25</td>
-<td style="text-align: right;">20</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">5</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">7</td>
 <td style="text-align: right;">1</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">cluster_2</td>
-<td style="text-align: right;">34</td>
-<td style="text-align: right;">13</td>
-<td style="text-align: right;">11</td>
-<td style="text-align: right;">4</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">7</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">7</td>
-<td style="text-align: right;">2</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">20</td>
 <td style="text-align: right;">8</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">2</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">7</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">cluster_3</td>
-<td style="text-align: right;">6</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">50</td>
-<td style="text-align: right;">114</td>
-<td style="text-align: right;">68</td>
-<td style="text-align: right;">124</td>
-<td style="text-align: right;">3</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">0</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">cluster_4</td>
-<td style="text-align: right;">116</td>
-<td style="text-align: right;">20</td>
-<td style="text-align: right;">50</td>
-<td style="text-align: right;">38</td>
-<td style="text-align: right;">17</td>
-<td style="text-align: right;">18</td>
-<td style="text-align: right;">7</td>
-<td style="text-align: right;">69</td>
-<td style="text-align: right;">45</td>
-<td style="text-align: right;">52</td>
-<td style="text-align: right;">53</td>
-<td style="text-align: right;">30</td>
-<td style="text-align: right;">19</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">cluster_5</td>
-<td style="text-align: right;">38</td>
-<td style="text-align: right;">36</td>
-<td style="text-align: right;">18</td>
-<td style="text-align: right;">16</td>
-<td style="text-align: right;">4</td>
-<td style="text-align: right;">16</td>
-<td style="text-align: right;">2</td>
-<td style="text-align: right;">19</td>
-<td style="text-align: right;">30</td>
-<td style="text-align: right;">25</td>
-<td style="text-align: right;">10</td>
-<td style="text-align: right;">20</td>
-<td style="text-align: right;">5</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">cluster_6</td>
-<td style="text-align: right;">27</td>
+<td style="text-align: right;">28</td>
 <td style="text-align: right;">21</td>
 <td style="text-align: right;">28</td>
-<td style="text-align: right;">12</td>
-<td style="text-align: right;">8</td>
-<td style="text-align: right;">13</td>
-<td style="text-align: right;">16</td>
 <td style="text-align: right;">22</td>
 <td style="text-align: right;">19</td>
 <td style="text-align: right;">14</td>
-<td style="text-align: right;">10</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">6</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">cluster_4</td>
+<td style="text-align: right;">40</td>
+<td style="text-align: right;">41</td>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">30</td>
 <td style="text-align: right;">8</td>
+<td style="text-align: right;">23</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">cluster_5</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">cluster_6</td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">24</td>
+<td style="text-align: right;">22</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">7</td>
 <td style="text-align: right;">6</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">cluster_7</td>
-<td style="text-align: right;">24</td>
+<td style="text-align: right;">69</td>
 <td style="text-align: right;">10</td>
-<td style="text-align: right;">11</td>
-<td style="text-align: right;">28</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">14</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">16</td>
-<td style="text-align: right;">20</td>
+<td style="text-align: right;">23</td>
+<td style="text-align: right;">34</td>
 <td style="text-align: right;">19</td>
-<td style="text-align: right;">10</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">6</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">13</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">cluster_8</td>
-<td style="text-align: right;">32</td>
-<td style="text-align: right;">31</td>
-<td style="text-align: right;">34</td>
-<td style="text-align: right;">23</td>
+<td style="text-align: right;">43</td>
+<td style="text-align: right;">11</td>
 <td style="text-align: right;">17</td>
 <td style="text-align: right;">24</td>
-<td style="text-align: right;">16</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">27</td>
 <td style="text-align: right;">28</td>
-<td style="text-align: right;">31</td>
-<td style="text-align: right;">22</td>
-<td style="text-align: right;">8</td>
-<td style="text-align: right;">20</td>
-<td style="text-align: right;">6</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">5</td>
 </tr>
 </tbody>
 </table>
@@ -1968,7 +1864,7 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>Our DA analysis will again be performed with the <em><a href="https://bioconductor.org/packages/3.10/edgeR">edgeR</a></em> package. This allows us to take advantage of the negative binomial generalized linear model methods to model overdispersed count data in the presence of limited replication - except that the counts are not of reads per gene, but of cells per label <span class="citation" data-cites="lun2017testing">(Lun, Richard, and Marioni <a href="#ref-lun2017testing">2017</a>)</span>. The aim is to share information across labels to improve our estimates of the biological variability in cell abundance between replicates.</p>
+<p>Our DA analysis will again be performed with the <em><a href="https://bioconductor.org/packages/3.10/edgeR">edgeR</a></em> package. This allows us to take advantage of the negative binomial generalized linear model methods to model overdispersed count data in the presence of limited replication - except that the counts are not of reads per gene, but of cells per label <span class="citation" data-cites="lun2017testing">(Lun, Richard, and Marioni <a href="#ref-lun2017testing" role="doc-biblioref">2017</a>)</span>. The aim is to share information across labels to improve our estimates of the biological variability in cell abundance between replicates.</p>
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
@@ -2017,68 +1913,68 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
 </thead>
 <tbody>
 <tr class="odd">
-<td>cluster_1</td>
-<td style="text-align: right;">2.5628538</td>
-<td style="text-align: right;">16.26959</td>
-<td style="text-align: right;">56.5418838</td>
-<td style="text-align: right;">0.0000268</td>
-<td style="text-align: right;">0.0002145</td>
-</tr>
-<tr class="even">
 <td>cluster_5</td>
-<td style="text-align: right;">1.1099507</td>
-<td style="text-align: right;">16.95228</td>
-<td style="text-align: right;">14.2491962</td>
-<td style="text-align: right;">0.0039762</td>
-<td style="text-align: right;">0.0109972</td>
-</tr>
-<tr class="odd">
-<td>cluster_3</td>
-<td style="text-align: right;">-1.0286285</td>
-<td style="text-align: right;">17.49978</td>
-<td style="text-align: right;">14.0768029</td>
-<td style="text-align: right;">0.0041240</td>
-<td style="text-align: right;">0.0109972</td>
+<td style="text-align: right;">2.5319969</td>
+<td style="text-align: right;">16.24552</td>
+<td style="text-align: right;">35.8084738</td>
+<td style="text-align: right;">0.0000396</td>
+<td style="text-align: right;">0.0003165</td>
 </tr>
 <tr class="even">
-<td>cluster_8</td>
-<td style="text-align: right;">0.3124081</td>
-<td style="text-align: right;">17.22108</td>
-<td style="text-align: right;">2.4209247</td>
-<td style="text-align: right;">0.1744145</td>
-<td style="text-align: right;">0.3488289</td>
-</tr>
-<tr class="odd">
 <td>cluster_7</td>
-<td style="text-align: right;">0.5272202</td>
-<td style="text-align: right;">16.53475</td>
-<td style="text-align: right;">1.7374884</td>
-<td style="text-align: right;">0.2183416</td>
-<td style="text-align: right;">0.3493465</td>
-</tr>
-<tr class="even">
-<td>cluster_6</td>
-<td style="text-align: right;">-0.2507258</td>
-<td style="text-align: right;">16.74928</td>
-<td style="text-align: right;">1.3739448</td>
-<td style="text-align: right;">0.2696796</td>
-<td style="text-align: right;">0.3595727</td>
+<td style="text-align: right;">-1.0372038</td>
+<td style="text-align: right;">17.43891</td>
+<td style="text-align: right;">23.1330362</td>
+<td style="text-align: right;">0.0003100</td>
+<td style="text-align: right;">0.0012400</td>
 </tr>
 <tr class="odd">
 <td>cluster_2</td>
-<td style="text-align: right;">0.5725246</td>
-<td style="text-align: right;">15.75906</td>
-<td style="text-align: right;">1.0181889</td>
-<td style="text-align: right;">0.3379481</td>
-<td style="text-align: right;">0.3862264</td>
+<td style="text-align: right;">0.6912108</td>
+<td style="text-align: right;">17.23912</td>
+<td style="text-align: right;">12.7306484</td>
+<td style="text-align: right;">0.0032703</td>
+<td style="text-align: right;">0.0087209</td>
 </tr>
 <tr class="even">
+<td>cluster_8</td>
+<td style="text-align: right;">-0.4720918</td>
+<td style="text-align: right;">17.18427</td>
+<td style="text-align: right;">4.5148252</td>
+<td style="text-align: right;">0.0526653</td>
+<td style="text-align: right;">0.1053306</td>
+</tr>
+<tr class="odd">
 <td>cluster_4</td>
-<td style="text-align: right;">-0.2656514</td>
-<td style="text-align: right;">18.05502</td>
-<td style="text-align: right;">0.6010392</td>
-<td style="text-align: right;">0.4570378</td>
-<td style="text-align: right;">0.4570378</td>
+<td style="text-align: right;">0.3649496</td>
+<td style="text-align: right;">17.56231</td>
+<td style="text-align: right;">3.1104360</td>
+<td style="text-align: right;">0.1004800</td>
+<td style="text-align: right;">0.1607681</td>
+</tr>
+<tr class="even">
+<td>cluster_3</td>
+<td style="text-align: right;">-0.3624476</td>
+<td style="text-align: right;">16.91702</td>
+<td style="text-align: right;">2.7422207</td>
+<td style="text-align: right;">0.1593070</td>
+<td style="text-align: right;">0.2124093</td>
+</tr>
+<tr class="odd">
+<td>cluster_6</td>
+<td style="text-align: right;">-0.3454095</td>
+<td style="text-align: right;">16.96639</td>
+<td style="text-align: right;">2.2331024</td>
+<td style="text-align: right;">0.1875447</td>
+<td style="text-align: right;">0.2143368</td>
+</tr>
+<tr class="even">
+<td>cluster_1</td>
+<td style="text-align: right;">-0.1151770</td>
+<td style="text-align: right;">16.16289</td>
+<td style="text-align: right;">0.0655397</td>
+<td style="text-align: right;">0.8018188</td>
+<td style="text-align: right;">0.8018188</td>
 </tr>
 </tbody>
 </table>
@@ -2100,7 +1996,7 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
 <pre><code>
 ─ Session info ─────────────────────────────────────────────────────
  setting  value                       
- version  R version 3.6.2 (2019-12-12)
+ version  R version 3.6.3 (2020-02-29)
  os       Ubuntu 18.04.4 LTS          
  system   x86_64, linux-gnu           
  ui       X11                         
@@ -2108,114 +2004,113 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  collate  en_AU.UTF-8                 
  ctype    en_AU.UTF-8                 
  tz       Australia/Melbourne         
- date     2020-02-10                  
+ date     2020-03-06                  
 
 ─ Packages ─────────────────────────────────────────────────────────
- ! package              * version   date       lib
- P acepack                1.4.1     2016-10-29 [?]
- P assertthat             0.2.1     2019-03-21 [?]
- P backports              1.1.5     2019-10-02 [?]
- P base64enc              0.1-3     2015-07-28 [?]
- P beeswarm               0.2.3     2016-04-25 [?]
- P Biobase              * 2.46.0    2019-10-29 [?]
- P BiocGenerics         * 0.32.0    2019-10-29 [?]
- P BiocManager            1.30.10   2019-11-16 [?]
- P BiocNeighbors          1.4.1     2019-11-01 [?]
- P BiocParallel         * 1.20.1    2019-12-21 [?]
- P BiocSingular           1.2.1     2019-12-23 [?]
- P BiocStyle            * 2.14.4    2020-01-09 [?]
- P bitops                 1.0-6     2013-08-17 [?]
- P checkmate              2.0.0     2020-02-06 [?]
- P cli                    2.0.0     2019-12-09 [?]
- P cluster                2.1.0     2019-06-19 [5]
- P colorblindr            0.1.0     2019-05-08 [?]
- P colorspace             1.4-1     2019-03-18 [?]
- P cowplot                1.0.0     2019-07-11 [?]
- P crayon                 1.3.4     2017-09-16 [?]
- P data.table             1.12.8    2019-12-09 [?]
- P DelayedArray         * 0.12.1    2019-12-17 [?]
- P DelayedMatrixStats     1.8.0     2019-10-29 [?]
- P digest                 0.6.23    2019-11-23 [?]
- P distill                0.7       2019-05-03 [?]
- P dplyr                * 0.8.3     2019-07-04 [?]
- P edgeR                * 3.28.0    2019-10-29 [?]
- P evaluate               0.14      2019-05-28 [?]
- P fansi                  0.4.0     2018-10-05 [?]
- P farver                 2.0.1     2019-11-13 [?]
- P foreign                0.8-75    2020-01-20 [5]
- P Formula              * 1.2-3     2018-05-03 [?]
- P GenomeInfoDb         * 1.22.0    2019-10-29 [?]
- P GenomeInfoDbData       1.2.2     2019-10-31 [?]
- P GenomicRanges        * 1.38.0    2019-10-29 [?]
- P ggbeeswarm             0.6.0     2017-08-07 [?]
- P ggplot2              * 3.2.1     2019-08-10 [?]
- P glue                   1.3.1     2019-03-12 [?]
- P gridExtra              2.3       2017-09-09 [?]
- P gtable                 0.3.0     2019-03-25 [?]
- P here                 * 0.1       2017-05-28 [?]
- P highr                  0.8       2019-03-20 [?]
- P Hmisc                * 4.3-1     2020-02-07 [?]
- P htmlTable              1.13.3    2019-12-04 [?]
- P htmltools              0.4.0     2019-10-04 [?]
- P htmlwidgets            1.5.1     2019-10-08 [?]
- P IRanges              * 2.20.1    2019-11-20 [?]
- P irlba                  2.3.3     2019-02-05 [?]
- P janitor              * 1.2.0     2019-04-21 [?]
- P jpeg                   0.1-8.1   2019-10-24 [?]
- P jsonlite               1.6       2018-12-07 [?]
- P knitr                  1.26      2019-11-12 [?]
- P labeling               0.3       2014-08-23 [?]
- P lattice              * 0.20-38   2018-11-04 [5]
- P latticeExtra           0.6-29    2019-12-19 [?]
- P lazyeval               0.2.2     2019-03-15 [?]
- P lifecycle              0.1.0     2019-08-01 [?]
- P limma                * 3.42.0    2019-10-29 [?]
- P locfit                 1.5-9.1   2013-04-20 [?]
- P magrittr               1.5       2014-11-22 [?]
- P Matrix                 1.2-18    2019-11-27 [?]
- P matrixStats          * 0.55.0    2019-09-07 [?]
- P munsell                0.5.0     2018-06-12 [?]
- P nnet                   7.3-12    2016-02-02 [5]
- P pheatmap             * 1.0.12    2019-01-04 [?]
- P pillar                 1.4.3     2019-12-20 [?]
- P pkgconfig              2.0.3     2019-09-22 [?]
- P png                    0.1-7     2013-12-03 [?]
- P Polychrome             1.2.3     2019-08-01 [?]
- P purrr                  0.3.3     2019-10-18 [?]
- P R6                     2.4.1     2019-11-12 [?]
- P RColorBrewer           1.1-2     2014-12-07 [?]
- P Rcpp                   1.0.3     2019-11-08 [?]
- P RCurl                  1.95-4.12 2019-03-04 [?]
- P rlang                  0.4.2     2019-11-23 [?]
- P rmarkdown              2.0       2019-12-12 [?]
- P rpart                  4.1-15    2019-04-12 [5]
- P rprojroot              1.3-2     2018-01-03 [?]
- P rstudioapi             0.10      2019-03-19 [?]
- P rsvd                   1.0.2     2019-07-29 [?]
- P S4Vectors            * 0.24.1    2019-12-01 [?]
- P scales                 1.1.0     2019-11-18 [?]
- P scater               * 1.14.6    2019-12-16 [?]
- P scatterplot3d          0.3-41    2018-03-14 [?]
- P sessioninfo            1.1.1     2018-11-05 [?]
- P SingleCellExperiment * 1.8.0     2019-10-29 [?]
- P statmod                1.4.32    2019-05-29 [?]
- P stringi                1.4.3     2019-03-12 [?]
- P stringr                1.4.0     2019-02-10 [?]
- P SummarizedExperiment * 1.16.1    2019-12-19 [?]
- P survival             * 3.1-8     2019-12-03 [5]
- P tibble                 2.1.3     2019-06-06 [?]
- P tidyr                  1.0.0     2019-09-11 [?]
- P tidyselect             0.2.5     2018-10-11 [?]
- P vctrs                  0.2.1     2019-12-17 [?]
- P vipor                  0.4.5     2017-03-22 [?]
- P viridis                0.5.1     2018-03-29 [?]
- P viridisLite            0.3.0     2018-02-01 [?]
- P withr                  2.1.2     2018-03-15 [?]
- P xfun                   0.11      2019-11-12 [?]
- P XVector                0.26.0    2019-10-29 [?]
- P yaml                   2.2.0     2018-07-25 [?]
- P zeallot                0.1.0     2018-01-28 [?]
- P zlibbioc               1.32.0    2019-10-29 [?]
+ ! package              * version  date       lib
+ P acepack                1.4.1    2016-10-29 [?]
+ P assertthat             0.2.1    2019-03-21 [?]
+ P backports              1.1.5    2019-10-02 [?]
+ P base64enc              0.1-3    2015-07-28 [?]
+ P beeswarm               0.2.3    2016-04-25 [?]
+ P Biobase              * 2.46.0   2019-10-29 [?]
+ P BiocGenerics         * 0.32.0   2019-10-29 [?]
+ P BiocManager            1.30.10  2019-11-16 [?]
+ P BiocNeighbors          1.4.2    2020-02-29 [?]
+ P BiocParallel         * 1.20.1   2019-12-21 [?]
+ P BiocSingular           1.2.2    2020-02-14 [?]
+ P BiocStyle            * 2.14.4   2020-01-09 [?]
+ P bitops                 1.0-6    2013-08-17 [?]
+ P checkmate              2.0.0    2020-02-06 [?]
+ P cli                    2.0.2    2020-02-28 [?]
+ P cluster                2.1.0    2019-06-19 [5]
+ P colorblindr            0.1.0    2019-05-08 [?]
+ P colorspace             1.4-1    2019-03-18 [?]
+ P cowplot                1.0.0    2019-07-11 [?]
+ P crayon                 1.3.4    2017-09-16 [?]
+ P data.table             1.12.8   2019-12-09 [?]
+ P DelayedArray         * 0.12.2   2020-01-06 [?]
+ P DelayedMatrixStats     1.8.0    2019-10-29 [?]
+ P digest                 0.6.25   2020-02-23 [?]
+ P distill                0.7      2019-05-03 [?]
+ P dplyr                * 0.8.4    2020-01-31 [?]
+ P edgeR                * 3.28.1   2020-02-26 [?]
+ P evaluate               0.14     2019-05-28 [?]
+ P fansi                  0.4.1    2020-01-08 [?]
+ P farver                 2.0.3    2020-01-16 [?]
+ P foreign                0.8-76   2020-03-03 [?]
+ P Formula              * 1.2-3    2018-05-03 [?]
+ P GenomeInfoDb         * 1.22.0   2019-10-29 [?]
+ P GenomeInfoDbData       1.2.2    2019-10-31 [?]
+ P GenomicRanges        * 1.38.0   2019-10-29 [?]
+ P ggbeeswarm             0.6.0    2017-08-07 [?]
+ P ggplot2              * 3.2.1    2019-08-10 [?]
+ P glue                   1.3.1    2019-03-12 [?]
+ P gridExtra              2.3      2017-09-09 [?]
+ P gtable                 0.3.0    2019-03-25 [?]
+ P here                 * 0.1      2017-05-28 [?]
+ P highr                  0.8      2019-03-20 [?]
+ P Hmisc                * 4.3-1    2020-02-07 [?]
+ P htmlTable              1.13.3   2019-12-04 [?]
+ P htmltools              0.4.0    2019-10-04 [?]
+ P htmlwidgets            1.5.1    2019-10-08 [?]
+ P IRanges              * 2.20.2   2020-01-13 [?]
+ P irlba                  2.3.3    2019-02-05 [?]
+ P janitor              * 1.2.1    2020-01-22 [?]
+ P jpeg                   0.1-8.1  2019-10-24 [?]
+ P jsonlite               1.6.1    2020-02-02 [?]
+ P knitr                  1.28     2020-02-06 [?]
+ P labeling               0.3      2014-08-23 [?]
+ P lattice              * 0.20-40  2020-02-19 [?]
+ P latticeExtra           0.6-29   2019-12-19 [?]
+ P lazyeval               0.2.2    2019-03-15 [?]
+ P lifecycle              0.1.0    2019-08-01 [?]
+ P limma                * 3.42.2   2020-02-03 [?]
+ P locfit                 1.5-9.1  2013-04-20 [?]
+ P magrittr               1.5      2014-11-22 [?]
+ P Matrix                 1.2-18   2019-11-27 [?]
+ P matrixStats          * 0.55.0   2019-09-07 [?]
+ P munsell                0.5.0    2018-06-12 [?]
+ P nnet                   7.3-13   2020-02-25 [5]
+ P pheatmap             * 1.0.12   2019-01-04 [?]
+ P pillar                 1.4.3    2019-12-20 [?]
+ P pkgconfig              2.0.3    2019-09-22 [?]
+ P png                    0.1-7    2013-12-03 [?]
+ P Polychrome             1.2.4    2020-02-03 [?]
+ P purrr                  0.3.3    2019-10-18 [?]
+ P R6                     2.4.1    2019-11-12 [?]
+ P RColorBrewer           1.1-2    2014-12-07 [?]
+ P Rcpp                   1.0.3    2019-11-08 [?]
+ P RCurl                  1.98-1.1 2020-01-19 [?]
+ P rlang                  0.4.5    2020-03-01 [?]
+ P rmarkdown              2.1      2020-01-20 [?]
+ P rpart                  4.1-15   2019-04-12 [5]
+ P rprojroot              1.3-2    2018-01-03 [?]
+ P rstudioapi             0.11     2020-02-07 [?]
+ P rsvd                   1.0.3    2020-02-17 [?]
+ P S4Vectors            * 0.24.3   2020-01-18 [?]
+ P scales                 1.1.0    2019-11-18 [?]
+ P scater               * 1.14.6   2019-12-16 [?]
+ P scatterplot3d          0.3-41   2018-03-14 [?]
+ P sessioninfo            1.1.1    2018-11-05 [?]
+ P SingleCellExperiment * 1.8.0    2019-10-29 [?]
+ P statmod                1.4.34   2020-02-17 [?]
+ P stringi                1.4.6    2020-02-17 [?]
+ P stringr                1.4.0    2019-02-10 [?]
+ P SummarizedExperiment * 1.16.1   2019-12-19 [?]
+ P survival             * 3.1-8    2019-12-03 [5]
+ P tibble                 2.1.3    2019-06-06 [?]
+ P tidyr                  1.0.2    2020-01-24 [?]
+ P tidyselect             1.0.0    2020-01-27 [?]
+ P vctrs                  0.2.3    2020-02-20 [?]
+ P vipor                  0.4.5    2017-03-22 [?]
+ P viridis                0.5.1    2018-03-29 [?]
+ P viridisLite            0.3.0    2018-02-01 [?]
+ P withr                  2.1.2    2018-03-15 [?]
+ P xfun                   0.12     2020-01-13 [?]
+ P XVector                0.26.0   2019-10-29 [?]
+ P yaml                   2.2.1    2020-02-01 [?]
+ P zlibbioc               1.32.0   2019-10-29 [?]
  source                                 
  CRAN (R 3.6.1)                         
  CRAN (R 3.5.3)                         
@@ -2231,7 +2126,7 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  Bioconductor                           
  CRAN (R 3.5.0)                         
  CRAN (R 3.6.2)                         
- CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
  CRAN (R 3.6.1)                         
  Github (clauswilke/colorblindr@1ac3d4d)
  CRAN (R 3.5.3)                         
@@ -2240,14 +2135,14 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  CRAN (R 3.6.2)                         
  Bioconductor                           
  Bioconductor                           
- CRAN (R 3.6.1)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.6.1)                         
- Bioconductor                           
- CRAN (R 3.6.0)                         
- CRAN (R 3.5.1)                         
+ CRAN (R 3.6.2)                         
  CRAN (R 3.6.1)                         
  CRAN (R 3.6.2)                         
+ Bioconductor                           
+ CRAN (R 3.6.0)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.3)                         
  CRAN (R 3.6.1)                         
  Bioconductor                           
  Bioconductor                           
@@ -2265,12 +2160,12 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  CRAN (R 3.6.1)                         
  Bioconductor                           
  CRAN (R 3.6.0)                         
- CRAN (R 3.6.0)                         
  CRAN (R 3.6.2)                         
- CRAN (R 3.5.1)                         
- CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
  CRAN (R 3.5.0)                         
- CRAN (R 3.5.1)                         
+ CRAN (R 3.6.2)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.5.3)                         
  CRAN (R 3.6.1)                         
@@ -2280,57 +2175,56 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  CRAN (R 3.6.1)                         
  CRAN (R 3.6.1)                         
  CRAN (R 3.5.0)                         
- CRAN (R 3.5.0)                         
+ CRAN (R 3.6.3)                         
  CRAN (R 3.6.0)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.1)                         
  CRAN (R 3.6.0)                         
- CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
  CRAN (R 3.6.1)                         
  CRAN (R 3.6.1)                         
  CRAN (R 3.5.0)                         
  CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.5.3)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ Bioconductor                           
+ CRAN (R 3.6.1)                         
+ Bioconductor                           
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.0)                         
+ Bioconductor                           
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
  CRAN (R 3.5.2)                         
+ Bioconductor                           
  CRAN (R 3.6.1)                         
+ CRAN (R 3.6.0)                         
  CRAN (R 3.6.2)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.5.3)                         
- CRAN (R 3.5.3)                         
- CRAN (R 3.6.1)                         
- Bioconductor                           
- CRAN (R 3.6.1)                         
- Bioconductor                           
- CRAN (R 3.6.1)                         
- CRAN (R 3.6.0)                         
- Bioconductor                           
- CRAN (R 3.6.0)                         
- CRAN (R 3.5.3)                         
- CRAN (R 3.5.2)                         
- Bioconductor                           
- CRAN (R 3.6.1)                         
- CRAN (R 3.6.0)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.5.1)                         
+ CRAN (R 3.6.2)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.0)                         
  CRAN (R 3.6.0)                         
  CRAN (R 3.5.0)                         
  CRAN (R 3.5.0)                         
- CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
  Bioconductor                           
- CRAN (R 3.5.1)                         
- CRAN (R 3.5.0)                         
+ CRAN (R 3.6.2)                         
  Bioconductor                           
 
 [1] /home/peter/SCORE/C075_Grant_Coultas/renv/library/R-3.6/x86_64-pc-linux-gnu
-[2] /tmp/RtmpDaTgQm/renv-system-library
+[2] /tmp/RtmpMEQ2rk/renv-system-library
 [3] /usr/local/lib/R/site-library
 [4] /usr/lib/R/site-library
 [5] /usr/lib/R/library
 
  P ── Loaded and on-disk path mismatch.</code></pre>
 </div>
-<div id="refs" class="references">
+<div id="refs" class="references" role="doc-bibliography">
 <div id="ref-lun2017testing">
 <p>Lun, A. T. L., A. C. Richard, and J. C. Marioni. 2017. “Testing for differential abundance in mass cytometry data.” <em>Nat. Methods</em> 14 (7): 707–9.</p>
 </div>
@@ -3440,14 +3334,13 @@ title = {{An integrated encyclopedia of DNA elements in the human genome}},
 year = {2012}
 }
 
-@ARTICLE{lun2016step,
-  title    = "A step-by-step workflow for low-level analysis of single-cell
-              {RNA-seq} data",
-  author   = "Lun, A. T. L. and McCarthy, D. J. and Marioni, J. C.",
-  journal  = "F1000Res.",
-  volume   =  5,
-  month    =  aug,
-  year     =  2016
+@article{lun2016step,
+  title={A step-by-step workflow for low-level analysis of single-cell {RNA-seq} data},
+  author={Lun, A. T. L. and McCarthy, D. J. and Marioni, J. C.},
+  journal ={F1000Res.},
+  volume={5},
+  month={aug},
+  year={2016}
 }
 </script>
 <!--/radix_placeholder_appendices-->

@@ -37,7 +37,6 @@ knitr::opts_chunk$set(fig.path = "C075_Grant_Coultas.preprocess_files/")
 
 The count data were processed using `r Biocpkg("scPipe")` and available in a *SingleCellExperiment* object, along with their metadata (see [`data/SCEs/C075_Grant_Coultas.scPipe.SCE.rds`](../data/SCEs/C075_Grant_Coultas.scPipe.SCE.rds)).
 
-
 ```{r}
 sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.scPipe.SCE.rds"))
 ```
@@ -107,6 +106,14 @@ mouse_colours <- setNames(
 sex_colours <- setNames(
   RColorBrewer::brewer.pal(4, "Set1")[1:2],
   levels(sce$sex))
+```
+
+# Removal of plates LC294 and LC358
+
+**Based on some preliminary analysis, it was decided to remove plates LC294 and LC358 from the data set, at least for the time being.**
+
+```{r}
+sce <- sce[, !sce$plate_number %in% c("LC294", "LC358")]
 ```
 
 ### Summarising the data
@@ -413,15 +420,16 @@ For now, however, we focus on the single cell data and remove the 20-cell sample
 ```{r}
 sce <- sce[, sce$sample_type == "single cell"]
 # NOTE: Update the factor columns.
-colData(sce) <- DataFrame(
-  lapply(colData(sce), function(x) {
-    if (is.factor(x)) {
-      factor(x)
-    } else {
-      x
-    }
-  }),
-  row.names = colnames(sce))
+# NOTE: Skipping this in order to preserve colours.
+# colData(sce) <- DataFrame(
+#   lapply(colData(sce), function(x) {
+#     if (is.factor(x)) {
+#       factor(x)
+#     } else {
+#       x
+#     }
+#   }),
+#   row.names = colnames(sce))
 ```
 
 There are some plates with a higher average percentage of reads coming from the ERCC spike-ins (LC294 and LC358) or with a subset of samples with notably larger values (LC398).
@@ -723,15 +731,16 @@ Some basic summaries of the quality-controlled data are shown in Figure \@ref(fi
 
 ```{r}
 # NOTE: Update the factor columns.
-colData(sce) <- DataFrame(
-  lapply(colData(sce), function(x) {
-    if (is.factor(x)) {
-      factor(x)
-    } else {
-      x
-    }
-  }),
-  row.names = colnames(sce))
+# NOTE: Skipping this in order to preserve colours
+# colData(sce) <- DataFrame(
+#   lapply(colData(sce), function(x) {
+#     if (is.factor(x)) {
+#       factor(x)
+#     } else {
+#       x
+#     }
+#   }),
+#   row.names = colnames(sce))
 ```
 
 ```{r qcplot-post-outlier-removal-by-plate-by-mouse, fig.cap = "Distributions of various QC metrics for all cells that passed quality control in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", layout = "l-page", fig.asp = 2 / 3}
