@@ -97,8 +97,7 @@ This iterative approach is entirely permissible for data exploration, which cons
 ## Graph-based clustering
 
 We build a shared nearest neighbour graph [@xu2015identification] and use the Louvain algorithm to identify clusters.
-Typically, we would build the graph using the MNN-corrected principal components so as to incorporate the batch effect correction.
-However, in this context where batch effect is not orthogonal to the biology, we could only construct the graph using the uncorrected principal components.
+We build the graph using the MNN-corrected principal components so as to incorporate the batch effect correction.
 
 ```{r}
 set.seed(5772)
@@ -179,14 +178,7 @@ pheatmap(
 
 ## Visual inspection of clustering results
 
-We visually examine the clusters on a UMAP plot to confirm that a sensible partitioning was generated.
-Figures \@ref(fig:clusterplot-umap) show that  cells from the day1 samples form a cluster with two subpopulations (i.e. cluster 6 and 7) distinctive from the rest. 
-This actually go in line with the outcomes of our QC, where samples from day1 are slightly lower in count depth and features, but with higher level of variance compared to day3 and day6.
-The clustering pattern may also indicate the unique cell-types or -state of the two clusters of cells in day1.
-However, this pattern also match with cells from plate LCE297, implying it could partially or even completely be an outcome of plate-based batch effect.
-Day3 and day6 harbors four and three clusters respectively, but with one cluster shared between the days (i.e. cluster 4).
-This could correspond to cells at an interim state or developmental stage transiting from day 3 to 6.
-Moreover, samples from the same day of collection are quite homogeneous among themselves, suggesting the uniformity among samples from each day.
+Figure \@ref(fig:clusterplot-umap) displays the clusters on a UMAP plot to confirm that a sensible partitioning was generated.
 
 ```{r clusterplot-umap, fig.cap = "UMAP plot of the uncorrected data, where each point represents a cell and is coloured according to the legend.", fig.asp = 1}
 plot_grid(
@@ -291,7 +283,6 @@ for (n in names(markers_union_any)) {
 ```{r}
 chosen <- "2"
 interesting <- markers_union_any[[chosen]]
-# stopifnot(all(unlist(interesting["Cdcp1", -c(1:3)]) > 0))
 ```
 
 To demonstrate, we use cluster `r chosen` as our cluster of interest for this section.
@@ -344,9 +335,6 @@ library(scater)
     plate_number = plate_number_colours),
   fontsize = 8)
 ```
-
-Some inspection of Figures \@ref(fig:heat-logFC) and \@ref(fig:heat-logExp) suggest that cluster `r chosen` are distinguished by the relatively high expression level of the *different isoforms of histone H2A*. Also, the higher expression only observed in day3 and day6, in which expression at day6 are in general higher than day3 within the cluster.
-Notably, expression of another 2 genes, *Gstm2*, and *Sparc*, are found to be higher in cluster 8 (which is a cluster mostly shared between cells from day1 and day6) and with a decreasing trend of expression through day1 to day6.
 
 Similar figures showing the top 10 marker genes for each cluster are available in [`output/marker_genes/union_any/heatmaps.union_any.pdf`](../output/marker_genes/union_any/heatmaps.union_any.pdf).
 
@@ -737,6 +725,7 @@ The tables of marker genes are available as CSV files in [`output/marker_genes`]
 Regardless of the strategy employed, [Standard application], [Using the log-fold change] or [Finding cluster-specific markers], the result is a gene list that needs to be examined to try to identify the cell type.
 As such, they can be analysed like any other gene list, just as you might a list of differentially expressed genes from a bulk RNA-seq experiment.
 This includes:
+
 - Staring at heatmaps and spreadsheets, such as those included with this report, and googling some of the more informative genes, such as the cluster-specific marker genes.
 - Gene set enrichment analysis, e.g., using GO or KEGG terms.
 This can require a fair amount of manual work and knowledge of the biological system.
@@ -766,11 +755,9 @@ This is followed by cubing of the adjusted scores to improve dynamic range near 
 Automatic annotation provides a convenient way of transferring biological knowledge across data sets.
 In this manner, the burden of interpreting clusters and defining marker genes only has to be done once (i.e. for the reference set).
 
-There are **TODO: HOW MANY (and describe)** murine reference data sets available:
+There is one murine reference data sets available:
 
-1. `MouseRNAseqData`: normalized expression values of 358 bulk RNA-seq samples of sorted cell populations that can be found at GEO [^Benayoun, B. A., et al. (2019) Remodeling of epigenome and transcriptome landscapes with aging in mice reveals widespread induction of inflammatory responses. *Genome Res.* doi: 10.1101/gr.240093.118 ];
-
-We use `r Biocpkg("SingleR")` to annotate the data set against `MouseRNAseqData` as it is more likely to be relevant to the SSC from mouses.
+1. `MouseRNAseqData`: normalized expression values of 358 bulk RNA-seq samples of sorted cell populations that can be found at GEO^[Benayoun, B. A., et al. (2019) Remodeling of epigenome and transcriptome landscapes with aging in mice reveals widespread induction of inflammatory responses. *Genome Res.* doi: 10.1101/gr.240093.118]
 
 `r Biocpkg("SingleR")` can be used to annotate at the cell-level or the cluster-level.
 The latter is generally used to speed-up calculations, which is not necessary for this sized data set.
@@ -782,9 +769,8 @@ Therefore, I have annotated at the cell-level to obtain a higher resolution anal
 mrad <- MouseRNAseqData()
 ```
 
-The `MouseRNAseqData` reference set entails expression values of 358 bulk RNA-seq samples of sorted cell populations that can be found at GEO processed and normalized as described in [^Benayoun, B. A., et al. (2019) Remodeling of epigenome and transcriptome landscapes with aging in mice reveals widespread induction of inflammatory responses. *Genome Res.* doi: 10.1101/gr.240093.118 ].
+The `MouseRNAseqData` reference set entails expression values of 358 bulk RNA-seq samples of sorted cell populations that can be found at GEO processed and normalized as described in^[Benayoun, B. A., et al. (2019) Remodeling of epigenome and transcriptome landscapes with aging in mice reveals widespread induction of inflammatory responses. *Genome Res.* doi: 10.1101/gr.240093.118 ].
 Each sample has a 'main' and a 'fine' cell type label, summarised below.
-Of note, the `MouseRNAseqData` contains various cell sub-types, even though it may not be highly relevant to murine SSC.
 
 ```{r}
 .adf(colData(mrad)) %>%
@@ -956,15 +942,12 @@ plotScoreReducedDim(
 
 Any automated cell type annotation method is only as good as its reference set.
 Any cell type present in the test set but with no good match in the reference set will be misannotated to some degree.
-We will need to consider the cell types available in each reference set and the appropriateness of annotating embroyonic cells using reference sets that likely mostly comprise adult cells.
 
 # Cell cycle assignment
 
 On occasion, it can be desirable to determine cell cycle activity from scRNA-seq data.
 In and of itself, the distribution of cells across phases of the cell cycle is not usually informative, but we can use this to determine if there are differences in cell cycle progression between subpopulations or across treatment conditions.
 Many of the key events in the cell cycle (e.g., passage through checkpoints) are post-translational and thus not directly visible in transcriptomic data; nonetheless, there are enough changes in expression that can be exploited to determine cell cycle phase.
-
-**TODO:** We'll discuss with Ruili whether it makes sense to analyse cell cycle for these cells. It will be somewhat challenging to interpret because these are such an unusual cell type (compared to the reference datasets of cell cycle gene expression). For now, I've included a few different analyses of cell cycle, but ultimately we may remove these entirely.
 
 ## Using the cyclins
 
@@ -1069,9 +1052,9 @@ tabyl(
       "Assignement of cells in each cluster to a cell cycle phase with the 'reference profiles' approach.")
 ```
 
-The key assumption here is that the cell cycle is orthogonal to cell type and other aspects of cell behavior.
+The key assumption here is that the cell cycle is orthogonal to cell type and other aspects of cell behaviour.
 This justifies the use of a reference involving cell types that are quite different from the cells in the test dataset, provided that the cell cycle transcriptional program is conserved across datasets^[Bertoli, Skotheim, and Bruin 2013; Conboy et al. 2007].
-However, it is not difficult to find routine violations of this assumption&[see https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles for an illustration].
+However, it is not difficult to find routine violations of this assumption^[see [https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles](https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles) for an illustration].
 
 Thus, a healthy dose of scepticism is required when interpreting these assignments. 
 Our hope is that any systematic assignment error is consistent across clusters and conditions such that they cancel out in comparisons of phase frequencies, which is the more interesting analysis anyway.
