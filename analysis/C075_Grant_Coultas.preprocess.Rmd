@@ -92,20 +92,25 @@ colData(sce) <- cbind(new_colData, facs_data)
 plate_number_colours <- setNames(
   RColorBrewer::brewer.pal(nlevels(sce$plate_number), "Set2"),
   levels(sce$plate_number))
+sce$plate_number_colours <- plate_number_colours[sce$plate_number]
 sample_type_colours <- setNames(
   RColorBrewer::brewer.pal(nlevels(sce$sample_type), "Accent"),
   levels(sce$sample_type))
 sample_type_colours <- sample_type_colours[!is.na(names(sample_type_colours))]
+sce$sample_type_colours <- sample_type_colours[sce$sample_type]
 genotype_colours <- setNames(
   RColorBrewer::brewer.pal(4, "Set1")[3:4],
   levels(sce$genotype))
 genotype_colours <- genotype_colours[!is.na(names(genotype_colours))]
+sce$genotype_colours <- genotype_colours[sce$genotype]
 mouse_colours <- setNames(
   Polychrome::dark.colors(nlevels(sce$mouse)),
   levels(sce$mouse))
+sce$mouse_colours <- mouse_colours[sce$mouse]
 sex_colours <- setNames(
   RColorBrewer::brewer.pal(4, "Set1")[1:2],
   levels(sce$sex))
+sce$sex_colours <- sex_colours[sce$sex]
 ```
 
 # Removal of plates LC294 and LC358

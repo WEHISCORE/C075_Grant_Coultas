@@ -40,18 +40,17 @@ corrected_umap <- cbind(
   as.data.frame(colData(sce)))
 # Some useful colours
 plate_number_colours <- setNames(
-  RColorBrewer::brewer.pal(nlevels(sce$plate_number), "Set2"),
-  levels(sce$plate_number))
+  unique(sce$plate_number_colours),
+  unique(names(sce$plate_number_colours)))
 genotype_colours <- setNames(
-  RColorBrewer::brewer.pal(4, "Set1")[3:4],
-  levels(sce$genotype))
-genotype_colours <- genotype_colours[!is.na(names(genotype_colours))]
+  unique(sce$genotype_colours),
+  unique(names(sce$genotype_colours)))
 mouse_colours <- setNames(
-  Polychrome::dark.colors(nlevels(sce$mouse)),
-  levels(sce$mouse))
+  unique(sce$mouse_colours),
+  unique(names(sce$mouse_colours)))
 sex_colours <- setNames(
-  RColorBrewer::brewer.pal(4, "Set1")[1:2],
-  levels(sce$sex))
+  unique(sce$sex_colours),
+  unique(names(sce$sex_colours)))
 ```
 
 ```{r}
@@ -109,6 +108,7 @@ cluster_colours <- setNames(
   colorblindr::palette_OkabeIto,
   levels(sce$cluster))
 cluster_colours <- cluster_colours[!is.na(names(cluster_colours))]
+sce$cluster_colours <- cluster_colours[sce$cluster]
 ```
 
 There are `r length(levels(sce$cluster))` clusters detected, summarised in Figure \@ref(fig:cluster-barplot).
@@ -1154,8 +1154,11 @@ The following are available on request:
 
 # Session info {.appendix}
 
-The analysis and this document were prepared using the following software:
+<summary>The analysis and this document were prepared using the following software (click triangle to expand)</summary>
+<details>
 
 ```{r}
 sessioninfo::session_info()
 ```
+
+</details>
