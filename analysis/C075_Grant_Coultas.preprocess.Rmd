@@ -470,7 +470,7 @@ ggsave(
   fig_path,
   multiplot(plotlist = p, cols = 2),
   width = 300,
-  height = 450,
+  height = 250,
   units = "mm")
 knitr::include_graphics(fig_path)
 ```
@@ -508,7 +508,7 @@ ggsave(
   fig_path,
   multiplot(plotlist = p, cols = 2),
   width = 300,
-  height = 450,
+  height = 250,
   units = "mm")
 knitr::include_graphics(fig_path)
 ```
@@ -892,10 +892,10 @@ summary(sizeFactors(sce))
 We check that the size factors are roughly aligned with the total library sizes (Figure \@ref(fig:normplot)).
 Deviations from the diagonal correspond to composition biases due to differential expression between cell subpopulations.
 
-```{r normplot, fig.cap = "Size factors from deconvolution, plotted against library sizes for all cells in each data set. Axes are shown on a log-scale.", results = "hide", layout = "l-page", fig.asp = 3 / 5}
+```{r normplot, fig.cap = "Size factors from deconvolution, plotted against library sizes for all cells in each data set. Axes are shown on a log-scale.", results = "hide", fig.asp = 4 / 5}
 xlim <- c(1, max(sce$sum) / 1e3)
 ylim <- range(sizeFactors(sce))
-par(mfrow = c(2, 4))
+par(mfrow = c(2, 3))
 lapply(levels(sce$plate_number), function(p) {
   sce <- sce[, sce$plate_number == p]
   plot(
@@ -953,8 +953,11 @@ The following are available on request:
 
 # Session info {.appendix}
 
-The analysis and this document were prepared using the following software:
+<summary>The analysis and this document were prepared using the following software (click triangle to expand)</summary>
+<details>
 
 ```{r}
 sessioninfo::session_info()
 ```
+
+</details>
