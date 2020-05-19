@@ -24,8 +24,8 @@
   
   
   <!--  https://schema.org/Article -->
-  <meta property="article:published" itemprop="datePublished" content="2020-03-06"/>
-  <meta property="article:created" itemprop="dateCreated" content="2020-03-06"/>
+  <meta property="article:published" itemprop="datePublished" content="2020-05-19"/>
+  <meta property="article:created" itemprop="dateCreated" content="2020-05-19"/>
   <meta name="article:author" content="Peter Hickey"/>
   
   <!--  https://developers.facebook.com/docs/sharing/webmasters#markup -->
@@ -45,7 +45,7 @@
   <!--radix_placeholder_rmarkdown_metadata-->
   
   <script type="text/json" id="radix-rmarkdown-metadata">
-  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output","editor_options","bibliography"]}},"value":[{"type":"character","attributes":{},"value":["Multi-sample comparisons with Grant (C075) retinal epithelial cells data set"]},{"type":"NULL"},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","affiliation","affiliation_url"]}},"value":[{"type":"character","attributes":{},"value":["Peter Hickey"]},{"type":"character","attributes":{},"value":["https://peterhickey.org"]},{"type":"character","attributes":{},"value":["Single Cell Open Research Endeavour (SCORE), WEHI"]},{"type":"character","attributes":{},"value":["https://www.wehi.edu.au/people/shalin-naik/3310/score"]}]}]},{"type":"character","attributes":{},"value":["2020-03-06"]},{"type":"character","attributes":{},"value":["distill::distill_article"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["chunk_output_type"]}},"value":[{"type":"character","attributes":{},"value":["console"]}]},{"type":"character","attributes":{},"value":["ref.bib"]}]}
+  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output","editor_options","bibliography"]}},"value":[{"type":"character","attributes":{},"value":["Multi-sample comparisons with Grant (C075) retinal epithelial cells data set"]},{"type":"NULL"},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","affiliation","affiliation_url"]}},"value":[{"type":"character","attributes":{},"value":["Peter Hickey"]},{"type":"character","attributes":{},"value":["https://peterhickey.org"]},{"type":"character","attributes":{},"value":["Single Cell Open Research Endeavour (SCORE), WEHI"]},{"type":"character","attributes":{},"value":["https://www.wehi.edu.au/people/shalin-naik/3310/score"]}]}]},{"type":"character","attributes":{},"value":["2020-05-19"]},{"type":"character","attributes":{},"value":["distill::distill_article"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["chunk_output_type"]}},"value":[{"type":"character","attributes":{},"value":["console"]}]},{"type":"character","attributes":{},"value":["ref.bib"]}]}
   </script>
   <!--/radix_placeholder_rmarkdown_metadata-->
   <!--radix_placeholder_navigation_in_header-->
@@ -1278,7 +1278,7 @@
 <!--radix_placeholder_front_matter-->
 
 <script id="distill-front-matter" type="text/json">
-{"title":"Multi-sample comparisons with Grant (C075) retinal epithelial cells data set","authors":[{"author":"Peter Hickey","authorURL":"https://peterhickey.org","affiliation":"Single Cell Open Research Endeavour (SCORE), WEHI","affiliationURL":"https://www.wehi.edu.au/people/shalin-naik/3310/score"}],"publishedDate":"2020-03-06T00:00:00.000+11:00","citationText":"Hickey, 2020"}
+{"title":"Multi-sample comparisons with Grant (C075) retinal epithelial cells data set","authors":[{"author":"Peter Hickey","authorURL":"https://peterhickey.org","affiliation":"Single Cell Open Research Endeavour (SCORE), WEHI","affiliationURL":"https://www.wehi.edu.au/people/shalin-naik/3310/score"}],"publishedDate":"2020-05-19T00:00:00.000+10:00","citationText":"Hickey, 2020"}
 </script>
 
 <!--/radix_placeholder_front_matter-->
@@ -1326,7 +1326,7 @@ Supplementary files
 <div class="d-byline">
   Peter Hickey <a href="https://peterhickey.org" class="uri">https://peterhickey.org</a> (Single Cell Open Research Endeavour (SCORE), WEHI)<a href="https://www.wehi.edu.au/people/shalin-naik/3310/score" class="uri">https://www.wehi.edu.au/people/shalin-naik/3310/score</a>
   
-<br/>2020-03-06
+<br/>2020-05-19
 </div>
 
 <div class="d-article">
@@ -1334,7 +1334,7 @@ Supplementary files
 <nav class="d-toc" id="TOC">
 <ul>
 <li><a href="#introduction">Introduction</a></li>
-<li><a href="#differential-expression-vs.-differential-abundance">Differential expression vs. differential abundance</a></li>
+<li><a href="#differential-expression-vs.differential-abundance">Differential expression vs. differential abundance</a></li>
 <li><a href="#differential-expression-between-conditions">Differential expression between conditions</a></li>
 <li><a href="#differential-abundance-between-conditions">Differential abundance between conditions</a></li>
 <li><a href="#concluding-remarks">Concluding remarks</a></li>
@@ -1355,7 +1355,7 @@ Supplementary files
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<h1 id="differential-expression-vs.-differential-abundance">Differential expression vs. differential abundance</h1>
+<h1 id="differential-expression-vs.differential-abundance">Differential expression vs. differential abundance</h1>
 <p>While useful, the distinction between DA and DE analyses is inherently artificial for scRNA-seq data. This is because the labels used in the former are defined based on the genes to be tested in the latter. To illustrate, consider a scRNA-seq experiment involving two biological conditions with several shared cell types. We focus on a cell type <span class="math inline">\(X\)</span> that is present in both conditions but contains some DEGs between conditions. This leads to two possible outcomes:</p>
 <ol type="1">
 <li>The DE between conditions causes <span class="math inline">\(X\)</span> to form two separate clusters (say, <span class="math inline">\(X_1\)</span> and <span class="math inline">\(X_2\)</span>) in expression space. This manifests as DA where <span class="math inline">\(X_1\)</span> is enriched in one condition and <span class="math inline">\(X_2\)</span> is enriched in the other condition.</li>
@@ -1367,7 +1367,7 @@ Supplementary files
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>We perform the DE analysis separately for all cells with the same ‘label’. The actual DE testing is performed on “pseudobulk” expression profiles <span class="citation" data-cites="tung2016batch">(Tung et al. <a href="#ref-tung2016batch" role="doc-biblioref">2017</a>)</span>, generated by summing counts together for all cells with the same combination of label and sample.</p>
+<p>We perform the DE analysis separately for all cells with the same ‘label’. The actual DE testing is performed on “pseudobulk” expression profiles <span class="citation" data-cites="tung2016batch">(Tung et al. <a href="#ref-tung2016batch">2017</a>)</span>, generated by summing counts together for all cells with the same combination of label and sample.</p>
 <p>This leverages the resolution offered by single-cell technologies to define the labels, and combines it with the statistical rigor of existing methods for DE analyses involving a small number of samples.</p>
 <p>Here we use the clusters as the cell labels, i.e. all cells from the same mouse assigned to the same cluster will have the same label. We also perform DE testing without regard for the cluster labels.</p>
 <p>The <a href="../output/DEGs/"><code>output/DEGs/</code></a> directory contains CSV files summarising the pseudobulk results and PDFs showing the single-cell expression data for each DEG.</p>
@@ -1864,7 +1864,7 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>Our DA analysis will again be performed with the <em><a href="https://bioconductor.org/packages/3.10/edgeR">edgeR</a></em> package. This allows us to take advantage of the negative binomial generalized linear model methods to model overdispersed count data in the presence of limited replication - except that the counts are not of reads per gene, but of cells per label <span class="citation" data-cites="lun2017testing">(Lun, Richard, and Marioni <a href="#ref-lun2017testing" role="doc-biblioref">2017</a>)</span>. The aim is to share information across labels to improve our estimates of the biological variability in cell abundance between replicates.</p>
+<p>Our DA analysis will again be performed with the <em><a href="https://bioconductor.org/packages/3.10/edgeR">edgeR</a></em> package. This allows us to take advantage of the negative binomial generalized linear model methods to model overdispersed count data in the presence of limited replication - except that the counts are not of reads per gene, but of cells per label <span class="citation" data-cites="lun2017testing">(Lun, Richard, and Marioni <a href="#ref-lun2017testing">2017</a>)</span>. The aim is to share information across labels to improve our estimates of the biological variability in cell abundance between replicates.</p>
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
@@ -1997,14 +1997,14 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
 ─ Session info ─────────────────────────────────────────────────────
  setting  value                       
  version  R version 3.6.3 (2020-02-29)
- os       Ubuntu 18.04.4 LTS          
+ os       CentOS Linux 7 (Core)       
  system   x86_64, linux-gnu           
  ui       X11                         
- language en_AU:en                    
- collate  en_AU.UTF-8                 
- ctype    en_AU.UTF-8                 
+ language (EN)                        
+ collate  en_US.UTF-8                 
+ ctype    en_US.UTF-8                 
  tz       Australia/Melbourne         
- date     2020-03-06                  
+ date     2020-05-19                  
 
 ─ Packages ─────────────────────────────────────────────────────────
  ! package              * version  date       lib
@@ -2023,8 +2023,8 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  P bitops                 1.0-6    2013-08-17 [?]
  P checkmate              2.0.0    2020-02-06 [?]
  P cli                    2.0.2    2020-02-28 [?]
- P cluster                2.1.0    2019-06-19 [5]
- P colorblindr            0.1.0    2019-05-08 [?]
+ P cluster                2.1.0    2019-06-19 [3]
+ P colorblindr            0.1.0    2019-12-11 [?]
  P colorspace             1.4-1    2019-03-18 [?]
  P cowplot                1.0.0    2019-07-11 [?]
  P crayon                 1.3.4    2017-09-16 [?]
@@ -2041,7 +2041,7 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  P foreign                0.8-76   2020-03-03 [?]
  P Formula              * 1.2-3    2018-05-03 [?]
  P GenomeInfoDb         * 1.22.0   2019-10-29 [?]
- P GenomeInfoDbData       1.2.2    2019-10-31 [?]
+ P GenomeInfoDbData       1.2.2    2020-01-01 [?]
  P GenomicRanges        * 1.38.0   2019-10-29 [?]
  P ggbeeswarm             0.6.0    2017-08-07 [?]
  P ggplot2              * 3.2.1    2019-08-10 [?]
@@ -2068,10 +2068,10 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  P limma                * 3.42.2   2020-02-03 [?]
  P locfit                 1.5-9.1  2013-04-20 [?]
  P magrittr               1.5      2014-11-22 [?]
- P Matrix                 1.2-18   2019-11-27 [?]
+ P Matrix                 1.2-18   2019-11-27 [3]
  P matrixStats          * 0.55.0   2019-09-07 [?]
  P munsell                0.5.0    2018-06-12 [?]
- P nnet                   7.3-13   2020-02-25 [5]
+ P nnet                   7.3-13   2020-02-25 [?]
  P pheatmap             * 1.0.12   2019-01-04 [?]
  P pillar                 1.4.3    2019-12-20 [?]
  P pkgconfig              2.0.3    2019-09-22 [?]
@@ -2084,7 +2084,7 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  P RCurl                  1.98-1.1 2020-01-19 [?]
  P rlang                  0.4.5    2020-03-01 [?]
  P rmarkdown              2.1      2020-01-20 [?]
- P rpart                  4.1-15   2019-04-12 [5]
+ P rpart                  4.1-15   2019-04-12 [3]
  P rprojroot              1.3-2    2018-01-03 [?]
  P rstudioapi             0.11     2020-02-07 [?]
  P rsvd                   1.0.3    2020-02-17 [?]
@@ -2098,7 +2098,7 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  P stringi                1.4.6    2020-02-17 [?]
  P stringr                1.4.0    2019-02-10 [?]
  P SummarizedExperiment * 1.16.1   2019-12-19 [?]
- P survival             * 3.1-8    2019-12-03 [5]
+ P survival             * 3.1-8    2019-12-03 [3]
  P tibble                 2.1.3    2019-06-06 [?]
  P tidyr                  1.0.2    2020-01-24 [?]
  P tidyselect             1.0.0    2020-01-27 [?]
@@ -2112,119 +2112,117 @@ Figure 7: Heatmap of pseudobulk-level log-expression values normalized to the me
  P yaml                   2.2.1    2020-02-01 [?]
  P zlibbioc               1.32.0   2019-10-29 [?]
  source                                 
+ CRAN (R 3.6.2)                         
  CRAN (R 3.6.1)                         
- CRAN (R 3.5.3)                         
  CRAN (R 3.6.1)                         
- CRAN (R 3.5.0)                         
- CRAN (R 3.6.0)                         
- Bioconductor                           
- Bioconductor                           
+ CRAN (R 3.6.1)                         
  CRAN (R 3.6.1)                         
  Bioconductor                           
  Bioconductor                           
+ CRAN (R 3.6.1)                         
  Bioconductor                           
  Bioconductor                           
- CRAN (R 3.5.0)                         
+ Bioconductor                           
+ Bioconductor                           
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.3)                         
+ github (clauswilke/colorblindr@1ac3d4d)
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ Bioconductor                           
+ Bioconductor                           
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ Bioconductor                           
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ Bioconductor                           
+ Bioconductor                           
+ Bioconductor                           
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.1)                         
- Github (clauswilke/colorblindr@1ac3d4d)
- CRAN (R 3.5.3)                         
  CRAN (R 3.6.1)                         
- CRAN (R 3.5.0)                         
- CRAN (R 3.6.2)                         
  Bioconductor                           
- Bioconductor                           
- CRAN (R 3.6.2)                         
  CRAN (R 3.6.1)                         
  CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
  Bioconductor                           
- CRAN (R 3.6.0)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.3)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.3)                         
  CRAN (R 3.6.1)                         
- Bioconductor                           
- Bioconductor                           
- Bioconductor                           
- CRAN (R 3.6.0)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.5.3)                         
- CRAN (R 3.6.0)                         
- CRAN (R 3.5.3)                         
- CRAN (R 3.6.0)                         
- CRAN (R 3.5.3)                         
  CRAN (R 3.6.2)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ Bioconductor                           
  CRAN (R 3.6.1)                         
  Bioconductor                           
- CRAN (R 3.6.0)                         
+ CRAN (R 3.6.1)                         
+ CRAN (R 3.6.2)                         
+ Bioconductor                           
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.2)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.5.0)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.5.3)                         
  CRAN (R 3.6.1)                         
  Bioconductor                           
- CRAN (R 3.6.0)                         
- CRAN (R 3.5.0)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.5.0)                         
  CRAN (R 3.6.3)                         
- CRAN (R 3.6.0)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.6.0)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.6.1)                         
- CRAN (R 3.5.0)                         
  CRAN (R 3.6.1)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.2)                         
  CRAN (R 3.6.1)                         
- CRAN (R 3.5.3)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.2)                         
- Bioconductor                           
  CRAN (R 3.6.1)                         
- Bioconductor                           
  CRAN (R 3.6.1)                         
- CRAN (R 3.6.0)                         
- Bioconductor                           
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.5.2)                         
- Bioconductor                           
  CRAN (R 3.6.1)                         
- CRAN (R 3.6.0)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.2)                         
- CRAN (R 3.6.0)                         
- CRAN (R 3.6.0)                         
- CRAN (R 3.5.0)                         
- CRAN (R 3.5.0)                         
  CRAN (R 3.6.2)                         
  Bioconductor                           
  CRAN (R 3.6.2)                         
  Bioconductor                           
 
-[1] /home/peter/SCORE/C075_Grant_Coultas/renv/library/R-3.6/x86_64-pc-linux-gnu
-[2] /tmp/RtmpMEQ2rk/renv-system-library
-[3] /usr/local/lib/R/site-library
-[4] /usr/lib/R/site-library
-[5] /usr/lib/R/library
+[1] /stornext/General/data/user_managed/grpu_mritchie_1/hickey/SCORE/C075_Grant_Coultas/renv/library/R-3.6/x86_64-pc-linux-gnu
+[2] /tmp/RtmpOBVEfI/renv-system-library
+[3] /stornext/System/data/apps/R/R-3.6.3/lib64/R/library
 
  P ── Loaded and on-disk path mismatch.</code></pre>
 </div>
-<div id="refs" class="references" role="doc-bibliography">
+<div id="refs" class="references">
 <div id="ref-lun2017testing">
 <p>Lun, A. T. L., A. C. Richard, and J. C. Marioni. 2017. “Testing for differential abundance in mass cytometry data.” <em>Nat. Methods</em> 14 (7): 707–9.</p>
 </div>
