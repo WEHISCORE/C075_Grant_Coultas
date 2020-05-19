@@ -378,6 +378,7 @@ In the uncorrected data, there is a clear association between batch (plate numbe
 
 ```{r beforeplot-umap, fig.cap = "UMAP plot of the data set before MNN correction. Each point represents a cell with the colour explained in the legend."}
 set.seed(572968)
+library(uwot)
 uncorrected <- runUMAP(sce, dimred = "PCA")
 uncorrected_umap <- cbind(
   data.frame(
