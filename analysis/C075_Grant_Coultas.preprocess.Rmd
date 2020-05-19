@@ -114,6 +114,7 @@ sex_colours <- setNames(
 
 ```{r}
 sce <- sce[, !sce$plate_number %in% c("LC294", "LC358")]
+colData(sce) <- droplevels(colData(sce))
 ```
 
 ### Summarising the data
