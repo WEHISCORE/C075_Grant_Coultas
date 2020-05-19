@@ -655,7 +655,7 @@ for (label in names(degs_mutant_vs_control)) {
     here(
       "output",
       "DEGs",
-      "cluster_labels",
+      "ignoring_cluster_labels",
       paste0(label, ".mutant_vs_control.expression_plots.pdf")))
   for (g in degs) {
      p <- plotExpression(
