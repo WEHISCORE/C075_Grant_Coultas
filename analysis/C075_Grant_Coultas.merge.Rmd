@@ -156,10 +156,10 @@ This is especially important if batches exhibit systematic technical differences
 Figure \@ref(fig:trendplots) visualizes the quality of the batch-specific trend fits and Figure \@ref(fig:trendplots-fits) highlights the need for batch-specific estimates of these fits.
 The analysis of each plate yields estimates of the biological and technical components for each gene, which are averaged across plates to take advantage of information from multiple batches.
 
-```{r trendplots, fig.cap = "Variance of normalized log-expression values for each gene in each plate, plotted against the mean log-expression. The coloured line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red).", results = "hide", fig.asp = 1, layout = "l-page"}
+```{r trendplots, fig.cap = "Variance of normalized log-expression values for each gene in each plate, plotted against the mean log-expression. The coloured line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red).", results = "hide", fig.asp = 1}
 xlim <- c(0, max(sapply(dec$per.block, function(x) max(x$mean))))
 ylim <- c(0, max(sapply(dec$per.block, function(x) max(x$total))))
-par(mfrow = c(3, 3))
+par(mfrow = c(2, 3))
 blocked_stats <- dec$per.block
 for (i in colnames(blocked_stats)) {
   current <- blocked_stats[[i]]
@@ -211,6 +211,40 @@ legend(
 ```
 
 As an aside, the wave-like shape observed above is typical of the mean-variance trend for log-expression values^[The same wave is present but generally less pronounced for UMI data.].
+
+#### Mean-variance plots stratified by genotype
+
+In a meeting on 2020-05-01, Anne asked for a version of Figure \@ref(fig:trendplots) by genotype.
+Anne was interested to know if there is a difference (due to HBO1-induced global gene expression changes).
+Figure \@ref(fig:trendplots-by-genotype) does this and shows no strong genotype-specific differences.
+
+```{r trendplots-by-genotype, fig.cap = "Variance of normalized log-expression values for each gene in each plate and genotype, plotted against the mean log-expression. The blue line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red).", results = "hide", fig.asp = 1}
+dec_genotype <- modelGeneVarWithSpikes(
+  sce,
+  "ERCC",
+  block = paste0(sce$plate_number, ".", sce$genotype))
+
+xlim <- c(0, max(sapply(dec_genotype$per.block, function(x) max(x$mean))))
+ylim <- c(0, max(sapply(dec_genotype$per.block, function(x) max(x$total))))
+par(mfrow = c(3, 3))
+blocked_stats <- dec_genotype$per.block
+for (i in colnames(blocked_stats)) {
+  current <- blocked_stats[[i]]
+  plot(
+    current$mean,
+    current$total,
+    main = i,
+    pch = 16,
+    cex = 0.5,
+    xlab = "Mean of log-expression",
+    ylab = "Variance of log-expression",
+    xlim = xlim,
+    ylim = ylim)
+  curfit <- metadata(current)
+  points(curfit$mean, curfit$var, col = "red", pch = 16)
+  curve(curfit$trend(x), col = "dodgerBlue", add = TRUE, lwd = 2) 
+}
+```
 
 ## Selecting highly variable genes
 
@@ -511,8 +545,11 @@ The following are available on request:
 
 # Session info {.appendix}
 
-The analysis and this document were prepared using the following software:
+<summary>The analysis and this document were prepared using the following software (click triangle to expand)</summary>
+<details>
 
 ```{r}
 sessioninfo::session_info()
 ```
+
+</details>
