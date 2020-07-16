@@ -127,6 +127,7 @@ Figure \@ref(fig:breakdown-by-plate-number) shows that most plates have cells fr
 The exception is the initial pilot plate, LC279, which has cells from a single control mouse.
 
 ```{r breakdown-by-plate-number, fig.asp = 1 / 3, fig.cap = "Breakdown of of the samples by plate."}
+# TODO: Include sequencing_run
 plot_grid(
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
@@ -460,7 +461,7 @@ It is also valuable to examine how the QC metrics behave with respect to each ot
 Generally, they will be in rough agreement, i.e., cells with low total counts will also have low numbers of expressed features and high ERCC/mitochondrial proportions.
 Clear discrepancies may correspond to technical differences between batches of cells or genuine biological differences in RNA content.
 
-```{r qcbiplot, fig.cap = "Behaviour of each QC metric compared to the total number of expressed features. Each point represents a cell in the data set.", fig.width = 10, fig.asp = 0.5}
+```{r qcbiplot, fig.cap = "Behaviour of each QC metric compared to the total number of expressed features. Each point represents a cell in the data set.", fig.width = 10, fig.asp = 1 / 3}
 par(mfrow = c(1, 3))
 plot(
   x = sce$detected, 
@@ -631,6 +632,8 @@ mito_drop_thresholds <- attributes(mito_drop)$thresholds["higher", ]
 #       plates then almost all cells on these plates are excluded. Therefore, 
 #       we don't `subset` these plates Instead, we will just keep an eye on
 #       these cells in downstream analysis (and potentially exclude them).
+# mito_drop_subset <- names(
+#   mito_drop_thresholds)[isOutlier(mito_drop_thresholds, type = "higher")]
 mito_drop_subset <- character(0)
 
 libsize_drop <- isOutlier(
@@ -652,7 +655,7 @@ spike_drop <- isOutlier(
   nmads = 3, 
   type = "higher",
   batch = sce$batch,
-  subset = spike_drop_subset)
+  subset = !sce$batch %in% spike_drop_subset)
 mito_drop <- isOutlier(
   metric = sce$subsets_Mt_percent, 
   nmads = 3, 
