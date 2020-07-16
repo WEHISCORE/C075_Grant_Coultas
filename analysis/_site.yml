@@ -7,22 +7,22 @@ navbar:
       href: index.html
     - text: "Preprocessing"
       href: C075_Grant_Coultas.preprocess.html
-    - text: "Merging batches"
-      href: C075_Grant_Coultas.merge.html
+    - text: "Selecting biologically relevant cells"
+      href: C075_Grant_Coultas.cell_selection.html
     - text: "Annotating cells"
       href: C075_Grant_Coultas.annotate.html
     - text: "Differential analyses"
       href: C075_Grant_Coultas.multi-sample_comparisons.html
     - text: "Supplementary files"
       menu:
-        - text: "FastQC reports"
-          href: ../output/FastQC/
         - text: "scPipe reports"
           href: ../output/scPipe/
         - text: "Marker gene tables"
           href: ../output/marker_genes/
         - text: "Differentially expressed genes"
           href: ../output/DEGs/
+        - text: "Glimma plots"
+          href: ../output/glimma-plots/
   right:
     - icon: fa-github
       href: https://github.com/WEHISCORE/C075_Grant_Coultas
