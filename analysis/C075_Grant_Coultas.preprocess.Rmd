@@ -21,6 +21,8 @@ library(janitor)
 library(BiocStyle)
 library(ggplot2)
 library(cowplot)
+library(BiocParallel)
+library(patchwork)
 
 source(here("code", "helper_functions.R"))
 
@@ -71,6 +73,7 @@ new_colData <- DataFrame(
       " ",
       "",
       sub("(Control|Mutant) sample", "", sce$cell_type_descriptor))),
+  sequencing_run = factor(sce$sequencing_run),
   row.names = colnames(sce))
 new_colData[["sex"]] <- dplyr::inner_join(
   dplyr::tibble(mouse = new_colData$mouse), mouse_sex) %>%
@@ -111,15 +114,10 @@ sex_colours <- setNames(
   RColorBrewer::brewer.pal(4, "Set1")[1:2],
   levels(sce$sex))
 sce$sex_colours <- sex_colours[sce$sex]
-```
-
-# Removal of plates LC294 and LC358
-
-**Based on some preliminary analysis, it was decided to remove plates LC294 and LC358 from the data set, at least for the time being.**
-
-```{r}
-sce <- sce[, !sce$plate_number %in% c("LC294", "LC358")]
-colData(sce) <- droplevels(colData(sce))
+sequencing_run_colours <- setNames(
+  RColorBrewer::brewer.pal(6, "Set1")[5:6],
+  levels(sce$sequencing_run))
+sce$sequencing_run_colours <- sequencing_run_colours[sce$sequencing_run]
 ```
 
 ### Summarising the data
@@ -128,7 +126,7 @@ This dataset contains samples from `r nlevels(sce$plate_number)` 384-well plates
 Figure \@ref(fig:breakdown-by-plate-number) shows that most plates have cells from a knockout and a wildtype mouse with each pair of mice on a plate are from the same sibship^[Mouse `#1824` acts as a control sample on two plates.].
 The exception is the initial pilot plate, LC279, which has cells from a single control mouse.
 
-```{r breakdown-by-plate-number, fig.asp = 1 / 3, layout = "l-body-outset", fig.cap = "Breakdown of of the samples by plate."}
+```{r breakdown-by-plate-number, fig.asp = 1 / 3, fig.cap = "Breakdown of of the samples by plate."}
 plot_grid(
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
@@ -185,34 +183,98 @@ paged_table(.adf(colData(sce)[, -j]))
 
 ## Incorporating gene-based annotation
 
+I used the `r BiocStyle::Biocpkg("Mus.musculus")` and `r BiocStyle::Biocpkg("EnsDb.Mmusculus.v79")` packages, which respectively cover the NCBI/RefSeq and Ensembl databases, to obtain gene-based annotations, such as the chromosome and gene symbol.
+
+```{r}
+# Extract rownames (Ensembl IDs) to use as key in database lookups.
+ensembl <- rownames(sce)
+
+# Pull out useful gene-based annotations from the Ensembl-based database.
+library(EnsDb.Mmusculus.v79)
+library(ensembldb)
+# NOTE: These columns were customised for this project.
+ensdb_columns <- c(
+  "GENEBIOTYPE", "GENENAME", "GENESEQSTART", "GENESEQEND", "SEQNAME", "SYMBOL")
+names(ensdb_columns) <- paste0("ENSEMBL.", ensdb_columns)
+stopifnot(all(ensdb_columns %in% columns(EnsDb.Mmusculus.v79)))
+ensdb_df <- DataFrame(
+  lapply(ensdb_columns, function(column) {
+    mapIds(
+      x = EnsDb.Mmusculus.v79, 
+      # NOTE: Need to remove gene version number prior to lookup.
+      keys = gsub("\\.[0-9]+$", "", ensembl),
+      keytype = "GENEID",
+      column = column,
+      multiVals = "CharacterList")
+  }),
+  row.names = ensembl)
+# NOTE: Can't look up GENEID column with GENEID key, so have to add manually.
+ensdb_df$ENSEMBL.GENEID <- ensembl
+
+# NOTE: Mus.musculus combines org.Mm.eg.db and
+#       TxDb.Mmusculus.UCSC.mm10.knownGene (as well as others) and therefore 
+#       uses entrez gene and RefSeq based data.
+library(Mus.musculus)
+# NOTE: These columns were customised for this project.
+ncbi_columns <- c(
+  # From TxDB: None required
+  # From OrgDB
+  "ALIAS", "ENTREZID", "GENENAME", "REFSEQ", "SYMBOL")
+names(ncbi_columns) <- paste0("NCBI.", ncbi_columns)
+stopifnot(all(ncbi_columns %in% columns(Mus.musculus)))
+ncbi_df <- DataFrame(
+  lapply(ncbi_columns, function(column) {
+    mapIds(
+      x = Mus.musculus, 
+      # NOTE: Need to remove gene version number prior to lookup.
+      keys = gsub("\\.[0-9]+$", "", ensembl),
+      keytype = "ENSEMBL",
+      column = column,
+      multiVals = "CharacterList")
+  }),
+  row.names = ensembl)
+
+rowData(sce) <- cbind(ensdb_df, ncbi_df)
+```
+
 Having quantified gene expression against the GENCODE gene annotation, we have Ensembl-style identifiers for the genes. 
 These identifiers are used as they are unambiguous and highly stable. 
 However, they are difficult to interpret compared to the gene symbols which are more commonly used in the literature.
-Given the Ensembl identifiers, we obtain the corresponding gene symbols using annotation packages available through Bioconductor.
 Henceforth, we will use gene symbols (where available) to refer to genes in our analysis and otherwise use the Ensembl-style gene identifiers^[Some care is taken to account for missing and duplicate gene symbols; missing symbols are replaced with the Ensembl identifier and duplicated symbols are concatenated with the (unique) Ensembl identifiers.].
 
 ```{r}
-library(EnsDb.Mmusculus.v79)
-ensembl <- gsub("\\.[0-9]+$", "", rownames(sce))
-symb <- mapIds(
-  x = EnsDb.Mmusculus.v79, 
-  # NOTE: Need to remove gene version number prior to lookup.
-  keys = ensembl,
-  keytype = "GENEID",
-  column = "SYMBOL")
-rowData(sce)$ENSEMBL <- ensembl
-rowData(sce)$SYMBOL <- symb
 # Replace the row names of the SCE by the gene symbols (where available).
 library(scater)
-rownames(sce) <- uniquifyFeatureNames(rownames(sce), rowData(sce)$SYMBOL)
-# Add chromosome location so we can filter on mitochondrial genes.
-location <- mapIds(
-  x = EnsDb.Mmusculus.v79, 
-  # NOTE: Need to remove gene version number prior to lookup.
-  keys = rowData(sce)$ENSEMBL,
-  keytype = "GENEID",
-  column = "SEQNAME")
-rowData(sce)$CHR <- location
+rownames(sce) <- uniquifyFeatureNames(
+  ID = rownames(sce), 
+  # NOTE: An Ensembl ID may map to 0, 1, 2, 3, ... gene symbols.
+  #       When there are multiple matches only the 1st match is used.
+  names = sapply(rowData(sce)$ENSEMBL.SYMBOL, function(x) {
+    if (length(x)) {
+      x[[1]]
+    } else {
+      NA_character_
+    }
+    }))
+```
+
+```{r}
+# Some useful gene sets
+mito_set <- rownames(sce)[any(rowData(sce)$ENSEMBL.SEQNAME == "MT")]
+
+ribo_set <- grep("^Rp(s|l)", rownames(sce), value = TRUE)
+# NOTE: A more curated approach for identifying ribosomal protein genes 
+#       (https://github.com/Bioconductor/OrchestratingSingleCellAnalysis-base/blob/ae201bf26e3e4fa82d9165d8abf4f4dc4b8e5a68/feature-selection.Rmd#L376-L380)
+library(msigdbr)
+c2_sets <- msigdbr(species = "Mus musculus", category = "C2")
+ribo_set <- union(
+  ribo_set,
+  c2_sets[c2_sets$gs_name == "KEGG_RIBOSOME", ]$gene_symbol)
+
+sex_set <- rownames(sce)[any(rowData(sce)$ENSEMBL.SEQNAME %in% c("X", "Y"))]
+
+pseudogene_set <- rownames(sce)[
+  any(grepl("pseudogene", rowData(sce)$ENSEMBL.GENEBIOTYPE))]
 ```
 
 # Quality control of cells
@@ -231,7 +293,7 @@ The same amount of spike-in RNA to each cell, so an enrichment in spike-in count
 For CEL-Seq2 data, we typically observe library sizes that are in the tens of thousands^[This is consistent with the use of UMI counts rather than read counts, as each transcript molecule can only produce one UMI count but can yield many reads after fragmentation.] and several thousand expressed genes per cell.
 
 ```{r, results = "hide"}
-is_mito <- rowData(sce)$CHR == "MT"
+is_mito <- rownames(sce) %in% mito_set
 summary(is_mito)
 sce <- addPerCellQC(sce, subsets = list(Mt = which(is_mito)))
 ```
@@ -243,7 +305,7 @@ Such cells can interfere with downstream analyses, e.g., by forming distinct clu
 
 The distributions of these metrics are shown in Figure \@ref(fig:qcplot-by-plate-by-mouse), stratified by plate and mouse.
 
-```{r qcplot-by-plate-by-mouse, fig.cap = "Distributions of various QC metrics for all cells in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", layout = "l-page", fig.asp = 2 / 3}
+```{r qcplot-by-plate-by-mouse, fig.cap = "Distributions of various QC metrics for all cells in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", fig.asp = 2 / 3}
 sce$plate_number.mouse <- factor(paste0(sce$plate_number, ".", sce$mouse))
 plot_grid(
   ggplot(
@@ -255,7 +317,7 @@ plot_grid(
       fill = genotype)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 8) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -275,7 +337,7 @@ plot_grid(
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
     ylim(0, 100) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 8) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)),
@@ -288,7 +350,7 @@ plot_grid(
       fill = genotype)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 8) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -308,7 +370,7 @@ plot_grid(
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
     ylim(0, 100) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 8) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)),
@@ -318,7 +380,7 @@ plot_grid(
 
 Figure \@ref(fig:qcplot-by-plate-by-mouse-faceted) breaks the data down by whether a sample is a '20 cells' or a 'single cell'.
 
-```{r qcplot-by-plate-by-mouse-faceted, fig.cap = "Distributions of various QC metrics for all cells in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", layout = "l-page", fig.asp = 2 / 3}
+```{r qcplot-by-plate-by-mouse-faceted, fig.cap = "Distributions of various QC metrics for all cells in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", fig.asp = 2 / 3}
 plot_grid(
   ggplot(
     data = as.data.frame(colData(sce)),
@@ -329,7 +391,7 @@ plot_grid(
       fill = genotype)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 6) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -350,7 +412,7 @@ plot_grid(
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
     ylim(0, 100) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 6) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
@@ -364,7 +426,7 @@ plot_grid(
       fill = genotype)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 6) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -385,7 +447,7 @@ plot_grid(
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
     ylim(0, 100) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 6) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
@@ -429,8 +491,8 @@ colData(sce) <- droplevels(colData(sce))
 ```
 
 There are some plates with a higher average percentage of reads coming from the ERCC spike-ins (LC294 and LC358) or with a subset of samples with notably larger values (LC398).
-Similarly, there are some plates with a higher average percentage of reads coming from the mitochondrial transcripts (LC358 and LC294).
-We will investigate these futher in [Investigating plates with large ERCC percentages].
+Similarly, there are some plates with a higher average percentage of reads coming from the mitochondrial transcripts (LC294 and LC358).
+We will investigate these further in [Investigating plates with large ERCC percentages].
 
 ### Investigating plates with large ERCC and mitochondrial percentages
 
@@ -446,7 +508,6 @@ p <- lapply(levels(sce$plate_number), function(p) {
     point_size = 4,
     point_alpha = 1,
     theme_size = 8,
-    by_show_single = TRUE,
     shape = "genotype") +
     ggtitle(p) +
     # NOTE: plotPlatePosition() sometimes uses `colour` and other times `fill` 
@@ -484,8 +545,7 @@ p <- lapply(levels(sce$plate_number), function(p) {
     colour_by = "subsets_Mt_percent",
     point_size = 4,
     point_alpha = 1,
-    theme_size = 8,
-    by_show_single = TRUE) +
+    theme_size = 8) +
     ggtitle(p) +
     # NOTE: plotPlatePosition() sometimes uses `colour` and other times `fill` 
     #       as the aesthetic. Unsure why, but just fix both scales.
@@ -521,6 +581,9 @@ However, if an entire plate failed, outlier detection will not be able to act as
 In this case, it is generally better to compute a shared median and MAD from the other plates and use those estimates to obtain an appropriate filter threshold for cells in the problematic plates.
 
 ```{r, results = "hide"}
+sce$batch <- sce$plate_number
+batch_colours <- plate_number_colours
+
 # NOTE: This is useful rule of thumb way to identifying problematic batches
 #       https://osca.bioconductor.org/quality-control.html#quality-control-outlier
 libsize_drop <- isOutlier(
@@ -528,7 +591,7 @@ libsize_drop <- isOutlier(
   nmads = 3,
   type = "lower", 
   log = TRUE,
-  batch = sce$plate_number)
+  batch = sce$batch)
 libsize_drop_thresholds <- attributes(libsize_drop)$thresholds["lower", ]
 libsize_drop_subset <- names(
   libsize_drop_thresholds)[isOutlier(
@@ -540,7 +603,7 @@ feature_drop <- isOutlier(
   nmads = 3,
   type = "lower", 
   log = TRUE,
-  batch = sce$plate_number)
+  batch = sce$batch)
 feature_drop_thresholds <- attributes(feature_drop)$thresholds["lower", ]
 feature_drop_subset <- names(
   feature_drop_thresholds)[isOutlier(
@@ -551,54 +614,59 @@ spike_drop <- isOutlier(
   metric = sce$altexps_ERCC_percent, 
   nmads = 3, 
   type = "higher",
-  batch = sce$plate_number)
+  batch = sce$batch)
 spike_drop_thresholds <- attributes(spike_drop)$thresholds["higher", ]
 spike_drop_subset <- names(
   spike_drop_thresholds)[isOutlier(spike_drop_thresholds, type = "higher")]
+# NOTE: Force LC398 to be included in subset.
+spike_drop_subset <- union(spike_drop_subset, "LC398")
 mito_drop <- isOutlier(
   metric = sce$subsets_Mt_percent, 
   nmads = 3, 
   type = "higher",
-  batch = sce$plate_number)
+  batch = sce$batch)
 mito_drop_thresholds <- attributes(mito_drop)$thresholds["higher", ]
-mito_drop_subset <- names(
-  mito_drop_thresholds)[isOutlier(mito_drop_thresholds, type = "higher")]
+# NOTE: LC294 and LC358 are outliers for mito%. Zoe says she doesn't know of 
+#       any good reason for this result. Furthermore, if we `subset` these
+#       plates then almost all cells on these plates are excluded. Therefore, 
+#       we don't `subset` these plates Instead, we will just keep an eye on
+#       these cells in downstream analysis (and potentially exclude them).
+mito_drop_subset <- character(0)
 
 libsize_drop <- isOutlier(
   metric = sce$sum, 
   nmads = 3,
   type = "lower", 
   log = TRUE,
-  batch = sce$plate_number,
-  subset = !sce$plate_number %in% libsize_drop_subset)
+  batch = sce$batch,
+  subset = !sce$batch %in% libsize_drop_subset)
 feature_drop <- isOutlier(
   metric = sce$detected,
   nmads = 3, 
   type = "lower", 
   log = TRUE,
-  batch = sce$plate_number,
-  subset = !sce$plate_number %in% feature_drop_subset)
+  batch = sce$batch,
+  subset = !sce$batch %in% feature_drop_subset)
 spike_drop <- isOutlier(
   metric = sce$altexps_ERCC_percent, 
   nmads = 3, 
   type = "higher",
-  batch = sce$plate_number,
-  # NOTE: Force LC398 to be included in subset.
-  subset = !sce$plate_number %in% union(spike_drop_subset, "LC398"))
+  batch = sce$batch,
+  subset = spike_drop_subset)
 mito_drop <- isOutlier(
   metric = sce$subsets_Mt_percent, 
   nmads = 3, 
   type = "higher",
-  batch = sce$plate_number,
-  # NOTE: LC294 and LC358 are outliers for mito%, although Zoe says she doesn't
-  #       know of any good reason for this result. We don't `subset` these
-  #       plates because otherwise almost all cells on these plates are 
-  #       excluded. Instead, we will just keep an eye on these cells in 
-  #       downstream analysis and possible exclude mitochondrial transcripts 
-  #       from some analyses.
-  # subset = !sce$plate_number %in% mito_drop_subset
-)
+  batch = sce$batch,
+  subset = !sce$batch %in% mito_drop_subset)
 ```
+
+The following plates are excluded when computing the relevant QC metric thresholds:
+
+- `sum`: `r ifelse(length(libsize_drop_subset), glue::glue_collapse(libsize_drop_subset, sep = "; "), "None")`
+- `detected`: `r ifelse(length(feature_drop_subset), glue::glue_collapse(feature_drop_subset, sep = "; "), "None")`
+- `altexps_ERCC_percent`: `r ifelse(length(spike_drop_subset), glue::glue_collapse(spike_drop_subset, sep = "; "), "None")`
+- `subsets_Mt_percent`: `r ifelse(length(mito_drop_subset), glue::glue_collapse(mito_drop_subset, sep = "; "), "None")`
 
 The following table summarises the QC cutoffs:
 
@@ -620,7 +688,7 @@ qc_cutoffs_df <- Reduce(
   function(x, y) dplyr::inner_join(x, y, by = "plate_number"),
   list(libsize_drop_df, feature_drop_df, spike_drop_df, mito_drop_df))
 colnames(qc_cutoffs_df) <- c(
-  "plate_number", "total counts", "total features", "%ERCC", "%mito")
+  "batch", "total counts", "total features", "%ERCC", "%mito")
 qc_cutoffs_df %>%
   knitr::kable(caption = "QC cutoffs", digits = 1)
 ```
@@ -628,6 +696,7 @@ qc_cutoffs_df %>%
 ```{r}
 sce_pre_QC_outlier_removal <- sce
 keep <- !(libsize_drop | feature_drop | spike_drop | mito_drop)
+sce_pre_QC_outlier_removal$keep <- keep
 sce <- sce[, keep]
 ```
 
@@ -640,50 +709,131 @@ In total, we remove `r sum(!keep)` cells based on these QC metrics, and retain `
 data.frame(
   ByLibSize = tapply(
     libsize_drop, 
-    sce_pre_QC_outlier_removal$plate_number, 
-    sum),
+    sce_pre_QC_outlier_removal$batch, 
+    sum,
+    na.rm = TRUE),
   ByFeature = tapply(
     feature_drop, 
-    sce_pre_QC_outlier_removal$plate_number, 
-    sum), 
+    sce_pre_QC_outlier_removal$batch, 
+    sum,
+    na.rm = TRUE),
   BySpike = tapply(
     spike_drop, 
-    sce_pre_QC_outlier_removal$plate_number, 
+    sce_pre_QC_outlier_removal$batch, 
     sum,
     na.rm = TRUE),
   ByMito = tapply(
     mito_drop, 
-    sce_pre_QC_outlier_removal$plate_number, 
+    sce_pre_QC_outlier_removal$batch, 
     sum,
     na.rm = TRUE),
-  Remaining = as.vector(unname(table(sce$plate_number))),
+  Remaining = as.vector(unname(table(sce$batch))),
   PercRemaining = round(
-    100 * as.vector(unname(table(sce$plate_number))) /
+    100 * as.vector(unname(table(sce$batch))) /
       as.vector(
         unname(
-          table(sce_pre_QC_outlier_removal$plate_number))), 1)) %>%
-  tibble::rownames_to_column("plate_number") %>%
-  dplyr::arrange(desc(PercRemaining)) %>%
+          table(sce_pre_QC_outlier_removal$batch))), 1)) %>%
+  tibble::rownames_to_column("batch") %>%
+  dplyr::arrange(dplyr::desc(PercRemaining)) %>%
   knitr::kable(
     caption = "Number of samples removed by each QC step and the number of samples remaining, ordered by the percentage of cells remaining.")
 ```
 
-### Summary
+### Checking for removal of biologically relevant subpopulations
 
-Finally, we look at the QC metrics for the cells remaining after outlier removal.
-Figure \@ref(fig:qcplot-post-outlier-removal-by-plate-by-mouse) shows most plates have similar QC metrics, as is to be expected following quality control.
+The biggest practical concern during QC is whether an entire cell type is inadvertently discarded.
+There is always some risk of this occurring as the QC metrics are never fully independent of biological state.
+We can diagnose cell type loss by looking for systematic differences in gene expression between the discarded and retained cells.
 
-```{r qcplot-post-outlier-removal-by-plate-mouse, fig.cap = "Distribution of QC metrics for each plate in the dataset. Each point represents a cell and is colored according to whether it was discarded during the QC process. Note that a cell will only be kept if it passes the relevant threshold for all four QC metrics.", layout = "l-page", fig.asp = 0.7}
-sce_pre_QC_outlier_removal$keep <- keep
+```{r}
+lost <- calculateAverage(counts(sce_pre_QC_outlier_removal)[, !keep])
+kept <- calculateAverage(counts(sce_pre_QC_outlier_removal)[, keep])
+library(edgeR)
+logged <- cpm(cbind(lost, kept), log = TRUE, prior.count = 2)
+logFC <- logged[, 1] - logged[, 2]
+abundance <- rowMeans(logged)
+```
 
+Figure \@ref(fig:qc-md-plot) shows the result of this analysis, highlighting that there are few genes with a large $logFC$ between 'lost' and 'kept' cells (those few genes with larger $logFC$ have low average expression).
+This suggests that the QC step did not inadvertently filter out an entire biologically relevant subpopulation.
+
+<aside>
+An interactive version of Figure \@ref(fig:qc-md-plot) is available from [`output/glimma-plots/qc-md-plot.html`](../output/glimma-plots/qc-md-plot.html).
+</aside>
+
+```{r qc-md-plot, fig.cap = "Log-fold change in expression in the discarded cells compared to the retained cells. Each point represents a gene with mitochondrial transcripts in blue and ribosomal protein genes in orange. Dashed red lines indicate $|logFC| = 1", fig.asp = 0.7}
+is_mito <- rownames(sce) %in% mito_set
+is_ribo <- rownames(sce) %in% ribo_set
+par(mfrow = c(1, 1))
+plot(
+  abundance,
+  logFC,
+  xlab = "Average count",
+  ylab = "Log-FC (lost/kept)",
+  pch = 16)
+points(
+  abundance[is_mito],
+  logFC[is_mito],
+  col = "dodgerblue",
+  pch = 16,
+  cex = 1)
+points(
+  abundance[is_ribo],
+  logFC[is_ribo],
+  col = "orange",
+  pch = 16,
+  cex = 1)
+abline(h = c(-1, 1), col = "red", lty = 2)
+
+library(Glimma)
+glMDPlot(
+  x = data.frame(abundance = abundance, logFC = logFC),
+  xval = "abundance", 
+  yval = "logFC",
+  counts = cbind(lost, kept),
+    anno = cbind(
+      flattenDF(rowData(sce_pre_QC_outlier_removal)), 
+      DataFrame(
+        GeneID = rownames(sce_pre_QC_outlier_removal))),
+  display.columns = c("ENSEMBL.SYMBOL", "ENSEMBL.GENEID", "ENSEMBL.SEQNAME"),
+  groups = factor(c("lost", "kept")),
+  samples = c("lost", "kept"),
+  status = unname(ifelse(is_mito, 1, ifelse(is_ribo, -1, 0))),
+  transform = FALSE,
+  main = "lost vs. kept",
+  side.ylab = "Average count",
+  cols = c("orange", "black", "dodgerBlue"),
+  path = here("output"),
+  html = "qc-md-plot",
+  launch = FALSE)
+```
+
+If the discarded pool is enriched for a certain cell type, we should observe increased expression of the corresponding marker genes.
+
+Another concern is whether the cells removed during QC preferentially derive from particular experimental groups.
+Reassuringly, Figure \@ref(fig:barplot-highlighting-outliers) shows that this is mostly not the case.
+The exception is plate LC398, which has systematically fewer cells to start with and for which the quality is lower in the part of the plate containing the `Mutant` cells.
+
+```{r barplot-highlighting-outliers, fig.cap = "Droplets removed during QC, stratified by `plate_number` and `genotype`. "}
+ggplot(as.data.frame(colData(sce_pre_QC_outlier_removal))) + 
+  geom_bar(aes(x = batch, fill = keep)) + 
+  ylab("Number of cells") + 
+  theme_cowplot(font_size = 9) + 
+  facet_grid(. ~ genotype, labeller = label_both) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Figure \@ref(fig:qcplot-highlighting-outliers) compares the QC metrics of the discarded and retained cells
+
+```{r qcplot-highlighting-outliers, fig.cap = "Distribution of QC metrics for each plate in the dataset. Each point represents a cell and is colored according to whether it was discarded during the QC process. Note that a cell will only be kept if it passes the relevant threshold for all four QC metrics.", fig.asp = 2 / 3}
 plot_grid(
   ggplot(
     data = as.data.frame(colData(sce_pre_QC_outlier_removal)),
     aes(x = plate_number.mouse, y = sum)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.2, aes(colour = keep)) +
-    theme_cowplot(font_size = 4) +
-    theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+    theme_cowplot(font_size = 8) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     scale_y_log10(limits = c(1, NA)) +
     annotation_logticks(
       sides = "l",
@@ -696,15 +846,15 @@ plot_grid(
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.2, aes(colour = keep)) +
     ylim(0, 100) +
-    theme_cowplot(font_size = 4) +
-    theme(axis.text.x = element_text(angle = 60, hjust = 1)),
+    theme_cowplot(font_size = 8) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)),
   ggplot(
     data = as.data.frame(colData(sce_pre_QC_outlier_removal)),
     aes(x = plate_number.mouse, y = detected)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.2, aes(colour = keep)) +
-    theme_cowplot(font_size = 4) +
-    theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+    theme_cowplot(font_size = 8) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     scale_y_log10(limits = c(1, NA)) +
     annotation_logticks(
       sides = "l",
@@ -717,29 +867,17 @@ plot_grid(
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.2, aes(colour = keep)) +
     ylim(0, 100) +
-    theme_cowplot(font_size = 4) +
-    theme(axis.text.x = element_text(angle = 60, hjust = 1)),
+    theme_cowplot(font_size = 8) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)),
   ncol = 2,
   align = "v")
 ```
 
-Some basic summaries of the quality-controlled data are shown in Figure \@ref(fig:qcplot-post-outlier-removal-by-plate-by-mouse).
+## Summary
 
-```{r}
-# NOTE: Update the factor columns.
-# NOTE: Skipping this in order to preserve colours
-# colData(sce) <- DataFrame(
-#   lapply(colData(sce), function(x) {
-#     if (is.factor(x)) {
-#       factor(x)
-#     } else {
-#       x
-#     }
-#   }),
-#   row.names = colnames(sce))
-```
+To conclude, Figure \@ref(fig:qcplot-post-outlier-removal) shows that post-QC that most samples have similar QC metrics, as is to be expected, and Figure \@ref(fig: breakdown-by-plate-number-post-qc) summarises the experimental design following QC.
 
-```{r qcplot-post-outlier-removal-by-plate-by-mouse, fig.cap = "Distributions of various QC metrics for all cells that passed quality control in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", layout = "l-page", fig.asp = 2 / 3}
+```{r qcplot-post-outlier-removal, fig.cap = "Distributions of various QC metrics for all cells that passed quality control in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", fig.asp = 2 / 3}
 plot_grid(
   ggplot(
     data = as.data.frame(colData(sce)),
@@ -750,7 +888,7 @@ plot_grid(
       fill = genotype)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 8) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -770,7 +908,7 @@ plot_grid(
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
     ylim(0, 100) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 8) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)),
@@ -783,7 +921,7 @@ plot_grid(
       fill = genotype)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 8) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -803,7 +941,7 @@ plot_grid(
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
     ylim(0, 100) +
-    theme_cowplot(font_size = 4) +
+    theme_cowplot(font_size = 8) +
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)),
@@ -811,20 +949,88 @@ plot_grid(
   align = "v")
 ```
 
+```{r breakdown-by-plate-number-post-qc, fig.asp = 1 / 3, fig.cap = "Breakdown of of the samples by plate following QC."}
+plot_grid(
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
+      aes(x = plate_number, fill = sample_type),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = sample_type_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
+      aes(x = plate_number, fill = genotype),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = genotype_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
+      aes(x = plate_number, fill = mouse),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = mouse_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
+      aes(x = plate_number, fill = sex),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = sex_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(aes(x = plate_number, fill = plate_number)) +
+    coord_flip() +
+    ylab("Number of wells") +
+    scale_fill_manual(values = plate_number_colours) +
+    theme_cowplot(font_size = 6),
+  align = "v",
+  ncol = 3)
+```
+
 # Examining gene-level metrics
+
+## Inspecting *Kat7* (*Hbo*) expression
+
+Figure \@ref(fig:kat7) shows that *Kat7* is not detected in most samples (`r round(100 * sum(counts(sce)["Kat7", ] == 0) / ncol(sce), 1)`% of cells have zero counts) and that there is no striking difference between `Control` and `Mutant` samples.
+
+```{r kat7, fig.cap = "Raw counts of *Kat7* in each sample."}
+# NOTE: A hack to order the mice by genotype.
+sce$tmp <- reorder(sce$mouse, as.integer(sce$genotype))
+plotExpression(
+  sce,
+  "Kat7",
+  x = "tmp",
+  exprs_values = "counts",
+  colour_by = "genotype",
+  other_fields = "genotype") + 
+  scale_fill_manual(values = genotype_colours) + 
+  xlab("mouse") +
+  guides(fill = guide_legend(title = "genotype"))
+sce$tmp <- NULL
+```
 
 ## Inspecting the most highly expressed genes
 
 Figure \@ref(fig:topgenes) shows the most highly expressed genes in the dataset.
+Many of these genes are mitochondrial genes, ribosomal protein, and pseudogenes.
 
 ```{r topgenes, fig.asp = 1, fig.cap = "Percentage of total counts assigned to the top 50 most highly-abundant features in the data set. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
 plotHighestExprs(sce, n = 50)
 ```
 
-Figure \@ref(fig:topgenes-filtered) shows the most highly expressed non-mitochdonrial, non-ribosomal protein genes in the dataset.
+Figure \@ref(fig:topgenes-filtered) shows the most highly expressed after excluding the mitochondrial genes, ribosomal protein, and pseudogenes.
 
-```{r topgenes-filtered, fig.asp = 1, fig.cap = "Percentage of total counts assigned to the top 50 most highly-abundant features (after excluding mitochondrial and ribosomal protein genes) in the data set. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
-plotHighestExprs(sce[!grepl("^mt|^Rps|^Rpl", rownames(sce)), ], n = 50)
+```{r topgenes-filtered, fig.asp = 1, fig.cap = "Percentage of total counts assigned to the top 50 most highly-abundant features (after excluding mitochondrial genes, ribosomal protein, and pseudogenes) in the data set. For each feature, each bar represents the percentage assigned to that feature for a single cell, while the circle represents the average across all cells. Bars are coloured by the total number of expressed features in each cell, while circles are coloured according to whether the feature is labelled as a control feature."}
+plotHighestExprs(
+  sce, 
+  drop_features = c(mito_set, ribo_set, pseudogene_set),
+  n = 50)
 ```
 
 ## Filtering out low-abundance genes
@@ -886,7 +1092,7 @@ However, for this dataset there are good reasons for considering normalization b
 ### Reasons for considering normalization by spike-ins
 
 Practically, spike-in normalization should be used if differences in the total RNA content of individual cells are of interest and must be preserved in downstream analyses.
-In this case, the mutants have defective Kat7 (aka HBO1) which may lead to the mutant cells having lower total RNA content than the control cells.
+In this case, the mutants have defective *Kat7* (aka *Hbo1*) which may lead to the mutant cells having lower total RNA content than the control cells.
 According to Zoe and Anne^[Email 2020-05-06]:
 
 > HBO1 is required for histone H3 lysine 14 acetylation throughout the genome, in genic and intergenic regions.
@@ -897,6 +1103,8 @@ It is possible, that the upregulated genes are actually either not differentiall
 For this dataset we have ERCC spike-ins, so it is both worthwhile and possible to consider normalization by spike-ins for this dataset.
 
 ## Normalization by deconvolution
+
+### Motivation
 
 *Composition biases* will be present when any unbalanced differential expression exists between samples [@robinson2010scaling].
 Consider the simple example of two cells where a single gene $X$ is upregulated in one cell $A$ compared to the other cell $B$.
@@ -917,6 +1125,8 @@ To overcome this, we pool counts from many cells to increase the size of the cou
 Pool-based size factors are then "deconvolved" into cell-based factors for normalization of each cell’s expression profile.
 This is performed using the `calculateSumFactors()` function from the `r BiocStyle::Biocpkg("scran")` package.
 
+### Analysis
+
 ```{r, results = "hide"}
 library(scran)
 set.seed(5755)
@@ -926,12 +1136,12 @@ summary(sizeFactors(sce))
 ```
 
 We check that the size factors are roughly aligned with the total library sizes (Figure \@ref(fig:normplot)).
-Deviations from the diagonal correspond to composition biases due to differential expression between cell subpopulations.
+Strong eviations from the diagonal would correspond to composition biases due to differential expression between cell subpopulations.
 
-```{r normplot, fig.cap = "Size factors from deconvolution, plotted against library sizes for all cells in each data set. Axes are shown on a log-scale.", results = "hide", fig.asp = 4 / 5}
+```{r normplot, fig.cap = "Size factors from deconvolution, plotted against library sizes for all cells in each data set. Axes are shown on a log-scale.", results = "hide", fig.asp = 2 / 4}
 xlim <- c(1, max(sce$sum) / 1e3)
 ylim <- range(sizeFactors(sce))
-par(mfrow = c(2, 3))
+par(mfrow = c(2, 4))
 lapply(levels(sce$plate_number), function(p) {
   sce <- sce[, sce$plate_number == p]
   plot(
@@ -947,38 +1157,76 @@ lapply(levels(sce$plate_number), function(p) {
 })
 ```
 
+### Summary
+
+The assumptions of the deconvolution size factors are satisfied and so we may use deconvolution size factors for normalization.
+
 ## Normalization by spike-ins
+
+### Motivation
 
 Spike-in normalization is based on the assumption that the same amount of spike-in RNA was added to each cell [@lun2017assessing].
 Systematic differences in the coverage of the spike-in transcripts can only be due to cell-specific biases, e.g., in capture efficiency or sequencing depth.
 To remove these biases, we equalize spike-in coverage across cells by scaling with "spike-in size factors".
-Compared to [Normalization by deconvolution], spike-in normalization requires no assumption about the biology of the system (i.e., the absence of many DE genes).
+
+<aside>
+We stress that we focus on *relative* normalization, i.e., to make counts comparable across cells.
+We do not consider the use of spike-ins for absolute quantification (i.e. to determine the number of molecules of each transcript in each cell).
+As noted in @lun2017assessing, "[It] is more difficult to evaluate [absolute quantification because] accuracy is affected by the magnitude of the differences in the behavior of spike-in and endogenous transcripts.
+In contrast, relative normalization is only affected by variability in the differences in behavior across wells."
+</aside>
+
+Compared to [Normalization by deconvolution], spike-in normalization requires no assumption about the biology of the system (i.e. the absence of many DE genes).
 Instead, it assumes that:
 
 1. The spike-in transcripts were added at a constant level to each cell
 2. The spike-in transcripts respond to biases in the same relative manner as endogenous genes
 
-We can empirically investigate the (1) whereas (2) is difficult to verify in practice.
-We stress that we focus on *relative* normalization, i.e., to make counts com-
-parable across cells.
-We do not consider the use of spike-ins for absolute quantification, i.e., to determine the number of molecules of each transcript in each cell.
-As noted by [@lun2017assessing]:
+We can empirically investigate (1), which we do in the next section, whereas (2) is difficult to verify in practice.
 
-> [It] is more difficult to evaluate [absolute quantification because] accuracy is affected by the magnitude of the differences in the behavior of spike-in and endogenous transcripts.
-In contrast, relative normalization is only affected by variability in the differences in behavior across wells.
+### Analysis
 
-### Investigating spike-in levels
+We can use the percentage of counts coming from the spike-ins to investigate if assumption (1) is met (i.e. were the spike-in transcripts added at a constant level to each cell).
+
+To help understand whether spike-in normalization is appropriate for the current dataset, we make use of two datasets for which the assumptions of spike-in normalization are met^[These datasets differ to ours because they used the Smart-seq2 scRNA-seq protocol, which generates full-length RNA-seq from single cells, but this does not matter for our current purposes.]:
+
+1. [Lun (2017)](https://osca.bioconductor.org/lun-416b-cell-line-smart-seq2.html)^[Contains two 96-well plates of 416B cells (an immortalized mouse myeloid progenitor cell line), processed using the Smart-seq2 protocol. A constant amount of spike-in RNA from the External RNA Controls Consortium (ERCC) was also added to each cell’s lysate prior to library preparation. This dataset was used in the paper 'Assessing the reliability of spike-in normalization for analyses of single-cell RNA sequencing data' [@lun2017assessing]]
+2. Richard (2018)^[Contains four 96-well plates of mouse CD8+ T cells, processed using the Smart-seq2 protocol. A constant amount of spike-in RNA from the External RNA Controls Consortium (ERCC) was also added to each cell’s lysate prior to library preparation. This dataset is [used to demonstrate spike-in normalization in 'Orchestrating Single-Cell Analysis with Bioconductor' book](https://osca.bioconductor.org/normalization.html#spike-norm).]
 
 ```{r}
 library(scRNAseq)
+
 sce.416b <- LunSpikeInData("416b")
 sce.416b$block <- factor(sce.416b$block)
 sce.416b <- addPerCellQC(sce.416b)
+
+sce.richard <- RichardTCellData()
+sce.richard <- sce.richard[, sce.richard$`single cell quality` == "OK"]
+sce.richard <- addPerCellQC(sce.richard)
+sce.richard$abbeviated_stimulus <- factor(
+  abbreviate(
+    dplyr::case_when(
+      sce.richard$stimulus == "OT-I high affinity peptide N4 (SIINFEKL)" ~ 
+        "SIINFEKL",
+      sce.richard$stimulus == "OT-I non-binding peptide NP68 (ASNENMDAM)" ~ 
+        "ASNENMDAM",
+      sce.richard$stimulus == "OT-I reduced affinity peptide G4 (SIIGFEKL)" ~ 
+        "SIIGFEKL",
+      sce.richard$stimulus == "OT-I reduced affinity peptide T4 (SIITFEKL)" ~ 
+        "SIITFEKL",
+      sce.richard$stimulus == "unstimulated" ~ 
+        "unstimulated")))
 ```
 
-Figure \@ref(fig:spike-in-perc) shows spike-in transcripts as a percentage of the library size for each cell in our dataset compared to a the data from Lun (2017)[@lun2017assessing].
+Figure \@ref(fig:spike-in-perc) plots the spike-in counts as a percentage of the library size for each cell in the datasets from Lun (2017) and Richard (2018) alongside the current dataset.
+We see that for both Lun (2017) and Richard (2018) the assumption that spike-in transcripts added at a constant level appears to be valid.
+In contrast, for the current dataset there is considerable inter-plate variability of the percentage of counts deriving from the spike-in transcripts.
 
-```{r spike-in-perc, fig.cap = "Percentage of reads coming from ERCC spike-in transcripts per sample. On the left is the current dataset and on the right is data from Lun (2017)."}
+<aside>
+Although the percentages differ between the Lun (2017) and Richard (2018) datasets, we see that within each study that the assumption is not strongly violated.
+</aside>
+
+```{r spike-in-perc, fig.cap = "Percentage of counts coming from ERCC spike-in transcripts per sample. On the top is data from Lun (2017) and Richard (2018), two datasets where spike-in normalization was successfully applied, and on the bottom is data from the current experiment. Lun (2017) are stratified by `block`, Richard (2018) are stratified by `stimulus`, and C075 by `plate_number`."}
 p1 <- plotColData(
   sce,
   x = "genotype",
@@ -990,7 +1238,8 @@ p1 <- plotColData(
   guides(fill = FALSE) +
   ylim(0, max(sce$altexps_ERCC_percent)) + 
   ggtitle("C075") + 
-  ylab("ERCC percentage")
+  ylab("ERCC percentage") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 p2 <- plotColData(
   sce.416b,
   y = "altexps_ERCC_percent",
@@ -1001,167 +1250,32 @@ p2 <- plotColData(
   ylim(0, max(sce$altexps_ERCC_percent)) + 
   ggtitle("Lun (2017)") + 
   ylab("ERCC percentage")
-
-plot_grid(p1, p2, ncol = 2, align = "h", rel_widths = c(5, 2))
-```
-
-In ideal experiments, spike-in transcripts would take up 5%–10% of the library size for each cell [@lun2017assessing], which we have largely achieved.
-However, Figure \@ref(fig:spike-in-total) shows that the absolute number of reads from the ERCC spike-in transcripts is some 100-times lower than that obtained in [@lun2017assessing].
-
-```{r spike-in-total, fig.cap = "On the left is the current dataset and on the right is data from Lun (2017)."}
-# TODO: Fix xaxis labels in p1
-p1 <- plotColData(
-  sce,
-  x = "genotype",
-  y = "altexps_ERCC_sum",
-  other_fields = "plate_number",
-  colour_by = "genotype") +
-  scale_fill_manual(values = genotype_colours) +
-  facet_grid(~plate_number) +
+p3 <- plotColData(
+  sce.richard,
+  y = "altexps_ERCC_percent",
+  other_fields = "abbeviated_stimulus",
+  colour_by = "abbeviated_stimulus") +
+  facet_grid(~abbeviated_stimulus) +
   guides(fill = FALSE) +
-  scale_y_log10(limits = c(1, max(sce.416b$altexps_ERCC_sum))) + 
-  ggtitle("C075") + 
-  ylab("Total ERCC read count") +
-    annotation_logticks(
-      sides = "l",
-      short = unit(0.03, "cm"),
-      mid = unit(0.06, "cm"),
-      long = unit(0.09, "cm"))
-p2 <- plotColData(
-  sce.416b,
-  y = "altexps_ERCC_sum",
-  other_fields = "block",
-  colour_by = "block") +
-  facet_grid(~block) +
-  guides(fill = FALSE) +
-  scale_y_log10(limits = c(1, max(sce.416b$altexps_ERCC_sum))) + 
-  ggtitle("Lun (2017)") + 
-  ylab("Total ERCC read count") +
-    annotation_logticks(
-      sides = "l",
-      short = unit(0.03, "cm"),
-      mid = unit(0.06, "cm"),
-      long = unit(0.09, "cm"))
+  ylim(0, max(sce$altexps_ERCC_percent)) + 
+  ggtitle("Richard (2018)") + 
+  ylab("ERCC percentage")
 
-plot_grid(p1, p2, ncol = 2, align = "h", rel_widths = c(5, 2))
+(p2 + p3 + plot_layout(widths = c(2, 5))) / p1 
 ```
 
-**TODO** is ERCC coverage too low to be used? Not necessarily (comparable ERCC coverage to sce.richard).
+### Summary
 
-```{r}
-# TODO: This is sandpit stuff
-# Supp figure 11 from https://genome.cshlp.org/content/suppl/2017/10/13/gr.222877.117.DC1/Supplemental_Materials.pdf
-ercc <- data.table::fread("https://assets.thermofisher.com/TFS-Assets/LSG/manuals/cms_095046.txt")
+There is considerable inter-plate variability of the percentage of counts deriving from the spike-in transcripts in the current dataset.
+This violates assumption (1) (i.e. that the spike-in transcripts were added at a constant level to each cell) and so we may use not spike-in size factors for normalization.
 
-par(mfrow = c(1, 2))
-lapply(levels(sce.416b$block), function(b) {
-  sce.416b <- sce.416b[, sce.416b$block == b]
-  plot(
-    ercc$`concentration in Mix 1 (attomoles/ul)`,
-    rowMeans(counts(altExp(sce.416b))[ercc$`ERCC ID`, ]),
-    log = "xy",
-    xlab = "Theoretical",
-    ylab = "Observed",
-    main = paste0(
-      b,
-      ": ",
-      round(
-        median(
-          log10(
-            rowMeans(counts(altExp(sce.416b))[ercc$`ERCC ID`, ]) / 
-              ercc$`concentration in Mix 1 (attomoles/ul)`)),
-        2)))
-  abline(a = 0, b = 1, col = "red")
-})
+<aside>
+We might conceive of performing a subsequent round of normalization on the size factors themselves. However, it is not clear how (or if) this would work and so this is a research question that is beyond the scope of this analysis.
+</aside>
 
-par(mfrow = c(2, 3))
-lapply(levels(sce$plate_number), function(pn) {
-  sce <- sce[, sce$plate_number == pn]
-  ercc <- ercc[ercc$`ERCC ID` %in% rownames(altExp(sce))]
-  plot(
-    ercc$`concentration in Mix 1 (attomoles/ul)`,
-    rowMeans(counts(altExp(sce))[ercc$`ERCC ID`, ]),
-    log = "xy",
-    xlab = "Theoretical",
-    ylab = "Observed",
-    main = paste0(
-      pn,
-      ": ",
-      round(
-        median(
-          log10(
-            rowMeans(counts(altExp(sce))[ercc$`ERCC ID`, ]) / 
-              ercc$`concentration in Mix 1 (attomoles/ul)`)),
-        2)))
-    abline(a = 0, b = 1, col = "red")
-})
+## Computing separate size factors for spike-in transcripts
 
-# Supp fig 12 from https://genome.cshlp.org/content/suppl/2017/10/13/gr.222877.117.DC1/Supplemental_Materials.pdf
-boxplot(
-  lapply(levels(sce.416b$block), function(b) {
-    sce.416b <- sce.416b[, sce.416b$block == b]
-    x <- rowMeans(counts(altExp(sce.416b)) + 1)
-    log2(x)
-  }),
-  ylim = c(0, 20))
-
-boxplot(
-  lapply(levels(sce$plate_number), function(pn) {
-    sce <- sce[, sce$plate_number == pn]
-    x <- rowMeans(counts(altExp(sce)) + 1)
-    log2(x)
-  }))
-
-# TODO: Compare deconvolution and spike in normalization by plate.
-set.seed(666)
-sce_deconv <- computeSumFactors(sce, cluster = quickCluster(sce), min.mean = 0.1)
-sce_spike <- computeSpikeFactors(sce, "ERCC")
-sf_df <- data.frame(
-  deconv = sizeFactors(sce_deconv),
-  spike = sizeFactors(sce_spike),
-  deconv_mbn = sizeFactors(
-    batchelor::multiBatchNorm(
-      sce_deconv,
-      batch = sce_deconv$plate_number, 
-      min.mean = 0.1)),
-  spike_mbn = sizeFactors(
-    batchelor::multiBatchNorm(
-      sce_spike,
-      batch = sce_spike$plate_number, 
-      min.mean = 0.1)))
-my_line <- function(x,y,...){
-    points(x,y, ...)
-    abline(a = 0, b = 1, col = "red")
-}
-pairs(
-  sf_df,
-  col = sce$plate_number_colours,
-  log = "xy",
-  xlim = range(sf_df),
-  ylim = range(sf_df),
-  lower.panel = my_line,
-  upper.panel = my_line)
-
-pairs(
-  sf_df,
-  col = sce$genotype_colours,
-  log = "xy",
-  xlim = range(sf_df),
-  ylim = range(sf_df),
-  lower.panel = my_line,
-  upper.panel = my_line)
-```
-
-**TODO**: Re-write this paragraph (some is redundant with above) if pursuing this approach.
-Practically, spike-in normalization should be used if differences in the total RNA content of individual cells are of interest and must be preserved in downstream analyses.
-For a given cell, an increase in its overall amount of endogenous RNA will not increase its spike-in size factor.
-This ensures that the effects of total RNA content on expression across the population will not be removed upon scaling. By comparison, the other normalization methods described above will simply interpret any change in total RNA content as part of the bias and remove it.
-
-### Computing separate size factors for spike-in transcripts
-
-**TODO:** Note that this happens regardless of the normalization strategy
-
-Size factors computed from the counts for endogenous genes are usually not appropriate for normalizing the counts for spike-in transcripts. 
+Regardless of the type of size factors we use for the endogenous genes (e.g., deconvolution size factors or spike-in size factors), it is critical that the spike-in transcripts themselves are normalized using the spike-in size factors. Size factors computed from the counts for endogenous genes are usually not appropriate for normalizing the counts for spike-in transcripts. 
 To ensure normalization is performed correctly, we compute a separate set of size factors for the spike-in set.
 For each cell, the spike-in-specific size factor is defined as the total count across all transcripts in the spike-in set. 
 This assumes that none of the spike-in transcripts are differentially expressed, which is reasonable given that the same amount and composition of spike-in RNA should have been added to each cell [@lun2017assessing]. 
@@ -1170,17 +1284,284 @@ This assumes that none of the spike-in transcripts are differentially expressed,
 sizeFactors(altExp(sce)) <- librarySizeFactors(altExp(sce))
 ```
 
-## Applying the size factors to normalize gene expression
+## Applying the size factors
 
-**TODO:** A sentence saying which normalization factors we are using.
+We can now use the size factors to compute normalized expression values for each cell.
+This is done by dividing the count for each gene/spike-in transcript with the appropriate size factor for that cell and then taking the logarithm^[$log_2$] of the normalized values^[When log-transforming, we typically add a pseudo-count to avoid undefined values at zero. Larger pseudo-counts will effectively shrink the log-fold changes between cells towards zero for low-abundance genes, meaning that downstream high-dimensional analyses will be driven more by differences in expression for high-abundance genes. Conversely, smaller pseudo-counts will increase the relative contribution of low-abundance genes. We use a pseudo-count of 1.].
+These are called the 'logcounts'^[Technically, these are "log-transformed normalized expression values", but that’s too much of a mouthful.] and are the basis of much of our downstream analysis.
 
-The count data are used to compute normalized log-expression values for use in downstream analyses.
-Each value is defined as the log~2~-ratio of each count to the size factor for the corresponding cell, after adding a prior count of 1 to avoid undefined values at zero counts.
-Division by the size factor ensures that any cell-specific biases are removed.
+<aside>
+To reiterate, the assumptions required for spike-in size factors are not met and so we use the deconvolution size factors.
+</aside>
 
 ```{r}
 sce <- logNormCounts(sce)
 ```
+
+# Feature selection
+
+## Motivation
+
+We often use scRNA-seq data in exploratory analyses to characterize heterogeneity across cells.
+Procedures like dimensionality reduction and clustering compare cells based on their gene expression profiles, which involves aggregating per-gene differences into a single (dis)similarity metric between a pair of cells.
+The choice of genes to use in this calculation has a major impact on the behaviour of the metric and the performance of downstream methods.
+We want to select genes that contain useful information about the biology of the system while removing genes that contain random noise.
+This aims to preserve interesting biological structure without the variance that obscures that structure.
+It also reduces the size of the dataset to improve computational efficiency of later steps.
+
+## Quantifying per-gene variation
+
+### Variance of the log-counts
+
+The simplest approach to quantifying per-gene variation is to simply compute the variance of the log-normalized expression values (referred to as "log-counts" for simplicity) for each gene across all cells in the population [@lun2016step].
+This has an advantage in that the feature selection is based on the same log-values that are used for later downstream steps.
+In particular, genes with the largest variances in log-values will contribute the most to the Euclidean distances between cells.
+By using log-values here, we ensure that our quantitative definition of heterogeneity is consistent throughout the entire analysis.
+
+Calculation of the per-gene variance is simple but feature selection requires modelling of the mean-variance relationship.
+
+### Quantifying technical noise
+
+To account for the mean-variance relationship, we fit a trend to the variance with respect to abundance across the ERCC spike-in transcripts.
+The premise here is that spike-ins should not be affected by biological variation, so the fitted value of the spike-in trend should represent a better estimate of the technical component for each gene.
+
+### Accounting for blocking factors
+
+Data containing multiple batches will often exhibit batch effects.
+We are usually not interested in highly variable genes (HVGs) that are driven by batch effects. 
+Rather, we want to focus on genes that are highly variable within each batch.
+This is naturally achieved by performing trend fitting and variance decomposition separately for each batch.
+
+```{r}
+var_fit <- modelGeneVarWithSpikes(sce, "ERCC", block = sce$batch)
+```
+
+The use of a batch-specific trend fit is useful as it accommodates differences in the mean-variance trends between batches.
+This is especially important if batches exhibit systematic technical differences, e.g., differences in coverage or in the amount of spike-in RNA added.
+
+Figure \@ref(fig:trendplots) visualizes the quality of the batch-specific trend fits and Figure \@ref(fig:trendplots-fits) highlights the need for batch-specific estimates of these fits.
+The analysis of each plate yields estimates of the biological and technical components for each gene, which are averaged across plates to take advantage of information from multiple batches.
+
+```{r trendplots, fig.cap = "Variance of normalized log-expression values for each gene in each plate, plotted against the mean log-expression. The coloured line represents the mean-dependent trend fitted to the variances of the spike-in transcripts (red).", results = "hide", fig.asp = 2 / 4}
+xlim <- c(0, max(sapply(var_fit$per.block, function(x) max(x$mean))))
+ylim <- c(0, max(sapply(var_fit$per.block, function(x) max(x$total))))
+par(mfrow = c(2, 4))
+blocked_stats <- var_fit$per.block
+for (i in colnames(blocked_stats)) {
+  current <- blocked_stats[[i]]
+  plot(
+    current$mean,
+    current$total,
+    main = i,
+    pch = 16,
+    cex = 0.5,
+    xlab = "Mean of log-expression",
+    ylab = "Variance of log-expression",
+    xlim = xlim,
+    ylim = ylim)
+  curfit <- metadata(current)
+  points(curfit$mean, curfit$var, col = "red", pch = 16)
+  curve(curfit$trend(x), col = batch_colours[[i]], add = TRUE, lwd = 2) 
+}
+```
+
+```{r trendplots-fits, fig.cap = "An overlay of the trend fits from the previous figure, highlighting the need for the batch-specific trend fits. Each line is a the trend line for a particular batch (with colours matching the previous plot).", results = "hide"}
+par(mfrow = c(1, 1))
+# NOTE: 'Fake' plot with right dimensions to overlay trends.
+plot(
+  x = current$mean, 
+  y = current$total, 
+  pch = 0,
+  cex = 0.6, 
+  xlab = "Mean log-expression", 
+  ylab = "Variance of log-expression", 
+  main = "Trends", 
+  xlim = xlim, 
+  ylim = ylim,
+  col = "white")
+lapply(colnames(blocked_stats), function(b) {
+  curve(
+    metadata(var_fit$per.block[[b]])$trend(x), 
+    col = batch_colours[b], 
+    lwd = 1, 
+    add = TRUE)
+})
+legend(
+  "topright", 
+  legend = levels(sce$batch), 
+  col = batch_colours,
+  lwd = 1,
+  title = "Plate number",
+  ncol = 2,
+  cex = 0.8)
+```
+
+## Selecting highly variable genes (HVGs)
+
+Once we have quantified the per-gene variation, the next step is to select the subset of HVGs to use in downstream analyses.
+A larger subset will reduce the risk of discarding interesting biological signal by retaining more potentially relevant genes, at the cost of increasing noise from irrelevant genes that might obscure said signal.
+It is difficult to determine the optimal trade-off for any given application as noise in one context may be useful signal in another.
+For example, heterogeneity in T cell activation responses is an interesting phenomena but may be irrelevant noise in studies that only care about distinguishing the major immunophenotypes.
+
+We opt to only remove the obviously uninteresting genes with variances below the trend.
+By doing so, we avoid the need to make any judgement calls regarding what level of variation is interesting enough to retain.
+This approach represents one extreme of the bias-variance trade-off where bias is minimized at the cost of maximizing noise.
+
+```{r}
+hvg <- getTopHVGs(var_fit, var.threshold = 0)
+```
+
+### Exclusion of gene sets from HVGs
+
+```{r}
+is_mito <- hvg %in% mito_set
+is_ribo <- hvg %in% ribo_set
+is_pseudogene <- hvg %in% pseudogene_set
+is_sex <- hvg %in% sex_set
+```
+
+We find that the most highly variable genes in this dataset are somewhat enriched for pseudogenes (n = `r sum(is_pseudogene)`), with Figure \@ref(fig:hvg-check) showing more than 20% of the top-250 HVGs are pseudogenes.
+Figure \@ref(fig:hvg-check) also shows the percentage of the top-k HVGs that are ribosomal protein genes^[Here, ribosomal protein genes are defined as those gene symbols starting with "Rpl" or "Rps" or otherwise found in the ["KEGG_RIBOSOME" gene set published by MSigDB](https://www.gsea-msigdb.org/gsea/msigdb/cards/KEGG_RIBOSOME.html), namely: `r glue::glue_collapse(sort(ribo_set), sep = ", ")`] (n = `r sum(is_ribo)`), genes on the sex chromosomes (n = `r sum(is_sex)`), and mitochondrial genes (n = `r sum(is_mito)`).
+
+```{r hvg-check, fig.cap = "Percentage of top-K HVGs that are genes of a given class."}
+plot(
+  100 * cumsum(is_mito) / seq_along(hvg),
+  log = "x",
+  ylim = c(0, 100),
+  ylab = "%",
+  xlab = "Top-k genes",
+  col = "#DF536B",
+  pch = 16)
+points(100 * cumsum(is_ribo) / seq_along(hvg), col = "#61D04F", pch = 16)
+points(100 * cumsum(is_pseudogene) / seq_along(hvg), col = "#2297E6", pch = 16)
+points(100 * cumsum(is_sex) / seq_along(hvg), col = "#28E2E5", pch = 16)
+points(
+  100 * cumsum(is_mito | is_ribo | is_pseudogene | is_sex) / seq_along(hvg), 
+  col = "black",
+  pch = 16)
+legend(
+  "topright",
+  pch = 16,
+  col = c("black",  "#2297E6", "#61D04F", "#28E2E5", "#DF536B"),
+  legend = c("Union", "Pseudogene", "Ribosomal protein", "Sex", "Mitochondrial"))
+```
+
+Ribosomal protein and mitochondrial genes are of lesser biological relevance to this study, so it was decided to exclude them from the HVGs.
+Zoe and Anne also requested that the pseudogenes and sex chromosome genes be excluded from the HVGs.
+This means that these genes can no longer **directly** influence some of the subsequent steps in the analysis, including:
+
+- Dimensionality reduction
+  - Principal component analysis (PCA)
+  - Uniform manifold approximation and projection (UMAP)
+- Data integration
+  - Mutual nearest neighbours (MNN)
+- Clustering
+
+Although the exclusion of these genes from the HVGs prevents them from directly influencing these analyses, they may still **indirectly** influence these steps or otherwise be associated with their outcomes.
+For example, if there is a set of (non ribosomal protein) genes that are strongly associated with ribosomal protein gene expression, then we may still see a cluster associated with ribosomal protein gene expression.
+
+Finally, and to emphasise, we have only excluded these gene sets from the HVGs, i.e. we have not excluded them entirely from the dataset.
+In particular, this means that these genes may appear in downstream results (e.g., tables of cluster marker genes and differentially expressed genes).
+
+```{r}
+hvg <- hvg[!(is_mito | is_ribo | is_sex | is_pseudogene)]
+```
+
+## Summary
+
+We are left with `r length(hvg)` HVGs by this approach^[This is a large number of HVGs but the results don't qualitatively change by reducing this to, say, the top-1000 HVGs.].
+Figure \@ref(fig:hvgs) shows the expression of the top-10 HVGs.
+
+```{r hvgs, fig.cap = "Violin plots of normalized log-expression values for the top-10 HVGs. Each point represents the log-expression value in a single cell."}
+plotExpression(object = sce, features = hvg[1:10])
+```
+
+# Dimensionality reduction
+
+Many scRNA-seq analysis procedures involve comparing cells based on their expression values across multiple genes.
+In these applications, each individual gene represents a dimension of the data. 
+If we had a scRNA-seq data set with two genes, we could make a two-dimensional plot where each axis represents the expression of one gene and each point in the plot represents a cell.
+Dimensionality reduction extends this idea to data sets with thousands of genes where each cell’s expression profile defines its location in the high-dimensional expression space.
+
+As the name suggests, dimensionality reduction aims to reduce the number of separate dimensions in the data.
+This is possible because different genes are correlated if they are affected by the same biological process.
+Thus, we do not need to store separate information for individual genes, but can instead compress multiple features into a single dimension.
+This reduces computational work in downstream analyses, as calculations only need to be performed for a few dimensions rather than thousands of genes; reduces noise by averaging across multiple genes to obtain a more precise representation of the patterns in the data; and enables effective plotting of the data, for those of us who are not capable of visualizing more than 3 dimensions.
+
+## Principal component analysis
+
+Principal components analysis (PCA) discovers axes in high-dimensional space that capture the largest amount of variation.
+In PCA, the first axis (or "principal component", PC) is chosen such that it captures the greatest variance across cells.
+The next PC is chosen such that it is orthogonal to the first and captures the greatest remaining amount of variation, and so on.
+
+By definition, the top PCs capture the dominant factors of heterogeneity in the data set.
+Thus, we can perform dimensionality reduction by restricting downstream analyses to the top PCs.
+This strategy is simple, highly effective and widely used throughout the data sciences.
+
+When applying PCA to scRNA-seq data, our assumption is that biological processes affect multiple genes in a coordinated manner.
+This means that the earlier PCs are likely to represent biological structure as more variation can be captured by considering the correlated behaviour of many genes.
+By comparison, random technical or biological noise is expected to affect each gene independently.
+There is unlikely to be an axis that can capture random variation across many genes, meaning that noise should mostly be concentrated in the later PCs.
+This motivates the use of the earlier PCs in our downstream analyses, which concentrates the biological signal to simultaneously reduce computational work and remove noise.
+
+We perform the PCA on the log-normalized expression values.
+PCA is generally robust to random noise but an excess of it may cause the earlier PCs to capture noise instead of biological structure.
+This effect can be avoided - or at least mitigated - by restricting the PCA to a subset of HVGs, as done in [Feature selection].
+
+The choice of the number of PCs is a decision that is analogous to the choice of the number of HVGs to use.
+Using more PCs will avoid discarding biological signal in later PCs, at the cost of retaining more noise.
+
+We use the strategy of retaining all PCs until the percentage of total variation explained reaches some threshold.
+We derive a suitable value for this threshold by calculating the proportion of variance in the data that is attributed to the biological component.
+This is done using the the variance modelling results from [Quantifying per-gene variation].
+
+```{r}
+set.seed(67726)
+sce <- denoisePCA(
+  sce, 
+  var_fit, 
+  subset.row = hvg,
+  BSPARAM = BiocSingular::IrlbaParam(deferred = TRUE))
+```
+
+This retains `r ncol(reducedDim(sce, "PCA"))` dimensions, which represents the lower bound on the number of PCs required to retain all biological variation.
+Any fewer PCs will definitely discard some aspect of biological signal^[Note that the converse is not true, i.e., there is no guarantee that the retained PCs capture all of the signal, which is only generally possible if no dimensionality reduction is performed at all.].
+This approach provides a reasonable choice when we want to retain as much signal as possible while still removing some noise.
+
+## Dimensionality reduction for visualization
+
+We use the uniform manifold approximation and projection (UMAP) method [@McInnes2018-hy] to perform further dimensionality reduction for visualization.
+
+```{r}
+library(uwot)
+set.seed(853)
+sce <- runUMAP(sce, dimred = "PCA")
+umap_df <- makePerCellDF(sce)
+```
+
+Figure \@ref(fig:umap) visualizes the droplets using the UMAP co-ordinates.
+
+```{r umap, fig.cap = "UMAP plot of the dataset. Each point represents a cell and is coloured by `plate_number`. Each panel highlights droplets from a particular `plate_number`.", fig.asp = 0.8}
+bg <- dplyr::select(umap_df, -plate_number, -genotype, -sex)
+ggplot(aes(x = UMAP.1, y = UMAP.2), data = umap_df) +
+  geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 0.25) +
+  geom_point(aes(colour = plate_number), alpha = 1, size = 0.5) +
+  scale_colour_manual(values = plate_number_colours) +
+  theme_cowplot(font_size = 10) +
+  xlab("Dimension 1") +
+  ylab("Dimension 2") +
+  facet_grid(sex ~ genotype)
+```
+
+## Summary
+
+Although Figure \@ref(fig:umap) is only a preliminary summary of the data, there are few points worth highlighting:
+
+- There are strong plate-specific differences (i.e. batch effects). In particular, plates `LC294` and `LC358` are very different from the majority of plates.
+- There are no strong genotype-specific differences within those plates containing cells from mice of each genotype.
+- There are no strong sex-specific differences within those plates containing cells from mice of each sex.
+
+We will seek to mitigate the plate-specific differences in downstream analyses so that we might better investigate any genotype-specific differences.
 
 # Concluding remarks
 
@@ -1192,7 +1573,7 @@ saveRDS(
 ```
 
 The processed *SingleCellExperiment* object is available (see [`data/SCEs/C075_Grant_Coultas.preprocessed.SCE.rds`](../data/SCEs/C075_Grant_Coultas.preprocessed.SCE.rds)).
-This will be used in downstream analyses, e.g. when merging the different samples onto the same coordinate system.
+This will be used in downstream analyses, e.g., selecting biologically relevant cells.
 
 # Additional information {.appendix}
 
