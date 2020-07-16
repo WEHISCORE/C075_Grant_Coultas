@@ -26,7 +26,7 @@ library(patchwork)
 
 source(here("code", "helper_functions.R"))
 
-# NOTE: Using >= 4 cores siezes up my laptop. Can use more on RStudio server.
+# NOTE: Using >= 4 cores seizes up my laptop. Can use more on RStudio server.
 options(
   "mc.cores" = ifelse(gsub("^rstudio-[0-9]+", "", Sys.info()[["nodename"]]) ==
                         ".hpc.wehi.edu.au", 8L, 2L))
@@ -127,7 +127,6 @@ Figure \@ref(fig:breakdown-by-plate-number) shows that most plates have cells fr
 The exception is the initial pilot plate, LC279, which has cells from a single control mouse.
 
 ```{r breakdown-by-plate-number, fig.asp = 1 / 3, fig.cap = "Breakdown of of the samples by plate."}
-# TODO: Include sequencing_run
 plot_grid(
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
@@ -147,6 +146,14 @@ plot_grid(
     theme_cowplot(font_size = 6),
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
+      aes(x = plate_number, fill = sex),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = sex_colours) +
+    theme_cowplot(font_size = 6),
+    ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
       aes(x = plate_number, fill = mouse),
       position = position_fill(reverse = TRUE)) +
     coord_flip() +
@@ -155,11 +162,11 @@ plot_grid(
     theme_cowplot(font_size = 6),
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
-      aes(x = plate_number, fill = sex),
+      aes(x = plate_number, fill = sequencing_run),
       position = position_fill(reverse = TRUE)) +
     coord_flip() +
     ylab("Frequency") +
-    scale_fill_manual(values = sex_colours) +
+    scale_fill_manual(values = sequencing_run_colours) +
     theme_cowplot(font_size = 6),
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(aes(x = plate_number, fill = plate_number)) +
@@ -286,8 +293,8 @@ Low-quality cells need to be removed to ensure that technical effects do not dis
 We use several quality control (QC) metrics to measure the quality of the cells:
 
 - `sum`: This measures the library size of the cells, which is the total sum of counts across both genes and spike-in transcripts. We want cells to have high library sizes as this means more RNA has been successfully captured during library preparation. 
-- `detected`: This is the number of expressed features^[The number of expressed genes refers to the number of genes which have non-zero counts (ie. they have been identified in the cell at least once)] in each cell. Cells with few expressed features are likely to be of poor quality, as the diverse transcript population has not been successfull captured. 
-- `altexps_ERCC_detected`: This measures the proportion of reads which are mapped to spike-in transcipts relative to the library size of each cell. High proportions are indicative of poor-quality cells, where endogenous RNA has been lost during processing (e.g., due to cell lysis or RNA degradation). 
+- `detected`: This is the number of expressed features^[The number of expressed genes refers to the number of genes which have non-zero counts (ie. they have been identified in the cell at least once)] in each cell. Cells with few expressed features are likely to be of poor quality, as the diverse transcript population has not been successful captured. 
+- `altexps_ERCC_detected`: This measures the proportion of reads which are mapped to spike-in transcripts relative to the library size of each cell. High proportions are indicative of poor-quality cells, where endogenous RNA has been lost during processing (e.g., due to cell lysis or RNA degradation). 
 The same amount of spike-in RNA to each cell, so an enrichment in spike-in counts is symptomatic of loss of endogenous RNA.
 - `subsets_Mt_percent`: This measures the proportion of reads which are mapped to mitochondrial RNA. If there is a higher than expected proportion of mitochondrial RNA this is often symptomatic of a cell which is under stress and is therefore of low quality and will not be used for the analysis. 
 
@@ -972,6 +979,14 @@ plot_grid(
     theme_cowplot(font_size = 6),
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
+      aes(x = plate_number, fill = sex),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = sex_colours) +
+    theme_cowplot(font_size = 6),
+    ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(
       aes(x = plate_number, fill = mouse),
       position = position_fill(reverse = TRUE)) +
     coord_flip() +
@@ -980,11 +995,11 @@ plot_grid(
     theme_cowplot(font_size = 6),
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(
-      aes(x = plate_number, fill = sex),
+      aes(x = plate_number, fill = sequencing_run),
       position = position_fill(reverse = TRUE)) +
     coord_flip() +
     ylab("Frequency") +
-    scale_fill_manual(values = sex_colours) +
+    scale_fill_manual(values = sequencing_run_colours) +
     theme_cowplot(font_size = 6),
   ggplot(as.data.frame(colData(sce))) + 
     geom_bar(aes(x = plate_number, fill = plate_number)) +
@@ -1139,7 +1154,7 @@ summary(sizeFactors(sce))
 ```
 
 We check that the size factors are roughly aligned with the total library sizes (Figure \@ref(fig:normplot)).
-Strong eviations from the diagonal would correspond to composition biases due to differential expression between cell subpopulations.
+Strong deviations from the diagonal would correspond to composition biases due to differential expression between cell subpopulations.
 
 ```{r normplot, fig.cap = "Size factors from deconvolution, plotted against library sizes for all cells in each data set. Axes are shown on a log-scale.", results = "hide", fig.asp = 2 / 4}
 xlim <- c(1, max(sce$sum) / 1e3)
@@ -1175,8 +1190,8 @@ To remove these biases, we equalize spike-in coverage across cells by scaling wi
 <aside>
 We stress that we focus on *relative* normalization, i.e., to make counts comparable across cells.
 We do not consider the use of spike-ins for absolute quantification (i.e. to determine the number of molecules of each transcript in each cell).
-As noted in @lun2017assessing, "[It] is more difficult to evaluate [absolute quantification because] accuracy is affected by the magnitude of the differences in the behavior of spike-in and endogenous transcripts.
-In contrast, relative normalization is only affected by variability in the differences in behavior across wells."
+As noted in @lun2017assessing, "[It] is more difficult to evaluate [absolute quantification because] accuracy is affected by the magnitude of the differences in the behaviour of spike-in and endogenous transcripts.
+In contrast, relative normalization is only affected by variability in the differences in behaviour across wells."
 </aside>
 
 Compared to [Normalization by deconvolution], spike-in normalization requires no assumption about the biology of the system (i.e. the absence of many DE genes).
