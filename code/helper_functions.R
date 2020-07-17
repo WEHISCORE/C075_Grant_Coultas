@@ -236,10 +236,25 @@ plotScoreReducedDim <- function(results, sce, dimred = "TSNE",
 # columns have been flattened by paste-ing together the elements separated by
 # `sep`.
 flattenDF <- function(x, sep = "; ") {
-  endoapply(x, function(xx) {
-    if (!is(xx, "AtomicList")) {
-      return(xx)
-    }
-    unstrsplit(as(xx, "CharacterList"), sep = sep)
-  })
+  DataFrame(
+    endoapply(x, function(xx) {
+      if (!is(xx, "AtomicList")) {
+        return(xx)
+      }
+      unstrsplit(as(xx, "CharacterList"), sep = sep)
+    }),
+    row.names = rownames(x))
+}
+
+# Collapse labels only found in fewer than `cutoff` proportion of cells in all
+# patients as 'other'
+.collapseLabel <- function(labels, patient, cutoff = 0.01) {
+  tmp <- table(labels, patient)
+  tmp2 <- apply(tmp, 2, function(x) (x / sum(x)) > cutoff)
+  tmp3 <- rownames(tmp2)[rowAnys(tmp2)]
+  tmp4 <- ifelse(
+    labels %in% tmp3,
+    as.character(labels),
+    "other")
+  factor(tmp4, names(sort(table(tmp4), decreasing = TRUE)))
 }
