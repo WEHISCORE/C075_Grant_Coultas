@@ -32,7 +32,7 @@ source(here("code", "helper_functions.R"))
 options("mc.cores" = ifelse(Sys.info()[["nodename"]] == "PC1331", 2L, 8L))
 register(MulticoreParam(workers = getOption("mc.cores")))
 
-knitr::opts_chunk$set(fig.path = "C057_Cooney.cell_selection_files/")
+knitr::opts_chunk$set(fig.path = "C075_Grant_Coultas.cell_selection_files/")
 ```
 
 # Motivation
