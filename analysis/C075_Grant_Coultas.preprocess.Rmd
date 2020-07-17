@@ -606,6 +606,7 @@ libsize_drop_subset <- names(
     libsize_drop_thresholds,
     type = "lower",
     log = TRUE)]
+
 feature_drop <- isOutlier(
   metric = sce$detected, 
   nmads = 3,
@@ -618,6 +619,7 @@ feature_drop_subset <- names(
     feature_drop_thresholds,
     type = "lower",
     log = TRUE)]
+
 spike_drop <- isOutlier(
   metric = sce$altexps_ERCC_percent, 
   nmads = 3, 
@@ -626,21 +628,19 @@ spike_drop <- isOutlier(
 spike_drop_thresholds <- attributes(spike_drop)$thresholds["higher", ]
 spike_drop_subset <- names(
   spike_drop_thresholds)[isOutlier(spike_drop_thresholds, type = "higher")]
-# NOTE: Force LC398 to be included in subset.
-spike_drop_subset <- union(spike_drop_subset, "LC398")
+
 mito_drop <- isOutlier(
   metric = sce$subsets_Mt_percent, 
   nmads = 3, 
   type = "higher",
   batch = sce$batch)
 mito_drop_thresholds <- attributes(mito_drop)$thresholds["higher", ]
-# NOTE: LC294 and LC358 are outliers for mito%. Zoe says she doesn't know of 
-#       any good reason for this result. Furthermore, if we `subset` these
-#       plates then almost all cells on these plates are excluded. Therefore, 
-#       we don't `subset` these plates Instead, we will just keep an eye on
-#       these cells in downstream analysis (and potentially exclude them).
-# mito_drop_subset <- names(
-#   mito_drop_thresholds)[isOutlier(mito_drop_thresholds, type = "higher")]
+mito_drop_subset <- names(
+  mito_drop_thresholds)[isOutlier(mito_drop_thresholds, type = "higher")]
+# NOTE: LC294 and LC358 are outliers for mito%. However, if we `subset` these
+#       plates then almost all cells on these plates are excluded, which we 
+#       don't want to do. Instead, we will just keep an eye on
+#       these cells in downstream analysis.
 mito_drop_subset <- character(0)
 
 libsize_drop <- isOutlier(
@@ -1475,7 +1475,7 @@ This means that these genes can no longer **directly** influence some of the sub
   - Mutual nearest neighbours (MNN)
 - Clustering
 
-Although the exclusion of these genes from the HVGs prevents them from directly influencing these analyses, they may still **indirectly** influence these steps or otherwise be associated with their outcomes.
+Although the exclusion of these genes from the HVGs prevents them from directly influencing these analyses, they may still **indirectly**  associated with these steps or their outcomes.
 For example, if there is a set of (non ribosomal protein) genes that are strongly associated with ribosomal protein gene expression, then we may still see a cluster associated with ribosomal protein gene expression.
 
 Finally, and to emphasise, we have only excluded these gene sets from the HVGs, i.e. we have not excluded them entirely from the dataset.
@@ -1575,7 +1575,7 @@ ggplot(aes(x = UMAP.1, y = UMAP.2), data = umap_df) +
 
 Although Figure \@ref(fig:umap) is only a preliminary summary of the data, there are few points worth highlighting:
 
-- There are strong plate-specific differences (i.e. batch effects). In particular, plates `LC294` and `LC358` are very different from the majority of plates.
+- There are strong plate-specific differences (i.e. potential batch effects). In particular, plates `LC294` and `LC358` are very different from the majority of plates.
 - There are no strong genotype-specific differences within those plates containing cells from mice of each genotype.
 - There are no strong sex-specific differences within those plates containing cells from mice of each sex.
 
