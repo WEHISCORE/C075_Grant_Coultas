@@ -23,6 +23,7 @@ library(ggplot2)
 library(cowplot)
 library(BiocParallel)
 library(patchwork)
+library(scater)
 
 source(here("code", "helper_functions.R"))
 
@@ -128,7 +129,7 @@ The exception is the initial pilot plate, LC279, which has cells from a single c
 
 ```{r breakdown-by-plate-number, fig.asp = 1 / 3, fig.cap = "Breakdown of of the samples by plate."}
 plot_grid(
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") + 
     geom_bar(
       aes(x = plate_number, fill = sample_type),
       position = position_fill(reverse = TRUE)) +
@@ -136,7 +137,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = sample_type_colours) +
     theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") + 
     geom_bar(
       aes(x = plate_number, fill = genotype),
       position = position_fill(reverse = TRUE)) +
@@ -144,7 +145,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = genotype_colours) +
     theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") + 
     geom_bar(
       aes(x = plate_number, fill = sex),
       position = position_fill(reverse = TRUE)) +
@@ -152,7 +153,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = sex_colours) +
     theme_cowplot(font_size = 6),
-    ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") + 
     geom_bar(
       aes(x = plate_number, fill = mouse),
       position = position_fill(reverse = TRUE)) +
@@ -160,7 +161,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = mouse_colours) +
     theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") + 
     geom_bar(
       aes(x = plate_number, fill = sequencing_run),
       position = position_fill(reverse = TRUE)) +
@@ -168,7 +169,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = sequencing_run_colours) +
     theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") + 
     geom_bar(aes(x = plate_number, fill = plate_number)) +
     coord_flip() +
     ylab("Number of wells") +
@@ -252,7 +253,6 @@ Henceforth, we will use gene symbols (where available) to refer to genes in our 
 
 ```{r}
 # Replace the row names of the SCE by the gene symbols (where available).
-library(scater)
 rownames(sce) <- uniquifyFeatureNames(
   ID = rownames(sce), 
   # NOTE: An Ensembl ID may map to 0, 1, 2, 3, ... gene symbols.
@@ -316,13 +316,10 @@ The distributions of these metrics are shown in Figure \@ref(fig:qcplot-by-plate
 ```{r qcplot-by-plate-by-mouse, fig.cap = "Distributions of various QC metrics for all cells in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", fig.asp = 2 / 3}
 sce$plate_number.mouse <- factor(paste0(sce$plate_number, ".", sce$mouse))
 plot_grid(
-  ggplot(
-    data = as.data.frame(colData(sce)),
-    aes(
-      x = plate_number.mouse,
-      y = sum,
-      colour = genotype,
-      fill = genotype)) +
+  ggcells(
+    sce,
+    exprs_values = "counts",
+    aes(x = plate_number.mouse, y = sum, colour = genotype, fill = genotype)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.1) +
     theme_cowplot(font_size = 8) +
@@ -335,8 +332,9 @@ plot_grid(
       short = unit(0.03, "cm"),
       mid = unit(0.06, "cm"),
       long = unit(0.09, "cm")),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = altexps_ERCC_percent,
@@ -349,8 +347,9 @@ plot_grid(
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = detected,
@@ -368,8 +367,9 @@ plot_grid(
       short = unit(0.03, "cm"),
       mid = unit(0.06, "cm"),
       long = unit(0.09, "cm")),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = subsets_Mt_percent,
@@ -390,8 +390,9 @@ Figure \@ref(fig:qcplot-by-plate-by-mouse-faceted) breaks the data down by wheth
 
 ```{r qcplot-by-plate-by-mouse-faceted, fig.cap = "Distributions of various QC metrics for all cells in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", fig.asp = 2 / 3}
 plot_grid(
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = sum,
@@ -410,8 +411,9 @@ plot_grid(
       mid = unit(0.06, "cm"),
       long = unit(0.09, "cm")) + 
     facet_grid(~ sample_type),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = altexps_ERCC_percent,
@@ -425,8 +427,9 @@ plot_grid(
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
     facet_grid(~ sample_type),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = detected,
@@ -445,8 +448,9 @@ plot_grid(
       mid = unit(0.06, "cm"),
       long = unit(0.09, "cm")) + 
     facet_grid(~ sample_type),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = subsets_Mt_percent,
@@ -825,7 +829,7 @@ Reassuringly, Figure \@ref(fig:barplot-highlighting-outliers) shows that this is
 The exception is plate LC398, which has systematically fewer cells to start with and for which the quality is lower in the part of the plate containing the `Mutant` cells.
 
 ```{r barplot-highlighting-outliers, fig.cap = "Droplets removed during QC, stratified by `plate_number` and `genotype`. "}
-ggplot(as.data.frame(colData(sce_pre_QC_outlier_removal))) + 
+ggcells(sce_pre_QC_outlier_removal, exprs_values = "counts") +
   geom_bar(aes(x = batch, fill = keep)) + 
   ylab("Number of cells") + 
   theme_cowplot(font_size = 9) + 
@@ -837,8 +841,9 @@ Figure \@ref(fig:qcplot-highlighting-outliers) compares the QC metrics of the di
 
 ```{r qcplot-highlighting-outliers, fig.cap = "Distribution of QC metrics for each plate in the dataset. Each point represents a cell and is colored according to whether it was discarded during the QC process. Note that a cell will only be kept if it passes the relevant threshold for all four QC metrics.", fig.asp = 2 / 3}
 plot_grid(
-  ggplot(
-    data = as.data.frame(colData(sce_pre_QC_outlier_removal)),
+  ggcells(
+    sce_pre_QC_outlier_removal,
+    exprs_values = "counts",
     aes(x = plate_number.mouse, y = sum)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.2, aes(colour = keep)) +
@@ -850,16 +855,18 @@ plot_grid(
       short = unit(0.03, "cm"),
       mid = unit(0.06, "cm"),
       long = unit(0.09, "cm")),
-  ggplot(
-    data = as.data.frame(colData(sce_pre_QC_outlier_removal)),
+  ggcells(
+    sce_pre_QC_outlier_removal,
+    exprs_values = "counts",
     aes(x = plate_number.mouse, y = altexps_ERCC_percent)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.2, aes(colour = keep)) +
     ylim(0, 100) +
     theme_cowplot(font_size = 8) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(
-    data = as.data.frame(colData(sce_pre_QC_outlier_removal)),
+  ggcells(
+    sce_pre_QC_outlier_removal,
+    exprs_values = "counts",
     aes(x = plate_number.mouse, y = detected)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.2, aes(colour = keep)) +
@@ -871,8 +878,9 @@ plot_grid(
       short = unit(0.03, "cm"),
       mid = unit(0.06, "cm"),
       long = unit(0.09, "cm")),
-  ggplot(
-    data = as.data.frame(colData(sce_pre_QC_outlier_removal)),
+  ggcells(
+    sce_pre_QC_outlier_removal,
+    exprs_values = "counts",
     aes(x = plate_number.mouse, y = subsets_Mt_percent)) +
     geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
     ggbeeswarm::geom_quasirandom(size = 0.2, aes(colour = keep)) +
@@ -889,8 +897,9 @@ To conclude, Figure \@ref(fig:qcplot-post-outlier-removal) shows that post-QC th
 
 ```{r qcplot-post-outlier-removal, fig.cap = "Distributions of various QC metrics for all cells that passed quality control in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", fig.asp = 2 / 3}
 plot_grid(
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = sum,
@@ -908,8 +917,9 @@ plot_grid(
       short = unit(0.03, "cm"),
       mid = unit(0.06, "cm"),
       long = unit(0.09, "cm")),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    exprs_values = "counts",
+    sce,
     aes(
       x = plate_number.mouse,
       y = altexps_ERCC_percent,
@@ -922,8 +932,9 @@ plot_grid(
     scale_colour_manual(values = genotype_colours) + 
     scale_fill_manual(values = genotype_colours) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = detected,
@@ -941,8 +952,9 @@ plot_grid(
       short = unit(0.03, "cm"),
       mid = unit(0.06, "cm"),
       long = unit(0.09, "cm")),
-  ggplot(
-    data = as.data.frame(colData(sce)),
+  ggcells(
+    sce,
+    exprs_values = "counts",
     aes(
       x = plate_number.mouse,
       y = subsets_Mt_percent,
@@ -961,7 +973,7 @@ plot_grid(
 
 ```{r breakdown-by-plate-number-post-qc, fig.asp = 1 / 3, fig.cap = "Breakdown of of the samples by plate following QC."}
 plot_grid(
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") +
     geom_bar(
       aes(x = plate_number, fill = sample_type),
       position = position_fill(reverse = TRUE)) +
@@ -969,7 +981,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = sample_type_colours) +
     theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") +
     geom_bar(
       aes(x = plate_number, fill = genotype),
       position = position_fill(reverse = TRUE)) +
@@ -977,7 +989,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = genotype_colours) +
     theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") +
     geom_bar(
       aes(x = plate_number, fill = sex),
       position = position_fill(reverse = TRUE)) +
@@ -985,7 +997,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = sex_colours) +
     theme_cowplot(font_size = 6),
-    ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") +
     geom_bar(
       aes(x = plate_number, fill = mouse),
       position = position_fill(reverse = TRUE)) +
@@ -993,7 +1005,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = mouse_colours) +
     theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") +
     geom_bar(
       aes(x = plate_number, fill = sequencing_run),
       position = position_fill(reverse = TRUE)) +
@@ -1001,7 +1013,7 @@ plot_grid(
     ylab("Frequency") +
     scale_fill_manual(values = sequencing_run_colours) +
     theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
+  ggcells(sce, exprs_values = "counts") +
     geom_bar(aes(x = plate_number, fill = plate_number)) +
     coord_flip() +
     ylab("Number of wells") +
@@ -1559,7 +1571,7 @@ umap_df <- makePerCellDF(sce)
 
 Figure \@ref(fig:umap) visualizes the droplets using the UMAP co-ordinates.
 
-```{r umap, fig.cap = "UMAP plot of the dataset. Each point represents a cell and is coloured by `plate_number`. Each panel highlights droplets from a particular `plate_number`.", fig.asp = 0.8}
+```{r umap, fig.cap = "UMAP plot of the dataset. Each point represents a cell and is coloured by `plate_number`. Each panel highlights droplets from a particular combination of `genotype` and `sex`.", fig.asp = 0.8}
 bg <- dplyr::select(umap_df, -plate_number, -genotype, -sex)
 ggplot(aes(x = UMAP.1, y = UMAP.2), data = umap_df) +
   geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 0.25) +
