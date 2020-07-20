@@ -42,19 +42,23 @@ In this section aim to filter out these 'unwanted' cells and retain only the 'bi
 Examples of unwanted cells include:
 
 - Cells with 'reasonable' QC metrics, but that are transcriptomically distinct from the majority of cells in the dataset
-- Cells of unwanted cell types, such as those that might sneak through a FACS or magnetic beadenrichment sample preparation
+- Cells of unwanted cell types, such as those that might sneak through a FACS or magnetic bead enrichment sample preparation
 
 Once we are confident that we have selected the biologically relevant cells, we will perform data integration (if necessary) and a further round of clustering in preparation for downstream analysis.
 
 The removal of unwanted cells is an iterative process where at each step we:
 
 1. Identify cluster(s) enriched for unwanted cells. The exact criteria used to define 'unwanted' will depend on the type of cells we are trying to identify at each step.
-a. Perform diagnostic checks to ensure we aren't discarding biologically relevant cells.
-b. Remove the unwanted cells.
+    a. Perform diagnostic checks to ensure we aren't discarding biologically relevant cells.
+    b. Remove the unwanted cells.
 2. Re-process the remaining cells.
-a. Identify HVGs.
-b. Perform dimensionality reduction (PCA and UMAP).
-c. Cluster cells.
+    a. Identify HVGs.
+    b. Perform dimensionality reduction (PCA and UMAP).
+    c. Cluster cells.
+    
+<aside>
+Throughout, we will exclude mitochondrial genes, ribosomal protein genes, sex chromosome genes, and pseudogenes from the HVGs.
+</aside>
 
 Clustering is a critical component of this process, so we discuss it in further detail in the next subsection.
 
@@ -144,7 +148,6 @@ snn_gr <- buildSNNGraph(sce, use.dimred = "PCA")
 clusters <- igraph::cluster_louvain(snn_gr)
 sce$cluster <- factor(clusters$membership)
 stopifnot(nlevels(sce$cluster) == 8)
-umap_df$cluster <- sce$cluster
 cluster_colours <- setNames(
   palette("Okabe-Ito"),
   levels(sce$cluster))
@@ -226,11 +229,102 @@ Notably:
 ## Motivation
 
 We have seen that cells from plates `LC294` and `LC358` cluster separately from the remaining plates.
-We perform a [Marker gene analysis] and an [Annotation against reference databases] to try to understand what is driving the differences between cells on these two sets of plates so that we can decide how to handle this issue.
+To try to understand what is driving the differences between cells on these two sets of plates, we perform a marker gene analysis.
+The results of this analysis will help us decide how to handle this issue.
 
-## Marker gene analysis
+## Analysis
 
-### Marker gene discovery
+We use two sets of marker genes for this analysis:
+
+1. [Pre-defined marker genes]
+2. [*De novo* marker genes]
+
+```{r}
+sce$cluster_batches <- factor(
+  ifelse(
+    sce$plate_number %in% c("LC294", "LC358"),
+    "LC294 and LC358", 
+    "rest"))
+```
+
+### Pre-defined marker genes
+
+Zoe sent me a list of marker genes to help characterise the cells^[Email 2020-05-06].
+
+```{r}
+zoes_markers <- readxl::read_excel(
+  here(
+    "data", 
+    "marker_genes",
+    "Genes for violin plots Hbo1 retina ECs.xlsx")) %>%
+  # NOTE: Zoe forgot to label the cell cycle genes
+  dplyr::mutate(
+    `Endothelial identity` = ifelse(
+      is.na(`Endothelial identity`),
+      "Cell cycle",
+      `Endothelial identity`),
+    Expressed = Gene %in% rownames(sce))
+DT::datatable(
+  zoes_markers,
+  caption = "Zoe's supplied list of arker genes, their 'Endothelial identity', and whether they are expressed in the current dataset.")
+```
+
+Figure \@ref(fig:cluster-batches-zoes-markers) is a heatmap of Zoe's marker genes.
+There is perhaps some evidence that some of these genes have lower expression in cells from plates `LC294` and `LC358` compared to cells from the rest of the plates, but it's not especially compelling
+
+<aside>
+It's certainly not as striking as the result below in [Marker gene discovery].
+</aside>
+
+```{r cluster-batches-zoes-markers, fig.wide = TRUE, fig.cap = "Heatmap of row-normalized log-expression values for Zoe's marker genes. Each column is a sample, each row a gene. Samples have been separetely clustered within each `cluster_batches`.", fig.asp = 1.1}
+features <- dplyr::filter(zoes_markers, Expressed) %>% 
+  dplyr::pull(Gene)
+gene_set <- dplyr::filter(zoes_markers, Expressed) %>% 
+  dplyr::pull(`Endothelial identity`)
+
+# Samples are hierarchically ordered within each level of `cluster_batches`.
+mat <- logcounts(sce)[features, ]
+mat1 <- logcounts(sce)[features, sce$cluster_batches == "LC294 and LC358"]
+mat1 <- mat1 - rowMeans(mat)
+h1 <- hclust(dist(t(mat1)))
+o1 <- h1$order
+mat2 <- logcounts(sce)[features, sce$cluster_batches == "rest"]
+mat2 <- mat2 - rowMeans(mat)
+h2 <- hclust(dist(t(mat2)))
+o2 <- h2$order
+
+z <- cbind(
+  sce[, sce$cluster_batches == "LC294 and LC358"][, o1],
+  sce[, sce$cluster_batches == "rest"][, o2])
+mat <- logcounts(z)[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-4, 4)
+mat[mat < zlim[1]] <- zlim[1]
+mat[mat > zlim[2]] <- zlim[2]
+pheatmap(
+  mat = mat,
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_row = data.frame(
+    gene_set = gene_set,
+    row.names = features),
+  annotation_col = data.frame(
+    cluster_batches = z$cluster_batches,
+    cluster = z$cluster,
+    plate_number = z$plate_number,
+    genotype = z$genotype,
+    row.names = colnames(z)),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(z$cluster)],
+    plate_number = plate_number_colours[levels(z$plate_number)],
+    genotype = genotype_colours[levels(z$genotype)]),
+  breaks = seq(zlim[1], zlim[2], length.out = 101),
+  annotation_names_row = FALSE,
+  fontsize_row = 6)
+```
+
+### *De novo* marker genes
 
 We use a binomial test to look for genes that differ in the proportion of expressing cells from plates `LC294` and `LC358` compared to cells from the rest of the plates.
 The premise is that we want to see if there are genes that were active in one set of plates and silent in another, a potentially very serious difference between cells on the two sets of plates.
@@ -240,11 +334,6 @@ For the purposes of this section, a cell is considered to express a gene simply 
 </aside>
 
 ```{r}
-sce$cluster_batches <- factor(
-  ifelse(
-    sce$plate_number %in% c("LC294", "LC358"),
-    "LC294 and LC358", 
-    "rest"))
 markers <- findMarkers(
   sce,
   groups = sce$cluster_batches,
@@ -325,301 +414,376 @@ pheatmap(
   fontsize_row = 6)
 ```
 
-### Existing marker genes
-
-Zoe sent me a list of marker genes to help characterise the cells^[Email 2020-05-06].
-
-```{r}
-zoes_markers <- readxl::read_excel(
-  here(
-    "data", 
-    "marker_genes",
-    "Genes for violin plots Hbo1 retina ECs.xlsx")) %>%
-  # NOTE: Zoe forgot to label the cell cycle genes
-  dplyr::mutate(
-    `Endothelial identity` = ifelse(
-      is.na(`Endothelial identity`),
-      "Cell cycle",
-      `Endothelial identity`),
-    Expressed = Gene %in% rownames(sce))
-DT::datatable(
-  zoes_markers,
-  caption = "Zoe's supplied list of arker genes, their 'Endothelial identity', and whether they are expressed in the current dataset.")
-```
-
-Figure \@ref(fig:cluster-batches-zoes-markers) is a heatmap of Zoe's marker genes.
-There is perhaps some evidence that some of these genes have lower expression in cells from plates `LC294` and `LC358` compared to cells from the rest of the plates, but it's not as striking as the result in [Marker gene discovery].
-
-```{r cluster-batches-zoes-markers, fig.wide = TRUE, fig.cap = "Heatmap of row-normalized log-expression values for Zoe's marker genes. Each column is a sample, each row a gene. Samples have been separetely clustered within each `cluster_batches`.", fig.asp = 1.1}
-features <- dplyr::filter(zoes_markers, Expressed) %>% 
-  dplyr::pull(Gene)
-gene_set <- dplyr::filter(zoes_markers, Expressed) %>% 
-  dplyr::pull(`Endothelial identity`)
-
-# Samples are hierarchically ordered within each level of `cluster_batches`.
-mat <- logcounts(sce)[features, ]
-mat1 <- logcounts(sce)[features, sce$cluster_batches == "LC294 and LC358"]
-mat1 <- mat1 - rowMeans(mat)
-h1 <- hclust(dist(t(mat1)))
-o1 <- h1$order
-mat2 <- logcounts(sce)[features, sce$cluster_batches == "rest"]
-mat2 <- mat2 - rowMeans(mat)
-h2 <- hclust(dist(t(mat2)))
-o2 <- h2$order
-
-z <- cbind(
-  sce[, sce$cluster_batches == "LC294 and LC358"][, o1],
-  sce[, sce$cluster_batches == "rest"][, o2])
-mat <- logcounts(z)[features, ]
-mat <- mat - rowMeans(mat)
-zlim <- c(-4, 4)
-mat[mat < zlim[1]] <- zlim[1]
-mat[mat > zlim[2]] <- zlim[2]
-pheatmap(
-  mat = mat,
-  cluster_rows = TRUE,
-  cluster_cols = FALSE,
-  show_colnames = FALSE,
-  annotation_row = data.frame(
-    gene_set = gene_set,
-    row.names = features),
-  annotation_col = data.frame(
-    cluster_batches = z$cluster_batches,
-    cluster = z$cluster,
-    plate_number = z$plate_number,
-    genotype = z$genotype,
-    row.names = colnames(z)),
-  annotation_colors = list(
-    cluster = cluster_colours[levels(z$cluster)],
-    plate_number = plate_number_colours[levels(z$plate_number)],
-    genotype = genotype_colours[levels(z$genotype)]),
-  breaks = seq(zlim[1], zlim[2], length.out = 101),
-  annotation_names_row = FALSE,
-  fontsize_row = 6)
-```
-
-```{r}
-knitr::knit_exit()
-```
-
-**TODO**: UP TO HERE. Have emailed Zoe about this weird result. Will probably just exclude cells from LC294 and LC358 and then proceed with the rest of the analysis.
-
-## Annotation against reference databases
-
-**TODO**: Not using this because the in-built references aren't useful
-
-### Motivation
-
-A conceptually straightforward annotation approach is to compare the single-cell expression profiles with previously annotated reference data sets.
-Labels can then be assigned to each cell in our uncharacterised test data set based on the most similar reference sample(s), for some definition of "similar".
-Any published and labelled RNA-seq data set (bulk or single-cell) can be used as a reference, though its reliability depends greatly on the expertise of the original authors who assigned the labels in the first place.
-
-`r BiocStyle::Biocpkg("SingleR")` is one such automatic annotation method for scRNA-seq data [@aran2019reference].
-Given a reference data set(s) of samples^[This can be individual cells or bulk samples.] with known labels, it labels new cells from a test data set based on similarity to the reference set(s).
-Specifically, for each test cell:
-
-1. We compute the Spearman correlation between its expression profile and that of each reference sample. 
-2. We define the per-label score as a fixed quantile (by default, 0.8) of the distribution of correlations.
-3. We repeat this for all labels and we take the label with the highest score as the annotation for this cell.
-4. Finally, we perform a fine-tuning step:
-- The reference data set is subsetted to only include labels with scores close to the maximum.
-- Scores are recomputed using only marker genes for the subset of labels.
-- This is iterated until one label remains.
-
-For visualization purposes we use the normalized scores, which are the scores linearly adjusted for each cell so that the smallest score is 0 and the largest score is 1.
-This is followed by cubing of the adjusted scores to improve dynamic range near 1. 
-
-Automatic annotation provides a convenient way of transferring biological knowledge across data sets.
-In this manner, the burden of interpreting clusters and defining marker genes only has to be done once (i.e. for the reference set).
-
-`r BiocStyle::Biocpkg("SingleR")` can annotate at both the cluster-level and at the cell-level.
-The trade-off between cluster-level and cell-level annotation is one of increased robustness to noise (cluster-level) vs. increased resolution (cell-level).
-Poor-quality assignments with 'low' scores are labelled as `NA`.
-
-#### Available references
-
-**TODO**: None of these references are especially useful.
-
-`r BiocStyle::Biocpkg("SingleR")` includes several in-built reference data sets, some of which are relevant for this study:
-
-* `ImmGenData` (`IG`): The murine [ImmGen](http://www.immgen.org/) [@ImmGenRef]
-* `MouseRNAseqData` (`MRNA`): A collection of mouse data sets downloaded from GEO [@Benayoun2019]
-
-These bulk RNA-seq and microarray data sets were obtained from pre-sorted cell populations, i.e., the cell labels of these samples were mostly derived based on the respective sorting/purification strategy, not via *in silico* prediction methods.
-
-The characteristics of each data set are summarized below^[Table adapted from [https://bioconductor.org/packages/3.11/bioc/vignettes/SingleR/inst/doc/SingleR.html#5_available_references]https://bioconductor.org/packages/3.11/bioc/vignettes/SingleR/inst/doc/SingleR.html#5_available_references)]:
-
-| Reference | Samples | Sample types |  No. of main labels  | No. of fine labels | Cell type focus |
-|------------------|----------|-------------|----------------------|------------|----------|
-|`IG`|  830  | microarrays of sorted cell populations | 20 | 253 | Hematopoietic & Immune |
-|`MRNA`| 358  |RNA-seq | 18  | 28 | Non-specific |
-
-The available sample types in each set can be viewed in the collapsible sections below.
-
-```{r}
-library(SingleR)
-```
-
-<details>
-<summary>`ImmGenData` Labels</summary>
-
-```{r, echo=FALSE, message=FALSE}
-ig <- ImmGenData()
-.adf(colData(ig)) %>% 
-  dplyr::count(label.main, label.fine) %>%
-  dplyr::arrange(label.main) %>%
-  knitr::kable()
-```
-</details>
-
-<details>
-<summary>`MouseRNAseqData` Labels</summary>
-
-```{r, echo = FALSE, message = FALSE}
-mrna <- MouseRNAseqData()
-.adf(colData(mrna)) %>% 
-  dplyr::count(label.main, label.fine) %>%
-  dplyr::arrange(label.main) %>%
-  knitr::kable()
-```
-</details>
-
-### Analysis
-
-I have opted to only use the 'fine' labels from the `MRNA` reference annotation and annotated the dataset at the cell-level.
-
-<aside>
-The `IG` reference is the only in-built reference to include cells labelled as `Epithelial cells`.
-However, because of ImmGen's focus on immune cells, these cells are not be especially comparable to retinal epithelial cells.
-</aside>
-
-```{r}
-ref <- mrna
-labels_fine <- ref$label.fine
-# NOTE: This code doesn't necessarily generalise beyond the MRNA fine labels.
-label_fine_collapsed_colours <- setNames(
-  c(
-    Polychrome::glasbey.colors(nlevels(factor(labels_fine)) + 1)[-1],
-    "orange"),
-  c(levels(factor(labels_fine)), "other"))
-```
-
-```{r}
-pred_cell_fine <- SingleR(
-  test = sce,
-  ref = ref,
-  labels = labels_fine,
-  BPPARAM = bpparam())
-sce$label_cell_fine <- factor(pred_cell_fine$pruned.labels)
-sce$label_cell_fine_collapsed <- .collapseLabel(
-  sce$label_cell_fine,
-  sce$mouse)
-sce$label_fine_collapsed_colours <- label_fine_collapsed_colours[
-  as.character(sce$label_cell_fine)]
-```
-
-The results are summarised in the table below.
-
-```{r}
-tabyl(
-  data.frame(label.fine = sce$label_cell_fine, cluster = sce$cluster), 
-  cluster, 
-  label.fine) %>%
-  knitr::kable(
-    caption = "Cell-level assignments using the 'fine' labels of the MRNA reference.")
-```
-
-Figure \@ref(fig:umap-with-fine-cell-labels) overlays these cell type labels on the UMAP plot and shows that essentially all cells are labelled as `Endothelial cells`.
-
-```{r umap-with-fine-cell-labels, fig.asp = 1 / 3, fig.cap = "UMAP plot highlighting clusters (left) and 'fine' cell-level labels (right) where each panel highlights cells from a particular label. Labels with < 1% frequency are grouped together as `other`."}
-umap_df <- makePerCellDF(sce)
-p1 <- ggplot(umap_df, aes(x = UMAP.1, y = UMAP.2)) +
-  geom_point(
-    aes(colour = cluster),
-    alpha = 1,
-    size = 0.5) +
-  scale_fill_manual(values = cluster_colours) +
-  scale_colour_manual(values = cluster_colours) +
-  theme_cowplot(font_size = 10) +
-  xlab("Dimension 1") +
-  ylab("Dimension 2") +
-  ggtitle("Clusters")
-bg <- dplyr::select(umap_df, -label_cell_fine_collapsed)
-p2 <- ggplot(umap_df, aes(x = UMAP.1, y = UMAP.2)) +
-  geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 0.25) +
-  geom_point(
-    aes(colour = label_cell_fine_collapsed),
-    alpha = 1,
-    size = 0.5) +
-  scale_fill_manual(values = label_fine_collapsed_colours) +
-  scale_colour_manual(values = label_fine_collapsed_colours) +
-  theme_cowplot(font_size = 10) +
-  xlab("Dimension 1") +
-  ylab("Dimension 2") +
-  facet_wrap(~ label_cell_fine_collapsed, ncol = 2) +
-  guides(colour = FALSE) + 
-  ggtitle("'Fine' cell-level label")
-p1 + p2 + plot_layout(widths = c(1, 2))
-```
-
-##### Diagnostic plots
-
-As a sanity check, we can examine the expression of the marker genes for the relevant cell type labels by plotting a heatmap of their expression in:
-
-1. The reference dataset
-2. Our dataset
-
-The value of (1) is that we can assess if we believe the genes are indeed good markers of the relevant cell type in the reference dataset.
-The value of (2) is that we can check that these genes are useful markers in our dataset (e.g., that they are reasonably well sampled in our data).
-
-```{r}
-# NOTE: This code was written before I had SingleRDEGsAsTibble().
-all_markers <- metadata(pred_cell_fine)$de.genes
-endo_markers <- all_markers[["Endothelial cells"]]
-endo_markers_t <- table(unlist(endo_markers))
-
-# Three approaches to selecting markers:
-# 
-# 1. Identify genes occurring in most pairwise comparisons
-#      `markers <- names(sort(endo_markers_t, decreasing = TRUE))`
-# 2. Identify the markers genes that are most highly expressed (on average)
-#    in our dataset.
-#     `markers <- names(sort(rowMeans(logcounts(sce)[names(endo_markers_t), ]), decreasing = TRUE))`
-# 3. A compromise between (1) and (2), here selecting most highly expressed markers that occur in at least X pairwise comparisons
-#     `markers <- names(sort(rowMeans(logcounts(sce)[names(endo_markers_t[endo_markers_t >= X]), ]), decreasing = TRUE))`
-# NOTE: Opted to go with (3) with X = 2
-markers <- names(
-  sort(
-    rowMeans(logcounts(sce)[names(endo_markers_t[endo_markers_t >= 2]), ]),
-    decreasing = TRUE))
-
-mrna$tmp <- ifelse(mrna$label.fine == "Endothelial cells", "Endo", "Not endo")
-plotHeatmap(
-  mrna,
-  features = markers[1:20],
-  colour_columns_by = c("tmp", "label.main"),
-  center = TRUE,
-  symmetric = TRUE,
-  order_columns_by = "tmp",
-  cluster_rows = TRUE,
-  cluster_cols = FALSE)
-
-p <- lapply(head(markers, 9), function(marker) {
-  b <- makePerCellDF(sce, features = marker) %>%
-    tidyr::pivot_longer(
-      all_of(marker),
-      names_to = "feature",
-      values_to = "logcounts")
-  ggplot(data = b, aes(x = UMAP.1, y = UMAP.2)) + 
-    geom_point(aes(colour = logcounts), size = 0.5) + 
-    scale_colour_viridis_c(option = "magma") + 
-    theme_cowplot(font_size = 8) + 
-    ggtitle(marker)
-})
-plot_grid(plotlist = p, ncol = 3)
-```
-
 ## Summary
 
-- Synthesis DE and SingleR approaches.
-- What to do about this?
+This result was discussed with Zoe^[Meeting between Daniela, Zoe and I on 2020-03-06 and in email on 2020-07-19].
+Zoe characterised the genes expressed exclusively by cells on plates LC294 and LC358 as being "abnormal for the cells I collected (i.e. ... epithelial cell markers)" and noted that "there was nothing obviously different about the phenotype or the way that [she] prepared these samples that would explain these differences".
+
+```{r}
+keep <- !sce$plate_number %in% c("LC294", "LC358")
+```
+
+It was therefore decided to exclude cells from plates on LC294 and LC358 from further analysis.
+
+```{r}
+sce <- sce[, keep]
+colData(sce) <- droplevels(colData(sce))
+```
+
+Figure \@ref(fig:breakdown-by-plate-number) shows that most of the remaining plates have cells from a knockout and a wildtype mouse with each pair of mice on a plate are from the same sibship^[Mouse `#1824` acts as a control sample on two plates.].
+The exception is the initial pilot plate, LC279, which has cells from a single control mouse.
+
+```{r breakdown-by-plate-number, fig.asp = 1 / 3, fig.cap = "Breakdown of of the samples by plate."}
+plot_grid(
+  ggcells(sce) + 
+    geom_bar(
+      aes(x = plate_number, fill = genotype),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = genotype_colours) +
+    theme_cowplot(font_size = 8),
+  ggcells(sce) + 
+    geom_bar(
+      aes(x = plate_number, fill = sex),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = sex_colours) +
+    theme_cowplot(font_size = 8),
+  ggcells(sce) + 
+    geom_bar(
+      aes(x = plate_number, fill = mouse),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = mouse_colours) +
+    theme_cowplot(font_size = 8),
+  ggcells(sce) + 
+    geom_bar(
+      aes(x = plate_number, fill = sequencing_run),
+      position = position_fill(reverse = TRUE)) +
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = sequencing_run_colours) +
+    theme_cowplot(font_size = 8),
+  ggcells(sce) + 
+    geom_bar(aes(x = plate_number, fill = plate_number)) +
+    coord_flip() +
+    ylab("Number of wells") +
+    scale_fill_manual(values = plate_number_colours) +
+    theme_cowplot(font_size = 8),
+  align = "v",
+  ncol = 3)
+```
+
+## Re-processing
+
+```{r}
+var_fit <- modelGeneVarWithSpikes(sce, "ERCC", block = sce$batch)
+hvg <- getTopHVGs(var_fit, var.threshold = 0)
+is_mito <- hvg %in% mito_set
+is_ribo <- hvg %in% ribo_set
+is_pseudogene <- hvg %in% pseudogene_set
+is_sex <- hvg %in% sex_set
+hvg <- hvg[!(is_mito | is_ribo | is_sex | is_pseudogene)]
+
+set.seed(67726)
+sce <- denoisePCA(
+  sce, 
+  var_fit, 
+  subset.row = hvg,
+  BSPARAM = BiocSingular::IrlbaParam(deferred = TRUE))
+
+set.seed(853)
+sce <- runUMAP(sce, dimred = "PCA")
+umap_df <- makePerCellDF(sce)
+
+set.seed(4759)
+snn_gr <- buildSNNGraph(sce, use.dimred = "PCA")
+clusters <- igraph::cluster_louvain(snn_gr)
+sce$cluster <- factor(clusters$membership)
+cluster_colours <- setNames(
+  Polychrome::glasbey.colors(nlevels(sce$cluster) + 1)[-1],
+  levels(sce$cluster))
+sce$cluster_colours <- cluster_colours[sce$cluster]
+```
+
+There are `r nlevels(sce$cluster)` clusters detected, shown on the UMAP plot Figure \@ref(fig:no-plate-specific-clusters-clusterplot-umap) and broken down by experimental factors in Figure \@ref(fig:no-plate-specific-clusters-cluster-barplot).
+
+```{r no-plate-specific-clusters-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
+p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = cluster), size = 0.25) +
+  scale_colour_manual(values = cluster_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p2 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = genotype), size = 0.25) +
+  scale_colour_manual(values = genotype_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p3 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = sex), size = 0.25) +
+  scale_colour_manual(values = sex_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p4 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = plate_number), size = 0.25) +
+  scale_colour_manual(values = plate_number_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+
+(p1 | p2) / (p3 | p4)
+```
+
+```{r no-plate-specific-clusters-cluster-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of clusters by experimental factors."}
+p1 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = genotype),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = genotype_colours) +
+  theme_cowplot(font_size = 8)
+p2 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = sex),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = sex_colours) +
+  theme_cowplot(font_size = 8)
+p3 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = plate_number),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = plate_number_colours) +
+  theme_cowplot(font_size = 8)
+p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) + 
+  geom_bar(aes(x = cluster, fill = cluster)) +
+  coord_flip() +
+  ylab("Number of droplets") +
+  scale_fill_manual(values = cluster_colours) +
+  theme_cowplot(font_size = 8) + 
+  guides(fill = FALSE)
+
+(p1 | p2) / (p3 | p4)
+```
+
+Notably:
+
+- Still, some of the clusters are highly plate-specific (i.e. potential batch effects). 
+
+We therefore proceed to [Data integration] to remove these plate-specific differences
+
+# Data integration
+
+## Motivation
+
+Large single-cell RNA sequencing (scRNA-seq) projects usually need to generate data across multiple batches due to logistical constraints.
+However, the processing of different batches is often subject to uncontrollable differences, e.g., changes in operator, differences in reagent quality.
+This results in systematic differences in the observed expression in cells from different batches, which we refer to as "batch effects".
+Batch effects are problematic as they can be major drivers of heterogeneity in the data, masking the relevant biological differences and complicating interpretation of the results.
+
+Computational correction of these effects is critical for eliminating batch-to-batch variation, allowing data across multiple batches to be combined for common downstream analysis.
+However, existing methods based on linear models [@ritchie2015limma;@leek2012sva] assume that the composition of cell populations are either known or the same across batches.
+To overcome these limitations, bespoke methods have been developed for batch correction of single-cell data [@haghverdi2018batch;@butler2018integrating;@lin2019scmerge] that do not require a priori knowledge about the composition of the population.
+This allows them to be used in workflows for exploratory analyses of scRNA-seq data where such knowledge is usually unavailable.
+
+We will use the Mutual Nearest Neighbours (MNN) approach of @haghverdi2018batch, as implemented in the `r BiocStyle::Biocpkg("batchelor")` package, to perform data integration.
+The MNN approach does not rely on pre-defined or equal population compositions across batches, only requiring that a subset of the population be shared between batches.
+
+### Algorithm overview
+
+Consider a cell $a$ in batch $A$, and identify the cells in batch $B$ that are nearest neighbours to $a$ in the expression space defined by the selected features (genes).
+Repeat this for a cell $b$ in batch $B$, identifying its nearest neighbours in  
+$A$.
+Mutual nearest neighbours are pairs of cells from different batches that belong in each other’s set of nearest neighbours.
+The reasoning is that MNN pairs represent cells from the same biological state prior to the application of a batch effect^[See @haghverdi2018batch for full theoretical details.].
+Thus, the difference between cells in MNN pairs can be used as an estimate of the batch effect, the subtraction of which yields batch-corrected values.
+
+Compared to linear regression, MNN correction does not assume that the population composition is the same or known beforehand.
+This is because it learns the shared population structure via identification of MNN pairs and uses this information to obtain an appropriate estimate of the batch effect.
+Instead, the key assumption of MNN-based approaches is that the batch effect is orthogonal to the biology in high-dimensional expression space.
+Violations reduce the effectiveness and accuracy of the correction, with the most common case arising from variations in the direction of the batch effect between clusters^[Nonetheless, the assumption is usually reasonable as a random vector is very likely to be orthogonal in high-dimensional space.].
+
+## Analysis
+
+We treat each plate as a batch and let the MNN algorithm select the 'best' order for merging the plates.
+
+```{r, results = "hide"}
+library(batchelor)
+
+mnn_out <- fastMNN(
+  multiBatchNorm(sce, batch = factor(sce$plate_number)),
+  batch = factor(sce$plate_number),
+  cos.norm = FALSE,
+  d = ncol(reducedDim(sce, "PCA")),
+  auto.merge = TRUE,
+  # NOTE: Found that auto-merging resulted in less lost variation than when 
+  #       using the specified merge. Furthermore, the auto-merge order is very 
+  #       similar to the manually specified order.
+  # merge.order = list(
+  #   list("LC392", "LC280"),
+  #   list("LC396", "LC398"),
+  #   list("LC279")),
+  subset.row = hvg,
+  # NOTE: Normally use the default of `correct.all = FALSE`.
+  correct.all = TRUE)
+
+reducedDim(sce, "corrected") <- reducedDim(mnn_out, "corrected")
+# NOTE: Don't normally keep the 'reconstructed' data, but it might be useful 
+#       for visualisation in this project.
+assay(sce, "reconstructed") <- assay(mnn_out, "reconstructed")
+```
+
+One useful diagnostic of the MNN algorithm is the proportion of variance within each batch that is lost during MNN correction^[Specifically, this refers to the within-batch variance that is removed during orthogonalization with respect to the average correction vector at each merge step.].
+Large proportions of lost variance (>10%) suggest that correction is removing genuine biological heterogeneity.
+This would occur due to violations of the assumption of orthogonality between the batch effect and the biological subspace [@haghverdi2018batch].
+In this case, the proportion of lost variance is small, indicating that non-orthogonality is not a major concern.
+
+```{r}
+var_loss <- metadata(mnn_out)$merge.info$lost.var
+rownames(var_loss) <- sprintf("merge_%d", seq_len(nrow(var_loss)))
+knitr::kable(
+  100 * var_loss,
+  digits = 1,
+  caption = "Percentage of estimated biological variation lost within each plate at each step of the auto merge. Ideally, all these values should be small (e.g., < 10%).")
+```
+
+### Summary
+
+The MNN algorithm returns two sets of corrected values for use in downstream analyses like clustering or visualization:
+
+1. `corrected`: 'Batch-corrected principal components'
+2. `reconstructed`: 'Batch-correcteed expression values'
+
+The `corrected` data contains the low-dimensional corrected coordinates for all cells, which we will use in place of the PCs in our downstream analyses.
+The `reconstructed` data contains the corrected expression values for each gene in each cell, obtained by projecting the low-dimensional coordinates in corrected back into gene expression space.
+**We do not recommend using the `reconstructed` data for anything other than visualization^[See [here](https://osca.bioconductor.org/integrating-datasets.html#using-corrected-values) for a detailed explanation of this recommendation.].
+
+## Re-processing
+
+We will use the MNN-corrected values in place of the PCs in our downstream analyses, such as UMAP and clustering^[At this point, it is also tempting to use the corrected expression values for gene-based analyses like DE-based marker gene detection. This is not generally recommended as an arbitrary correction algorithm is not obliged to preserve the magnitude (or even direction) of differences in per-gene expression when attempting to align multiple batches.].
+
+```{r}
+set.seed(853)
+sce <- runUMAP(sce, dimred = "corrected")
+umap_df <- makePerCellDF(sce)
+
+set.seed(4759)
+snn_gr <- buildSNNGraph(sce, use.dimred = "corrected")
+clusters <- igraph::cluster_louvain(snn_gr)
+sce$cluster <- factor(clusters$membership)
+stopifnot(nlevels(sce$cluster) == 7)
+cluster_colours <- setNames(
+  palette("Okabe-Ito"),
+  levels(sce$cluster))
+```
+
+There are `r nlevels(sce$cluster)` clusters detected, shown on the UMAP plot Figure \@ref(fig:mnn-corrected-clusterplot-umap) and broken down by experimental factors in Figure \@ref(fig:mnn-corrected-cluster-barplot).
+
+```{r mnn-corrected-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
+p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = cluster), size = 0.25) +
+  scale_colour_manual(values = cluster_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p2 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = genotype), size = 0.25) +
+  scale_colour_manual(values = genotype_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p3 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = sex), size = 0.25) +
+  scale_colour_manual(values = sex_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p4 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = plate_number), size = 0.25) +
+  scale_colour_manual(values = plate_number_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+
+(p1 | p2) / (p3 | p4)
+```
+
+```{r mnn-corrected-cluster-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of clusters by experimental factors."}
+p1 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = genotype),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = genotype_colours) +
+  theme_cowplot(font_size = 8)
+p2 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = sex),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = sex_colours) +
+  theme_cowplot(font_size = 8)
+p3 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = plate_number),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = plate_number_colours) +
+  theme_cowplot(font_size = 8)
+p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) + 
+  geom_bar(aes(x = cluster, fill = cluster)) +
+  coord_flip() +
+  ylab("Number of droplets") +
+  scale_fill_manual(values = cluster_colours) +
+  theme_cowplot(font_size = 8) + 
+  guides(fill = FALSE)
+
+(p1 | p2) / (p3 | p4)
+```
+
+Notably:
+
+- **Now, none of the clusters are highly plate-specific.**
+- Now, there are clusters that are somewhat genotype-specific.
+
+# Concluding remarks
+
+```{r}
+saveRDS(
+  sce,
+  here("data", "SCEs", "C075_Grant_Coultas.cells_selected.SCE.rds"),
+  compress = "xz")
+```
+The processed *SingleCellExperiment* object is available (see [`data/SCEs/C075_Grant_Coultas.cells_selected.SCE.rds`](../data/SCEs/C075_Grant_Coultas.cells_selected.SCE.rds)).
+This will be used in downstream analyses, e.g., identifying cluster marker genes and refining the cell labels.
+
+# Additional information {.appendix}
+
+The following are available on request:
+
+- Full CSV tables of any data presented.
+- PDF/PNG files of any static plots.
+
+# Session info {.appendix}
+
+<summary>The analysis and this document were prepared using the following software (click triangle to expand)</summary>
+<details>
+
+```{r}
+sessioninfo::session_info()
+```
+
+</details>
