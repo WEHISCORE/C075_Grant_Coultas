@@ -4,7 +4,7 @@ description: |
 author:
   - name: Peter Hickey 
     url: https://peterhickey.org
-    affiliation: WEHI SCORE
+    affiliation: Single Cell Open Research Endeavour (SCORE), WEHI
     affiliation_url: https://www.wehi.edu.au/people/shalin-naik/3310/score
 date: "`r Sys.Date()`"
 output: distill::distill_article
@@ -16,1134 +16,754 @@ bibliography: ref.bib
 ```{r setup}
 library(SingleCellExperiment)
 library(here)
-library(rmarkdown)
-library(BiocStyle)
+library(scater)
 library(scran)
-library(janitor)
 library(ggplot2)
 library(cowplot)
+library(edgeR)
+library(Glimma)
+library(BiocParallel)
+library(patchwork)
+library(pheatmap)
+
 source(here("code", "helper_functions.R"))
-# NOTE: Using multiple cores siezes up my laptop. Can use more on unix box.
-options("mc.cores" = ifelse(Sys.info()[["nodename"]] == "PC1331", 1L, 9L))
+
+# NOTE: Using multiple cores seizes up my laptop. Can use more on unix box.
+options("mc.cores" = ifelse(Sys.info()[["nodename"]] == "PC1331", 2L, 8L))
 register(MulticoreParam(workers = getOption("mc.cores")))
+
 knitr::opts_chunk$set(fig.path = "C075_Grant_Coultas.annotate_files/")
 ```
 
-# Introduction
+# Preparing the data
+
+We start from the preprocessed *SingleCellExperiment* object created in ['Selection of biologically relevant cells for the Cooney (C057) memory CD4+ T-cell data set'](C075_Grant_Coultas.cell_selection.html).
 
 ```{r}
-sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.merged.SCE.rds"))
-corrected_umap <- cbind(
-  data.frame(
-    x = reducedDim(sce, "UMAP")[, 1],
-    y = reducedDim(sce, "UMAP")[, 2]),
-  as.data.frame(colData(sce)))
+sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.cells_selected.SCE.rds"))
+
 # Some useful colours
 plate_number_colours <- setNames(
   unique(sce$plate_number_colours),
-  unique(names(sce$plate_number_colours)))
+  levels(sce$plate_number))
+sample_type_colours <- setNames(
+  unique(sce$sample_type_colours),
+  levels(sce$sample_type))
 genotype_colours <- setNames(
   unique(sce$genotype_colours),
-  unique(names(sce$genotype_colours)))
+  levels(sce$genotype))
 mouse_colours <- setNames(
   unique(sce$mouse_colours),
-  unique(names(sce$mouse_colours)))
+  levels(sce$mouse))
 sex_colours <- setNames(
   unique(sce$sex_colours),
-  unique(names(sce$sex_colours)))
-```
-
-```{r}
-dir.create(here("data", "marker_genes"))
-dir.create(here("output", "marker_genes"))
-```
-
-scRNA-seq has enabled an unprecedented level of granularity in characterizing gene expression changes in disease models.
-The classification of clusters by cell type relies heavily on known marker genes and the annotation of clusters is typically performed manually, although (semi)automated methods are becoming available.
-
-Here, we perform clustering and marker gene detection, which can be used for manual annotation of clusters, along with an automated annotation method.
-In practice, some combination of manual and automated classification methods are usually necessary to properly annotate an scRNA-seq data set.
-
-# Preparing the data
-
-We start from the preprocessed *SingleCellExperiment* object created in ['Merging the samples from the Grant (C075) SSC data set'](C075_Grant_Coultas_merge.html).
-
-# Clustering cells
-
-Clustering is an unsupervised learning procedure that is used in scRNA-seq data analysis to empirically define groups of cells with similar expression profiles.
-Its primary purpose is to summarize the data in a digestible format for human interpretation. 
-This allows us to describe population heterogeneity in terms of discrete labels that are easily understood, rather than attempting to comprehend the high-dimensional manifold on which the cells truly reside.
-After annotation based on marker genes, the clusters can be treated as proxies for more abstract biological concepts such as cell types or states.
-Clustering is thus a critical step for extracting biological insights from scRNA-seq data. 
-
-## Clusters vs. cell types
-
-It is worth stressing the distinction between clusters and cell types.
-The former is an empirical construct while the latter is a biological truth (albeit a vaguely defined one).
-For this reason, questions like "what is the true number of clusters?" are usually meaningless.
-We can define as many clusters as we like, with whatever algorithm we like - each clustering will represent its own partitioning of the high-dimensional expression space, and is as "real" as any other clustering.
-
-A more relevant question is "how well do the clusters approximate the cell types?"
-Unfortunately, this is difficult to answer given the context-dependent interpretation of biological truth.
-Some analysts will be satisfied with resolution of the major cell types; other analysts may want resolution of subtypes; and others still may require resolution of different states (e.g., metabolic activity, stress) within those subtypes.
-Two clusterings can also be highly inconsistent yet both valid, simply partitioning the cells based on different aspects of biology.
-Indeed, asking for an unqualified "best" clustering is akin to asking for the best magnification on a microscope without any context.
-
-It is helpful to realize that clustering, like a microscope, is simply a tool to explore the data.
-We can zoom in and out by changing the resolution of the clustering parameters, and we can experiment with different clustering algorithms to obtain alternative perspectives of the data.
-This iterative approach is entirely permissible for data exploration, which constitutes the majority of all scRNA-seq data analysis.
-
-## Graph-based clustering
-
-We build a shared nearest neighbour graph [@xu2015identification] and use the Louvain algorithm to identify clusters.
-We build the graph using the MNN-corrected principal components so as to incorporate the batch effect correction.
-
-```{r}
-set.seed(5772)
-snn_gr <- buildSNNGraph(sce, use.dimred = "corrected")
-clusters <- igraph::cluster_louvain(snn_gr)
-sce$cluster <- factor(clusters$membership)
-corrected_umap$cluster <- sce$cluster
+  levels(sce$sex))
+sequencing_run_colours <- setNames(
+  unique(sce$sequencing_run_colours),
+  levels(sce$sequencing_run))
 cluster_colours <- setNames(
-  colorblindr::palette_OkabeIto,
+  unique(sce$cluster_colours),
   levels(sce$cluster))
-cluster_colours <- cluster_colours[!is.na(names(cluster_colours))]
-sce$cluster_colours <- cluster_colours[sce$cluster]
+
+# Some useful gene sets
+mito_set <- rownames(sce)[any(rowData(sce)$ENSEMBL.SEQNAME == "MT")]
+
+ribo_set <- grep("^Rp(s|l)", rownames(sce), value = TRUE)
+# NOTE: A more curated approach for identifying ribosomal protein genes 
+#       (https://github.com/Bioconductor/OrchestratingSingleCellAnalysis-base/blob/ae201bf26e3e4fa82d9165d8abf4f4dc4b8e5a68/feature-selection.Rmd#L376-L380)
+library(msigdbr)
+c2_sets <- msigdbr(species = "Mus musculus", category = "C2")
+ribo_set <- union(
+  ribo_set,
+  c2_sets[c2_sets$gs_name == "KEGG_RIBOSOME", ]$gene_symbol)
+
+sex_set <- rownames(sce)[any(rowData(sce)$ENSEMBL.SEQNAME %in% c("X", "Y"))]
+
+pseudogene_set <- rownames(sce)[
+  any(grepl("pseudogene", rowData(sce)$ENSEMBL.GENEBIOTYPE))]
 ```
 
-There are `r length(levels(sce$cluster))` clusters detected, summarised in Figure \@ref(fig:cluster-barplot).
+# Motivation
 
-```{r cluster-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of clusters by experimental factors.", layout = "l-page"}
-plot_grid(
-  ggplot(as.data.frame(colData(sce))) + 
-    geom_bar(
-      aes(x = cluster, fill = genotype),
-      position = position_fill(reverse = TRUE)) +
-    coord_flip() +
-    ylab("Frequency") +
-    scale_fill_manual(values = genotype_colours) +
-    theme_cowplot(font_size = 8),
-  ggplot(as.data.frame(colData(sce))) + 
-    geom_bar(
-      aes(x = cluster, fill = sex),
-      position = position_fill(reverse = TRUE)) +
-    coord_flip() +
-    ylab("Frequency") +
-    scale_fill_manual(values = sex_colours) +
-    theme_cowplot(font_size = 8),
-  ggplot(as.data.frame(colData(sce))) + 
-    geom_bar(
-      aes(x = cluster, fill = mouse),
-      position = position_fill(reverse = TRUE)) +
-    coord_flip() +
-    ylab("Frequency") +
-    scale_fill_manual(values = mouse_colours) +
-    theme_cowplot(font_size = 8),
-  ggplot(as.data.frame(colData(sce))) + 
-    geom_bar(
-      aes(x = cluster, fill = plate_number),
-      position = position_fill(reverse = TRUE)) +
-    coord_flip() +
-    ylab("Frequency") +
-    scale_fill_manual(values = plate_number_colours) +
-    theme_cowplot(font_size = 8),
-  ggplot(as.data.frame(colData(sce))) + 
-    geom_bar(aes(x = cluster, fill = cluster)) +
-    coord_flip() +
-    ylab("Number of cells") +
+The most challenging task in scRNA-seq data analysis is arguably the annotation of cells with meaningful labels.
+We might attempt to label cells individually or to label clusters (with cells assigned to those clusters 'inheriting' the cluster-level label).
+
+In ['Selection of biologically relevant cells for the Cooney (C057) memory CD4+ T-cell data set'](C075_Grant_Coultas.cell_selection.html), we obtained one set of labels:
+
+1. 'cluster' labels using clustering. Obtaining clusters of cells is fairly straightforward, but it is more difficult to determine what biological state is represented by each of those clusters.
+
+In this section we use pre-defined gene lists and construct *de novo* marker gene lists to help us interpret the clustering results.
+The *de novo* marker genes lists use a data driven approach to identify those genes that drive separation between clusters whereas the pre-defined marker genes are a more targeted approach to cluster annotation.
+These two approaches complement one another.
+
+# Visualizations
+
+A reminder that the `logcounts` (log-transformed normalized expression values) are the basis for any and all gene-based analyses, like DE-based marker gene detection.
+However, we can visualize the results of such an analysis using either the `logcounts` or the `reconstructed` values (batch-corrected `logcounts`).
+The advantage of using the `reconstructed` values for visualization is that these will generally eliminate any visual differences between the batches (in this case, between the plates), which can result in 'cleaner' figures.
+As always, however, it is essential to also examine the 'raw data' (in this case the `logcounts`) to ensure that the 'cleaner' figures do not belie the truth. 
+If you opt to use the `reconstructed` data for a figure it is vital that you make note of this (e.g., in the figure caption).
+
+<aside>
+See the 'Data integration' section of [`docs/C075_Grant_Coultas.cell_selection.html`](../docs/C075_Grant_Coultas.cell_selection.html) for details of the `reconstructed` data.
+</aside>
+
+To give some examples of the difference between visualizing `logcounts` and `reconstructed` values, Figure \@ref(fig:visualization-violin) illustrates this with a violin plot of *Sox17* expression while Figure \@ref(fig:visualization-heatmap) illustrates this with a heatmap of ribosomal protein gene expression.
+Together, these figures demonstrate that:
+
+- An arbitrary correction algorithm, such as MNN, is not obliged to preserve the magnitude (or even direction) of differences in per-gene expression when attempting to align multiple batches. This can lead to 'exaggerated' differences (Figure \@ref(fig:visualization-violin)) or, conversely, artificial agreement across batches (Figure \@ref(fig:visualization-heatmap)).
+- This means that absolute values (like zero) lose their meaning, i.e. `reconstructed` = 0 does not mean anything special. In contrast, `logcounts` = 0 means that there were zero `counts`, i.e. the gene was not detected in that sample.
+
+```{r visualization-violin, fig.cap = "Violin plot of *Sox17* gene expression using the `logcounts` (left) and the `reconstructed` values (right) for cells in each cluster."}
+features <- "Sox17"
+
+p1 <- plotExpression(
+  sce, 
+  features = features,
+  x = "cluster",
+  exprs_values = "logcounts",
+  colour_by = "cluster",
+  other_fields = c("sex", "genotype")) + 
+  # facet_grid(sex ~ genotype) + 
+  scale_fill_manual(values = cluster_colours) +
+  guides(fill = FALSE) +
+  ggtitle(features)
+
+p2 <- plotExpression(
+  sce, 
+  features = features,
+  x = "cluster",
+  exprs_values = "reconstructed",
+  colour_by = "cluster",
+  other_fields = c("sex", "genotype")) + 
+  # facet_grid(sex ~ genotype) + 
+  scale_fill_manual(values = cluster_colours) +
+  guides(fill = FALSE) +
+  ggtitle(features)
+
+p1 | p2
+```
+
+```{r visualization-heatmap, fig.cap = "Heatmap of some ribosomoal protein gene expression using the `logcounts` (left) and the `reconstructed` values (right) for cells in each cluster. Row (gene) and column (cell) order are preserved across the two heatmaps.", fig.asp = 1.1}
+features <- intersect(rownames(sce), ribo_set)[1:50]
+o <- order(sce$cluster)
+
+mat <- assay(sce, "logcounts")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-max(abs(mat)), max(abs(mat)))
+p1 <- pheatmap(
+  mat = mat[, o],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)]),
+  breaks = seq(zlim[1], zlim[2], length.out = 101),
+  silent = TRUE,
+  fontsize = 6,
+  main = "logcounts")
+
+mat <- assay(sce, "reconstructed")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-max(abs(mat)), max(abs(mat)))
+p2 <- pheatmap(
+  mat = mat[, o],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)]),
+  breaks = seq(zlim[1], zlim[2], length.out = 101),
+  silent = TRUE,
+  fontsize = 6,
+  main = "reconstructed")
+
+gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
+```
+
+# Pre-defined marker genes
+
+We examine [Zoe's gene list] and a [Cell cycle gene list].
+
+## Zoe's gene list
+
+### Motivation
+
+Zoe sent me a list of marker genes to help characterise the cells^[Email 2020-05-06.].
+
+```{r}
+zoes_markers <- readxl::read_excel(
+  here(
+    "data", 
+    "marker_genes",
+    "Genes for violin plots Hbo1 retina ECs.xlsx")) %>%
+  # NOTE: Zoe forgot to label the cell cycle genes
+  dplyr::mutate(
+    `Endothelial identity` = ifelse(
+      is.na(`Endothelial identity`),
+      "Cell cycle",
+      `Endothelial identity`),
+    Expressed = Gene %in% rownames(sce))
+DT::datatable(
+  zoes_markers,
+  caption = "Zoe's supplied list of marker genes, their 'Endothelial identity', and whether they are expressed in the current dataset.")
+```
+
+### Analysis
+
+```{r}
+zoes_marker_gene_dir <- here("output", "zoes_marker_genes")
+dir.create(zoes_marker_gene_dir, recursive = TRUE)
+```
+
+```{r, results = "hide"}
+violin_plot_dir <- file.path(zoes_marker_gene_dir, "violin_plots")
+dir.create(violin_plot_dir)
+
+pdf(
+  file.path(violin_plot_dir, "zoes_markers.violin_plot.logcounts.pdf"),
+  width = 5,
+  height = 5)
+lapply(seq_len(nrow(zoes_markers)), function(i) {
+  feature <- zoes_markers$Gene[i]
+  plotExpression(
+    sce, 
+    features = feature,
+    x = "cluster",
+    exprs_values = "logcounts",
+    colour_by = "cluster",
+    other_fields = c("sex", "genotype")) + 
+    facet_grid(sex ~ genotype) + 
     scale_fill_manual(values = cluster_colours) +
-    theme_cowplot(font_size = 8),
-  align = "h",
-  ncol = 3)
+    guides(fill = guide_legend(title = "cluster")) +
+    ggtitle(feature)
+})
+dev.off()
+
+pdf(
+  file.path(violin_plot_dir, "zoes_markers.violin_plot.reconstructed.pdf"),
+  width = 5,
+  height = 5)
+lapply(seq_len(nrow(zoes_markers)), function(i) {
+  message(i)
+  feature <- zoes_markers$Gene[i]
+  plotExpression(
+    sce, 
+    features = feature,
+    x = "cluster",
+    exprs_values = "reconstructed",
+    colour_by = "cluster",
+    other_fields = c("sex", "genotype")) + 
+    facet_grid(sex ~ genotype) + 
+    scale_fill_manual(values = cluster_colours) +
+    guides(fill = guide_legend(title = "cluster")) +
+    ggtitle(feature)
+})
+dev.off()
 ```
 
-### Assessing cluster separation
+Figure \@ref(fig:zoes-markers-heatmap) is a heatmap of Zoe's marker genes.
+It is challenging to immediately associate clusters with a cell type on the basis of these marker genes, but some patterns are clear, such as:
 
-We look at the ratio of the observed and expected edge weights to confirm that the clusters are modular. 
-Figure \@ref(fig:clustermod) indicates that most of the clusters are reasonably separated, with few strong off-diagonal entries.
+- `Artery` marker genes are highly expressed in cluster 7.
+- `Artery, tip` marker genes are highly expressed in clusters 5 and 7.
+- `Tip` marker genes are highly expressed in cluster 5.
+- `Angiogenic` marker genes are highly expressed in clusters 3 and 4. 
+- Some of these marker genes are not cluster-specific (e.g., *Igfbp3*, *Egr1*, *Spock2*, *Ccna2*), which may mean that they are not cell type-specific.
 
-```{r clustermod, fig.cap = "Heatmap of the log~10~-ratio of the total weight between nodes in the same cluster or in different clusters, relative to the total weight expected under a null model of random links.", fig.asp = 0.8}
-cluster_mod <- clusterModularity(
-  graph = snn_gr, 
-  clusters = sce$cluster, 
-  get.weights = TRUE)
-log_ratio <- log2(cluster_mod$observed / cluster_mod$expected + 1)
-library(pheatmap)
-pheatmap(
-  mat = log_ratio,
-  cluster_rows = FALSE, 
-  cluster_cols = FALSE, 
-  color = colorRampPalette(c("white", "blue"))(100))
+<aside>
+Violin plots of per-gene expression measurements (`logcounts` and `reconstructed`) can be found in the [`output/zoes_marker_genes/`](../output/zoes_marker_genes/) directory.
+</aside>
+
+```{r zoes-markers-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of row-normalized `logcounts` (left) and `reconstructed` values (right) for Zoe's marker genes. Each column is a sample, each row a gene. Samples are ordered by `cluster` then by `genotype`. Row (gene) and column (cell) order are preserved across the two heatmaps.", fig.asp = 1.1}
+features <- dplyr::filter(zoes_markers, Expressed) %>% 
+  dplyr::pull(Gene)
+gene_set <- dplyr::filter(zoes_markers, Expressed) %>% 
+  dplyr::pull(`Endothelial identity`)
+
+o <- order(sce$cluster, sce$genotype)
+
+mat <- assay(sce, "logcounts")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-max(abs(mat)), max(abs(mat)))
+mat[mat < zlim[1]] <- zlim[1]
+mat[mat > zlim[2]] <- zlim[2]
+p1 <- pheatmap(
+  mat = mat[, o],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_row = data.frame(
+    gene_set = gene_set,
+    row.names = features),
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    genotype = sce$genotype[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)],
+    genotype = genotype_colours),
+  breaks = seq(zlim[1], zlim[2], length.out = 101),
+  silent = TRUE,
+  main = "logcounts",
+  fontsize = 6)
+
+mat <- assay(sce, "reconstructed")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-max(abs(mat)), max(abs(mat)))
+mat[mat < zlim[1]] <- zlim[1]
+mat[mat > zlim[2]] <- zlim[2]
+p2 <- pheatmap(
+  mat = mat[, o],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_row = data.frame(
+    gene_set = gene_set,
+    row.names = features),
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    genotype = sce$genotype[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)],
+    genotype = genotype_colours),
+  breaks = seq(zlim[1], zlim[2], length.out = 101),
+  silent = TRUE,
+  main = "reconstructed",
+  fontsize = 6)
+
+gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
 ```
 
-## Visual inspection of clustering results
-
-Figure \@ref(fig:clusterplot-umap) displays the clusters on a UMAP plot to confirm that a sensible partitioning was generated.
-
-```{r clusterplot-umap, fig.cap = "UMAP plot of the uncorrected data, where each point represents a cell and is coloured according to the legend.", fig.asp = 1}
-plot_grid(
-  ggplot(aes(x = x, y = y), data = corrected_umap) +
-    geom_point(aes(colour = cluster), size = 0.3) +
-    scale_colour_manual(values = cluster_colours) + 
-    theme_cowplot(font_size = 10) + 
-    ggtitle("MNN-corrected") +
-    xlab("Dimension 1") + 
-    ylab("Dimension 2"),
-  ggplot(aes(x = x, y = y), data = corrected_umap) +
-    geom_point(aes(colour = genotype), size = 0.3) +
-    scale_colour_manual(values = genotype_colours) + 
-    theme_cowplot(font_size = 10) + 
-    ggtitle("MNN-corrected") +
-    xlab("Dimension 1") + 
-    ylab("Dimension 2"),
-  ggplot(aes(x = x, y = y), data = corrected_umap) +
-    geom_point(aes(colour = sex), size = 0.3) +
-    scale_colour_manual(values = sex_colours) + 
-    theme_cowplot(font_size = 10) + 
-    ggtitle("MNN-corrected") +
-    xlab("Dimension 1") + 
-    ylab("Dimension 2"),
-  ggplot(aes(x = x, y = y), data = corrected_umap) +
-    geom_point(aes(colour = plate_number), size = 0.3) +
-    scale_colour_manual(values = plate_number_colours) + 
-    theme_cowplot(font_size = 10) + 
-    ggtitle("MNN-corrected") +
-    xlab("Dimension 1") + 
-    ylab("Dimension 2"),
-  ggplot(aes(x = x, y = y), data = corrected_umap) +
-    geom_point(aes(colour = mouse), size = 0.3) +
-    scale_colour_manual(values = mouse_colours) + 
-    theme_cowplot(font_size = 10) + 
-    ggtitle("MNN-corrected") +
-    xlab("Dimension 1") + 
-    ylab("Dimension 2"),
-  ncol = 2, 
-  align = "v")
+```{r}
+knitr::knit_exit()
 ```
 
-# Marker gene detection
+## Cell cycle gene list
+
+**TODO** UP TO HERE. Repeat analysis from Cooney but in style of above.
+
+# Cluster marker gene detection
+
+## Motivation
 
 To interpret our clustering results, we identify the genes that drive separation between clusters.
 These marker genes allow us to assign biological meaning to each cluster based on their functional annotation.
 In the most obvious case, the marker genes for each cluster are *a priori* associated with particular cell types, allowing us to treat the clustering as a proxy for cell type identity.
 The same principle can be applied to more subtle differences in activation status or differentiation state.
 
-Identification of marker genes is usually based around the retrospective detection of differential expression between clusters^[Differential expression analyses is performed on the original log-expression values.We do not use the MNN-corrected values here except to obtain the clusters to be characterized.].
+Identification of marker genes is usually based around the retrospective detection of differential expression between clusters^[Differential expression analyses is performed on the original log-expression values.].
 Genes that are more strongly DE are more likely to have driven cluster separation in the first place.
 The top DE genes are likely to be good candidate markers as they can effectively distinguish between cells in different clusters.
 
-## Using pairwise $t$-tests
+## Statistical methodology and considerations
 
-### Standard application
+It is important to have some understanding of the statistical methodology used for marker gene detection.
+This section gives an overview.
 
-The Welch $t$-test is an obvious choice of statistical method to test for differences in expression between clusters.
-It is quickly computed and has good statistical properties for large numbers of cells [@soneson2018bias].
-We perform intra-batch comparisons by blocking on the batch of origin to avoid confounding effects from library-to-library variability or differential expression between samples^[Intra-batch comparisons are robust to differences between libraries but assume that each pair of clusters is present in at least one library. When this is not the case, we cannot commute a logFC for that pair of clusters.].
+### Gene lists
 
 For each cluster, the DE results of the relevant comparisons are consolidated into a single output table.
 This allows a set of marker genes to be easily defined by taking the top DE genes from each pairwise comparison between clusters.
-Other statistics are also reported for each gene, including the adjusted p-values^[It must be stressed that the (adjusted) p-values computed here cannot be properly interpreted as measures of significance because the clusters have been empirically identified from the data.
-Nonetheless, they can still be used as way to rank 'interesting' genes.] and the log-fold changes relative to every other cluster.
+Other statistics are also reported for each gene, including the adjusted p-values^[It must be stressed that the (adjusted) p-values computed here cannot be properly interpreted as measures of significance because the clusters have been empirically identified from the data. Nonetheless, they can still be used as way to rank 'interesting' genes.] and the log-fold changes relative to every other cluster.
 
-```{r}
-markers_union_any <- findMarkers(
-  sce, 
-  groups = sce$cluster,
-  block = sce$plate_number,
-  pval.type = "any",
-  direction = "any")
-saveRDS(
-  markers_union_any, 
-  here("data", "marker_genes", "C075_Grant_Coultas.markers_union_any.rds"),
-  compress = "xz")
-dir.create(here("output", "marker_genes", "union_any"))
-message("Writing 'union_any' marker genes to file.")
-for (n in names(markers_union_any)) {
-  message(n)
-  gzout <- gzfile(
-    description = here(
-      "output", 
-      "marker_genes", 
-      "union_any",
-      paste0("cluster_", n, ".union_any.csv.gz")),
-    open = "wb")
-  write.table(
-    x = markers_union_any[[n]] %>%
-      as.data.frame() %>%
-      tibble::rownames_to_column("gene_ID"), 
-    file = gzout, 
-    sep = ",", 
-    quote = FALSE, 
-    row.names = FALSE,
-    col.names = TRUE)
-  close(gzout)
-}
-```
-
-```{r}
-chosen <- "2"
-interesting <- markers_union_any[[chosen]]
-```
-
-To demonstrate, we use cluster `r chosen` as our cluster of interest for this section.
-The relevant table contains log~2~-fold changes of expression in cluster `r chosen` over each other cluster, along with several statistics obtained by combining $p$-values [@simes1986improved] across the pairwise comparisons involving `r chosen`.
-
-```{r}
-.adf(head(interesting, 10)) %>%
-  tibble::rownames_to_column("Gene") %>%
-  knitr::kable(
-    caption = paste0(
-      "First 10 marker genes for cluster ",
-      chosen,
-      " across comparisons."))
-```
-
-Of particular interest is the `Top` field, which contains the highest rank for each gene across all pairwise comparisons involving cluster `r chosen`.
-The set of genes with `Top` values of 1 contains the gene with the lowest $p$-value from each comparison.
-Similarly, the set of genes with `Top` values less than or equal to 10 contains the top 10 genes from each comparison.
-
-We use the `Top` value to identify a set of genes that is guaranteed to distinguish cluster `r chosen` from any other cluster.
-Figure \@ref(fig:heat-logFC) plots the log-fold changes for the top 10 genes from each pairwise comparison.
-
-```{r heat-logFC, fig.asp = 2, fig.cap = sprintf("Heatmap of log-fold changes for the top 10 marker genes for cluster %s over all other clusters. Each column is a cluster, each row a gene. Colours are capped at -5 and 5 to preserve dynamic range.", chosen)}
-best_set <- interesting[interesting$Top <= 10, ]
-logFCs <- as.matrix(best_set[, -(1:3)])
-colnames(logFCs) <- sub("logFC.", "", colnames(logFCs))
-pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
-```
-
-Complementing Figure \@ref(fig:heat-logFC), Figure \@ref(fig:heat-logExp) plots the log-expression values of each cells in each cluster for the top 5 genes
-
-```{r heat-logExp, fig.wide = TRUE, fig.cap = sprintf("Heatmap of log-expression values in each sample for the top 10 marker genes in cluster %s. Each column is a sample, each row a gene. Colours are capped at -5 and 5 to preserve dynamic range.", chosen), fig.asp = 0.9}
-library(scater)
-.plotHeatmap(
-  sce,
-  features = rownames(best_set),
-  columns = order(sce$cluster, sce$genotype, sce$sex, sce$mouse, sce$plate_number),
-  colour_columns_by = c("cluster", "genotype", "sex", "mouse", "plate_number"),
-  cluster_cols = FALSE, 
-  center = TRUE,
-  symmetric = TRUE,
-  zlim = c(-5, 5),
-  show_colnames = FALSE,
-  main = paste0("Cluster: ", chosen),
-  annotation_colors = list(
-    cluster = cluster_colours,
-    genotye = genotype_colours,
-    sex = sex_colours,
-    mouse = mouse_colours,
-    plate_number = plate_number_colours),
-  fontsize = 8)
-```
-
-Similar figures showing the top 10 marker genes for each cluster are available in [`output/marker_genes/union_any/heatmaps.union_any.pdf`](../output/marker_genes/union_any/heatmaps.union_any.pdf).
-
-```{r, results = "hide"}
-dev.off() # Needed to ensure next figure saves properly.
-pdf(
-  here(
-    "output",
-    "marker_genes",
-    "union_any",
-    "heatmaps.union_any.pdf"),
-  width = 10,
-  height = 12)
-for (cluster in levels(sce$cluster)) {
-  marker_set <- markers_union_any[[cluster]]
-  best_set <- marker_set[marker_set$Top <= 10, ]
-  
-  .plotHeatmap(
-    sce,
-    features = rownames(best_set),
-    columns = order(sce$cluster, sce$genotype, sce$sex, sce$mouse, sce$plate_number),
-    colour_columns_by = c("cluster", "genotype", "sex", "mouse", "plate_number"),
-    cluster_cols = FALSE, 
-    center = TRUE,
-    symmetric = TRUE,
-    zlim = c(-5, 5),
-    show_colnames = FALSE,
-    main = paste0("Cluster: ", cluster),
-    annotation_colors = list(
-      cluster = cluster_colours,
-      genotye = genotype_colours,
-      sex = sex_colours,
-      mouse = mouse_colours,
-      plate_number = plate_number_colours),
-    fontsize = 8)
-}
-dev.off()
-```
+### Use of pairwise comparisons
 
 We intentionally use pairwise comparisons between clusters rather than comparing each cluster to the average of all other cells.
 The latter approach is sensitive to the population composition, potentially resulting in wildly different sets of markers when cell type abundances change in different contexts.
 In the worst case, the presence of a single dominant subpopulation will drive the selection of top markers for every other cluster, pushing out useful genes that can resolve the various minor subpopulations.
 Moreover, pairwise comparisons naturally provide more information to interpret of the utility of a marker, e.g., by providing log-fold changes to indicate which clusters are distinguished by this gene.
 
-### Using the log-fold change
+### Blocking
 
-The differential expression analysis in [Standard application] considers both up- and downregulated genes to be potential markers.
-However, downregulated genes are less appealing as markers as it is more difficult to interpret and experimentally validate an absence of expression.
-To focus on upregulated markers, we can instead perform a one-sided $t$-test to identify genes that are upregulated in each cluster compared to the others.
+We perform intra-plate comparisons by blocking on the `plate_number` to avoid confounding effects from differential expression between plates^[Intra-plate comparisons are robust to differences between libraries but assume that each pair of clusters is present in at least one library. When this is not the case, we cannot commute a logFC for that pair of clusters.].
 
 ```{r}
-markers_union_up <- findMarkers(
-  sce, 
-  groups = sce$cluster,
-  block = sce$plate_number,
-  pval.type = "any",
-  direction = "up")
-saveRDS(
-  markers_union_up, 
-  here("data", "marker_genes", "C075_Grant_Coultas.markers_union_up.rds"),
-  compress = "xz")
-dir.create(here("output", "marker_genes", "union_up"))
-message("Writing 'union_up' marker genes to file.")
-for (n in names(markers_union_up)) {
-  message(n)
-  gzout <- gzfile(
-    description = here(
-      "output", 
-      "marker_genes", 
-      "union_up",
-      paste0("cluster_", n, ".union_up.csv.gz")),
-    open = "wb")
-  write.table(
-    x = markers_union_up[[n]] %>%
-      as.data.frame() %>%
-      tibble::rownames_to_column("gene_ID"), 
-    file = gzout, 
-    sep = ",", 
-    quote = FALSE, 
-    row.names = FALSE,
-    col.names = TRUE)
-  close(gzout)
-}
+sce$block <- sce$plate_number
 ```
 
-```{r}
-interesting_up <- markers_union_up[[chosen]]
-```
+### Choice of test statistic
 
-The $t$-test also allows us to specify a non-zero log-fold change as the null hypothesis.
-This allows us to consider the magnitude of the log-fold change in our $p$-value calculations, in a manner that is more rigorous than simply filtering directly on the log-fold changes^[Specifically, a simple threshold does not consider the variance and can enrich for genes that have both large log-fold changes and large variances [@mccarthy2009treat]]. 
-For example, we can test for genes with log-fold changes that are significantly greater than 1.
+The Welch $t$-test is an obvious choice of statistical method to test for differences in expression between clusters.
+It is quickly computed and has good statistical properties for large numbers of cells [@soneson2018bias].
 
-```{r}
-markers_union_up_lfc1 <- findMarkers(
-  sce, 
-  groups = sce$cluster,
-  block = sce$plate_number,
-  pval.type = "any",
-  direction = "up",
-  lfc = 1)
-saveRDS(
-  markers_union_up_lfc1, 
-  here("data", "marker_genes", "C075_Grant_Coultas.markers_union_up_lfc1.rds"),
-  compress = "xz")
-dir.create(here("output", "marker_genes", "union_up_lfc1"))
-message("Writing 'union_up_lfc1' marker genes to file.")
-for (n in names(markers_union_up_lfc1)) {
-  message(n)
-  gzout <- gzfile(
-    description = here(
-      "output", 
-      "marker_genes", 
-      "union_up_lfc1",
-      paste0("cluster_", n, ".union_up_lfc1.csv.gz")),
-    open = "wb")
-  write.table(
-    x = markers_union_up_lfc1[[n]] %>%
-      as.data.frame() %>%
-      tibble::rownames_to_column("gene_ID"), 
-    file = gzout, 
-    sep = ",", 
-    quote = FALSE, 
-    row.names = FALSE,
-    col.names = TRUE)
-  close(gzout)
-}
-```
+Alternatively, we could consider the Wilcoxon rank sum test (also known as the Wilcoxon-Mann-Whitney test, or WMW test).
+Its strength lies in the fact that it directly assesses separation between the expression distributions of different clusters.
+The WMW test statistic is proportional to the area-under-the-curve (AUC), i.e., the concordance probability, which is the probability of a random cell from one cluster having higher expression than a random cell from another cluster.
+In a pairwise comparison, AUCs of 1 or 0 indicate that the two clusters have perfectly separated expression distributions. 
+Thus, the WMW test directly addresses the most desirable property of a candidate marker gene, while the $t$-test only does so indirectly via the difference in the means and the intra-group variance.
 
-```{r}
-interesting_up_lfc1 <- markers_union_up_lfc1[[chosen]]
-```
+Another alternative, the binomial test, identifies genes that differ in the proportion of expressing cells between clusters^[For the purposes of this test, a cell is considered to express a gene simply if it has one or more counts for that gene.].
+This represents a much more stringent definition of marker genes compared to the other methods, as differences in expression between clusters are effectively ignored if both distributions of expression values are not near zero.
+The premise is that genes are more likely to contribute to important biological decisions if they were active in one cluster and silent in another, compared to more subtle 'tuning' effects from changing the expression of an active gene.
+From a practical perspective, a binary measure of presence/absence is easier to validate.
 
-Combining these two settings yield a more focused set of candidate marker genes that are 'upregulated with a log-fold change > 1' in cluster `r chosen` (Figures \@ref(fig:heat-focused-logFC) and \@ref(fig:heat-focused-logExp)).
+The Welch $t$-test is our default method for identifying marker genes.
 
-```{r heat-focused-logFC, fig.cap = sprintf("Heatmap of log-fold changes for cluster %s over all other clusters. Colours are capped at -5 and 5 to preserve dynamic range.", chosen)}
-best_set <- interesting_up_lfc1[interesting_up_lfc1$Top <= 10,]
-logFCs <- as.matrix(best_set[,-(1:3)])
-colnames(logFCs) <- sub("logFC.", "", colnames(logFCs))
-pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
-```
+### Direction and magnitude of the log-fold change
 
-```{r heat-focused-logExp, fig.wide = TRUE, fig.cap = sprintf("Heatmap of log-expression values in each sample for the top 10 'upregulated with a log-fold change > 1' marker genes in cluster %s. Each column is a sample, each row a gene. Colours are capped at -5 and 5 to preserve dynamic range.", chosen), fig.asp = 0.9}
-.plotHeatmap(
-  sce,
-  features = rownames(best_set),
-  columns = order(sce$cluster, sce$genotype, sce$sex, sce$mouse, sce$plate_number),
-  colour_columns_by = c("cluster", "genotype", "sex", "mouse", "plate_number"),
-  cluster_cols = FALSE, 
-  center = TRUE,
-  symmetric = TRUE,
-  zlim = c(-5, 5),
-  show_colnames = FALSE,
-  main = paste0("Cluster: ", chosen),
-  annotation_colors = list(
-    cluster = cluster_colours,
-    genotye = genotype_colours,
-    sex = sex_colours,
-    mouse = mouse_colours,
-    plate_number = plate_number_colours),
-  fontsize = 8)
-```
+There are 3 ways of specifying the direction of the log-fold change used in the statistical test when comparing cluster $X$ to cluster $Y$:
 
-Similar figures showing the top 10 upregulated and 'upregulated with a log-fold change > 1' marker genes for each cluster are available in [`output/marker_genes/union_up/heatmaps.union_up.pdf`](../output/marker_genes/union_up/heatmaps.union_up.pdf). and [`output/marker_genes/union_up_lfc1/heatmaps.union_up_lfc1.pdf`](../output/marker_genes/union_up_lfc1/heatmaps.union_up_lfc1.pdf).
+1. `direction = "any"`: Identify genes that are upregulated or downregulated in $X$ compared to $Y$.
+2. `direction = "up"`: Identify genes that are upregulated in $X$ compared to $Y$.
+3. `direction = "down"`: Identify genes that are downregulated in  $X$ compared to $Y$.
 
-```{r, results = "hide"}
-dev.off() # Needed to ensure next figure saves properly.
-pdf(
-  here(
-    "output",
-    "marker_genes",
-    "union_up",
-    "heatmaps.union_up.pdf"),
-  width = 10,
-  height = 12)
-for (cluster in levels(sce$cluster)) {
-  marker_set <- markers_union_up[[cluster]]
-  best_set <- marker_set[marker_set$Top <= 10, ]
-  
-  .plotHeatmap(
-    sce,
-    features = rownames(best_set),
-    columns = order(sce$cluster, sce$genotype, sce$sex, sce$mouse, sce$plate_number),
-    colour_columns_by = c("cluster", "genotype", "sex", "mouse", "plate_number"),
-    cluster_cols = FALSE, 
-    center = TRUE,
-    symmetric = TRUE,
-    zlim = c(-5, 5),
-    show_colnames = FALSE,
-    main = paste0("Cluster: ", cluster),
-    annotation_colors = list(
-      cluster = cluster_colours,
-      genotye = genotype_colours,
-      sex = sex_colours,
-      mouse = mouse_colours,
-      plate_number = plate_number_colours),
-    fontsize = 8)
-}
-dev.off()
-pdf(
-  here(
-    "output",
-    "marker_genes",
-    "union_up_lfc1",
-    "heatmaps.union_up_lfc1.pdf"),
-  width = 10,
-  height = 12)
-for (cluster in levels(sce$cluster)) {
-  marker_set <- markers_union_up_lfc1[[cluster]]
-  best_set <- marker_set[marker_set$Top <= 10, ]
-  
-  .plotHeatmap(
-    sce,
-    features = rownames(best_set),
-    columns = order(sce$cluster, sce$genotype, sce$sex, sce$mouse, sce$plate_number),
-    colour_columns_by = c("cluster", "genotype", "sex", "mouse", "plate_number"),
-    cluster_cols = FALSE, 
-    center = TRUE,
-    symmetric = TRUE,
-    zlim = c(-5, 5),
-    show_colnames = FALSE,
-    main = paste0("Cluster: ", cluster),
-    annotation_colors = list(
-      cluster = cluster_colours,
-      genotye = genotype_colours,
-      sex = sex_colours,
-      mouse = mouse_colours,
-      plate_number = plate_number_colours),
-    fontsize = 8)
-}
-dev.off()
-```
-
+Generally speaking, downregulated genes are less appealing as markers as it is more difficult to interpret and experimentally validate an absence of expression.
+We therefore mostly focus on identifying genes that are upregulated (i.e. `direction = "up"`) in the chosen cluster relative to any/some/all other clusters .
 Of course, this increased stringency is not without cost.
-If only upregulated genes are requested, any cluster defined by downregulation of a marker gene will not contain that gene among the top set of features in its table.
+If only upregulated genes are requested then any cluster defined by downregulation of a marker gene will not contain that gene among the top set of features in its gene list.
 This is occasionally relevant for subtypes or other states that are distinguished by high versus low expression of particular genes.
-Similarly, setting an excessively high log-fold change threshold may discard otherwise useful genes.
-For example, a gene upregulated in a small proportion of cells of a cluster will have a small log-fold change but can still be an effective marker if the focus is on specificity rather than sensitivity.
 
-### Finding cluster-specific markers
+### Choice of combining pairwise DE results into a marker list
 
-The genes detected in [Standard application] and [Using the log-fold change] will give a high ranking to genes that are differentially expressed in any pairwise comparison.
-This is because a gene only needs a very low $p$-value in a single pairwise comparison to achieve a low `Top` value.
-A more stringent approach would only consider genes that are differentially expressed in all pairwise comparisons involving the cluster of interest.
-To achieve this, we use an intersection-union test [@berger1996bioequivalence] where the combined $p$-value for each gene is the maximum of the $p$-values from all pairwise comparisons.
-A gene will only achieve a low combined $p$-value if it is strongly DE in all comparisons to other clusters.
+There are 3 ways of combining the pairwise DE results to obtain the per-cluster marker gene lists:
 
-```{r}
-markers_uniquely_up <- findMarkers(
-  sce,
-  groups = sce$cluster,
-  block = sce$plate_number,
-  pval.type = "all",
-  direction = "up")
-saveRDS(
-  markers_uniquely_up, 
-  here("data", "marker_genes", "C075_Grant_Coultas.markers_uniquely_up.rds"),
-  compress = "xz")
-dir.create(here("output", "marker_genes", "uniquely_up"))
-message("Writing 'uniquely_up' marker genes to file.")
-for (n in names(markers_uniquely_up)) {
-  message(n)
-  gzout <- gzfile(
-    description = here(
-      "output", 
-      "marker_genes", 
-      "uniquely_up",
-      paste0("cluster_", n, ".uniquely_up.csv.gz")),
-    open = "wb")
-  write.table(
-    x = markers_uniquely_up[[n]] %>%
-      as.data.frame() %>%
-      tibble::rownames_to_column("gene_ID"), 
-    file = gzout, 
-    sep = ",", 
-    quote = FALSE, 
-    row.names = FALSE,
-    col.names = TRUE)
-  close(gzout)
-}
-```
+1. [`pval.type = "all"`: Consolidating with DE against *any* other cluster]
+2. [`pval.type = "any"`: Consolidating with DE against *all* other clusters]
+3. [`pval.type = "some"`: Consolidating with DE against *some* other clusters]
 
-```{r}
-interesting_uniquely_up <- markers_uniquely_up[[chosen]]
-```
+It is important to understand the differences between these strategies, which are described below in some detail.
 
-This strategy will only report genes that are highly specific to the cluster of interest.
-When it works, it can be highly effective as it generates a small focused set of candidate markers. 
-However, any gene that is expressed at the same level in two or more clusters will simply not be detected. 
-This is likely to discard many interesting genes, especially if the clusters are finely resolved with weak separation.
-To give a concrete example, consider a mixed population of CD4^+^-only, CD8^+^-only, double-positive and double-negative T cells.
-Using this strategy, neither _Cd4_ or _Cd8_ would be detected as subpopulation-specific markers because each gene is expressed in two subpopulations.
-In comparison, the strategy in [Standard application] will detect both of these genes as they will be DE between at least one pair of subpopulations.
+#### `pval.type = "all"`: Consolidating with DE against *any* other cluster
 
-Figures \@ref(fig:heat-focused-logFC) and \@ref(fig:heat-focused-logExp) show examples of this strategy for cluster `r chosen`.
+If `pval.type = "any"`, the null hypothesis is that the gene is not DE in *any* pairwise comparison.
+The genes in each cluster's gene list are sorted by the minimum rank (by significance) across all pairwise comparisons (called the `Top` value).
+Taking all rows with `Top` values less than or equal to $T$ yields a marker set containing the top $T$ genes from each pairwise comparison.
 
-```{r heat-uniquely-up-logFC, fig.cap = sprintf("Heatmap of log-fold changes for cluster %s over all other clusters. Colours are capped at -5 and 5 to preserve dynamic range.", chosen)}
-best_set <- interesting_uniquely_up[1:20, ]
-logFCs <- as.matrix(best_set[, -(1:3)])
-colnames(logFCs) <- sub("logFC.", "", colnames(logFCs))
-pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
-```
+This strategy guarantees the inclusion of genes that can distinguish between any two clusters.
 
-```{r heat-uniquely-up-logExp, fig.wide = TRUE, fig.cap = sprintf("Heatmap of log-expression values in each sample for the top 10 uniquely upregulated marker genes in cluster %s. Each column is a sample, each row a gene. Colours are capped at -5 and 5 to preserve dynamic range.", chosen), fig.asp = 0.9}
-.plotHeatmap(
-  sce,
-  features = rownames(best_set),
-  columns = order(sce$cluster, sce$genotype, sce$sex, sce$mouse, sce$plate_number),
-  colour_columns_by = c("cluster", "genotype", "sex", "mouse", "plate_number"),
-  cluster_cols = FALSE, 
-  center = TRUE,
-  symmetric = TRUE,
-  zlim = c(-5, 5),
-  show_colnames = FALSE,
-  annotation_row = data.frame(
-    Sig = factor(
-      ifelse(best_set[, "FDR"] < 0.05, "Yes", "No"),
-      levels = c("Yes", "No")),
-    row.names = rownames(best_set)),
-  main = paste0("Cluster: ", chosen),
-  annotation_colors = list(
-    cluster = cluster_colours,
-    genotye = genotype_colours,
-    sex = sex_colours,
-    mouse = mouse_colours,
-    plate_number = plate_number_colours,
-    Sig = c("Yes" = "red", "No" = "lightgrey")),
-  fontsize = 8)
-```
+To demonstrate, let us define a marker set with a $T$ of 1 for a given cluster. 
+The set of genes with `Top`$<= 1$ will contain the top gene from each pairwise comparison to every other cluster.
+If $T$ is instead, say, $5$, the set will consist of the union of the top 5 genes from each pairwise comparison.
+Obviously, multiple genes can have the same `Top` as different genes may have the same rank across different pairwise comparisons.
+Conversely, the marker set may be smaller than the product of `Top` and the number of other clusters, as the same gene may be shared across different comparisons.
 
-Similar figures showing the top 100 uniquely upregulated marker genes for each cluster are available in [`output/marker_genes/uniquely_up/heatmaps.uniquely_up.pdf`](../output/marker_genes/uniquely_up/heatmaps.uniquely_up.pdf).
-Recall that the stringency of the 'cluster-specific marker' criteria is such that a cluster may only have a small number of statistically significant marker genes or indeed none at all.
-Therefore, these plots include an row annotation highlighting if the gene is a statisticially significant cluster-specific marker (i.e. $FDR < 0.05$).
+This approach does not explicitly favour genes that are uniquely expressed in a cluster.
+Rather, it focuses on combinations of genes that - together - drive separation of a cluster from the others.
+This is more general and robust but tends to yield a less focused marker set compared to the other `pval.type` settings.
 
-```{r, results = "hide"}
-dev.off() # Needed to ensure next figure saves properly.
-pdf(
-  here(
-    "output",
-    "marker_genes",
-    "uniquely_up",
-    "heatmaps.uniquely_up.pdf"),
-  width = 10,
-  height = 12)
-for (cluster in levels(sce$cluster)) {
-  marker_set <- markers_uniquely_up[[cluster]]
-  best_set <- marker_set[1:100, ]
-  
-.plotHeatmap(
-  sce,
-  features = rownames(best_set),
-  columns = order(sce$cluster, sce$genotype, sce$sex, sce$mouse, sce$plate_number),
-  colour_columns_by = c("cluster", "genotype", "sex", "mouse", "plate_number"),
-  cluster_cols = FALSE, 
-  center = TRUE,
-  symmetric = TRUE,
-  zlim = c(-5, 5),
-  show_colnames = FALSE,
-  annotation_row = data.frame(
-    Sig = factor(
-      ifelse(best_set[, "FDR"] < 0.05, "Yes", "No"),
-      levels = c("Yes", "No")),
-    row.names = rownames(best_set)),
-  main = paste0("Cluster: ", cluster),
-  annotation_colors = list(
-    cluster = cluster_colours,
-    genotye = genotype_colours,
-    sex = sex_colours,
-    mouse = mouse_colours,
-    plate_number = plate_number_colours,
-    Sig = c("Yes" = "red", "No" = "lightgrey")),
-  fontsize = 8)
-}
-dev.off()
-```
+For each gene and cluster, the summary effect size is defined as the effect size from the pairwise comparison with the lowest p-value.
+The combined p-value is computed by applying Simes' method to all p-values. Neither of these values are directly used for ranking and are only reported for the sake of the user.
 
-## Summary
+#### `pval.type = "any"`: Consolidating with DE against *all* other clusters
 
-The tables of marker genes are available as CSV files in [`output/marker_genes`](../output/marker_genes/) and are named as follows:
+If `pval.type = "all"`, the null hypothesis is that the gene is not DE in *all* pairwise comparisons.
+A combined p-value for each gene is computed using Berger's intersection union test (IUT).
+Ranking based on the IUT p-value will focus on genes that are DE in that cluster compared to all other clusters.
 
-- `union_any`: Marker genes from [Standard application] whereby marker genes are formed from the **union** of genes differentially expressed in **any** direction.
-- `union_up`: Marker genes from [Using the log-fold change] whereby marker genes are formed from the **union** of genes differentially expressed that are **up**regulated.
-- `union_up_lfc1`: Marker genes from [Using the log-fold change] whereby marker genes are formed from the **union** of genes differentially expressed that are **up**regulated with a log-fold change of at least 1 (**lfc1**).
-- `uniquely_up`: Marker genes from [Finding cluster-specific markers] whereby marker genes are cluster-specific (**uniquely**) differentially expressed genes that are **up**regulated.
+This strategy is particularly effective when dealing with distinct clusters that have a unique expression profile.
+In such cases, it yields a highly focused marker set that concisely captures the differences between clusters.
 
-# Using marker genes to perform cell type annotation
+However, it can be too stringent if the cluster's separation is driven by combinations of gene expression. For example, consider a situation involving four clusters expressing each combination of two marker genes A and B. With pval.type="all", neither A nor B would be detected as markers as it is not uniquely defined in any one cluster. This is especially detrimental with overclustering where an otherwise acceptable marker is discarded if it is not DE between two adjacent clusters.
 
-Regardless of the strategy employed, [Standard application], [Using the log-fold change] or [Finding cluster-specific markers], the result is a gene list that needs to be examined to try to identify the cell type.
-As such, they can be analysed like any other gene list, just as you might a list of differentially expressed genes from a bulk RNA-seq experiment.
-This includes:
+For each gene and cluster, the summary effect size is defined as the effect size from the pairwise comparison with the largest p-value. This reflects the fact that, with this approach, a gene is only as significant as its weakest DE. Again, this value is not directly used for ranking and are only reported for the sake of the user.
 
-- Staring at heatmaps and spreadsheets, such as those included with this report, and googling some of the more informative genes, such as the cluster-specific marker genes.
-- Gene set enrichment analysis, e.g., using GO or KEGG terms.
-This can require a fair amount of manual work and knowledge of the biological system.
-In the next section, we will complement this rather tedious but necessary manual work with an automated approach to cell type labelling.
+#### `pval.type = "some"`: Consolidating with DE against *some* other clusters
 
-# Automated cell type labelling with `r Biocpkg("SingleR")`
+If `pval.type = "some"`, the null hypothesis is that the gene is not DE in *some* of the pairwise comparisons.
+Thus, `pval.type = "some"` serves as a compromise between the `pval.type = "all"` and `pval.type = "any"` strategies.
+The definition of 'some' is formalized by the minimum proportion (`min.prop`) of significant comparisons per gene and can be tuned to the specifics of the dataset.
+
+For example, suppose we require that the gene is significant in at least `min.prop = 0.5` (i.e. 50%) of comparisons.
+A combined p-value is calculated by taking the middlemost value of the Holm-corrected p-values for each gene.
+Here, the null hypothesis is that the gene is not DE in at least half of the contrasts.
+
+Genes are then ranked by the combined p-value.
+The aim is to provide a more focused marker set without being overly stringent,
+However, a downside is that it loses the theoretical guarantees of the `pval.type = "all"` and `pval.type = "any"` strategies.
+For example, there is no guarantee that the top set contains genes that can distinguish a cluster from any other cluster, which would have been possible with `pval.type = "any"`.
+
+For each gene and cluster, the summary effect size is defined as the effect size from the pairwise comparison with the `min.prop`-smallest p-value.
+This mirrors the p-value calculation but, again, is reported only for the benefit of the user.
+
+## Analysis
+
+CSV files of the cluster marker gene lists can be found in the [`output/cluster_marker_genes/`](../output/cluster_marker_genes/) directory.
 
 ```{r}
-library(SingleR)
+cluster_marker_gene_dir <- here("output", "cluster_marker_genes")
+dir.create(cluster_marker_gene_dir, recursive = TRUE)
 ```
 
-`r Biocpkg("SingleR")` is an automatic annotation method for scRNAseq data [@aran2019reference].
-Given a reference data set of samples^[This can be individual cells or bulk samples.] with known labels, it labels new cells from a test data set based on similarity to the reference set.
-Specifically, for each test cell:
+These files are organised as follows:
 
-1. We compute the Spearman correlation between its expression profile and that of each reference sample. 
-2. We define the per-label score as a fixed quantile (by default, 0.8) of the distribution of correlations.
-3. We repeat this for all labels and we take the label with the highest score as the annotation for this cell.
-4. Finally, we perform a fine-tuning step:
-  - The reference data set is subsetted to only include labels with scores close to the maximum.
-  - Scores are recomputed using only marker genes for the subset of labels.
-  - This is iterated until one label remains.
+| prefix      | `test.type` | `direction` | `pval.type` |
+|-------------|-------------|-------------|-------------|
+| `t_up_all`  | t           | up          | all         |
+| `t_up_some` | t           | up          | some        |
+| `t_any_any` | t           | any         | any         |
 
-For visualization purposes we use the normalized scores, which are the scores linearly adjusted for each cell so that the smallest score is 0 and the largest score is 1.
-This is followed by cubing of the adjusted scores to improve dynamic range near 1. 
-
-Automatic annotation provides a convenient way of transferring biological knowledge across data sets.
-In this manner, the burden of interpreting clusters and defining marker genes only has to be done once (i.e. for the reference set).
-
-There is one murine reference data sets available:
-
-1. `MouseRNAseqData`: normalized expression values of 358 bulk RNA-seq samples of sorted cell populations that can be found at GEO^[Benayoun, B. A., et al. (2019) Remodeling of epigenome and transcriptome landscapes with aging in mice reveals widespread induction of inflammatory responses. *Genome Res.* doi: 10.1101/gr.240093.118]
-
-`r Biocpkg("SingleR")` can be used to annotate at the cell-level or the cluster-level.
-The latter is generally used to speed-up calculations, which is not necessary for this sized data set.
-Therefore, I have annotated at the cell-level to obtain a higher resolution analysis.
-
-## `MouseRNAseqData`
+### $t$-test
 
 ```{r}
-mrad <- MouseRNAseqData()
+test.type <- "t"
 ```
 
-The `MouseRNAseqData` reference set entails expression values of 358 bulk RNA-seq samples of sorted cell populations that can be found at GEO processed and normalized as described in^[Benayoun, B. A., et al. (2019) Remodeling of epigenome and transcriptome landscapes with aging in mice reveals widespread induction of inflammatory responses. *Genome Res.* doi: 10.1101/gr.240093.118 ].
-Each sample has a 'main' and a 'fine' cell type label, summarised below.
+#### `direction = "up"` and `pval.type = "up"`
 
 ```{r}
-.adf(colData(mrad)) %>%
-  tabyl(label.main) %>%
-  adorn_pct_formatting(1) %>%
-  knitr::kable(
-    caption = 
-      "Summary of main cell types in the `MouseRNAseqData` reference set.")
-```
+direction <- "up"
+pval.type <- "all"
+min.prop <- NULL
 
-```{r}
-paged_table(
-  .adf(colData(mrad)) %>% 
-    dplyr::count(label.main, label.fine) %>%
-    dplyr::arrange(label.main))
-```
-
-### Main label
-
-```{r}
-pred_mrad_cell_main <- SingleR(
-  test = sce,
-  ref = mrad, 
-  labels = mrad$label.main,
-  BPPARAM = SerialParam())
-```
-
-Annotating against the main labels, we obtain the following cell type labels.
-
-```{r}
-tabyl(data.frame(label.main = pred_mrad_cell_main$labels), label.main) %>%
-  adorn_pct_formatting(digits = 1) %>% 
-  dplyr::arrange(desc(n)) %>%
-  knitr::kable(
-    caption = "Cell label assignments using the main labels of the `MouseRNAseqData` reference data.")
-```
-
-Heatmaps of the normalized scores are shown, with and without clustering by these normalized scores, in Figures \@ref(fig:heat-mrad-main-clustered) and \@ref(fig:heat-mrad-main).
-
-```{r heat-mrad-main-clustered, fig.cap = "Heatmap of normalized scores using the main labels from the `MouseRNAseqData` reference set. Cells are columns, rows are labels. Columns are ordered by clustering the normalized scores.", fig.asp = 0.9, layout = "l-body-outset"}
-stopifnot(identical(rownames(pred_mrad_cell_main), colnames(sce)))
-plotScoreHeatmap(
-  pred_mrad_cell_main,
-  annotation_col = data.frame(
-    cluster = sce$cluster,
-    genotype = sce$genotype,
-    sex = sce$sex,
-    mouse = sce$mouse,
-    plate_number = sce$plate_number,
-    row.names = rownames(pred_mrad_cell_main)),
-  annotation_colors = list(
-    cluster = cluster_colours,
-    genotye = genotype_colours,
-    sex = sex_colours,
-    mouse = mouse_colours,
-    plate_number = plate_number_colours),
-  fontsize = 6)
-```
-
-```{r heat-mrad-main, fig.cap = "Heatmap of normalized scores using the main labels from the `MouseRNAseqData` reference set. Cells are columns, rows are labels. Columns are ordered by and annotated by the column labels.", fig.asp = 0.9, layout = "l-body-outset"}
-stopifnot(identical(rownames(pred_mrad_cell_main), colnames(sce)))
-plotScoreHeatmap(
-  pred_mrad_cell_main,
-  order.by.clusters = TRUE,
-  clusters = sce$cluster,
-    annotation_col = data.frame(
-    cluster = sce$cluster,
-    genotype = sce$genotype,
-    sex = sce$sex,
-    mouse = sce$mouse,
-    plate_number = sce$plate_number,
-    row.names = rownames(pred_mrad_cell_main)),
-  annotation_colors = list(
-    cluster = cluster_colours,
-    genotye = genotype_colours,
-    sex = sex_colours,
-    mouse = mouse_colours,
-    plate_number = plate_number_colours),
-  fontsize = 6)
-```
-
-Figure \@ref(fig:umap-mrad-main) overlays the normalized scores for the 10 labels with the largest maximum scores on the UMAP plot.
-
-```{r umap-mrad-main, fig.cap = "UMAP overlaid with normalized scores using the main labels from the `MouseRNAseqData` reference set. Only the 10 labels with the largest maximum scores are shown.", fig.asp = 2}
-plotScoreReducedDim(
-  pred_mrad_cell_main,
-  sce,
-  max.labels = 10,
-  ncol = 2,
-  dimred = "UMAP")
-```
-
-### Fine label
-
-```{r}
-pred_mrad_cell_fine <- SingleR(
-  test = sce,
-  ref = mrad, 
-  labels = mrad$label.fine,
-  BPPARAM = SerialParam())
-```
-
-Annotating against the fine labels, we obtain the following cell type labels.
-
-```{r}
-tabyl(data.frame(label.fine = pred_mrad_cell_fine$labels), label.fine) %>%
-  adorn_pct_formatting(digits = 1) %>% 
-  dplyr::arrange(desc(n)) %>%
-  knitr::kable(
-    caption = "Cell label assignments using the fine labels of the `MouseRNAseqData` reference data.")
-```
-
-Heatmaps of the normalized scores are shown, with and without clustering by these normalized scores, in Figures \@ref(fig:heat-mrad-fine-clustered) and \@ref(fig:heat-mrad-fine).
-
-```{r heat-mrad-fine-clustered, fig.cap = "Heatmap of normalized scores using the fine labels from the `MouseRNAseqData` reference set. Cells are columns, rows are labels. Columns are ordered by clustering the normalized scores.", fig.asp = 0.9, layout = "l-body-outset"}
-stopifnot(identical(rownames(pred_mrad_cell_fine), colnames(sce)))
-plotScoreHeatmap(
-  pred_mrad_cell_fine,
-  annotation_col = data.frame(
-    cluster = sce$cluster,
-    genotype = sce$genotype,
-    sex = sce$sex,
-    mouse = sce$mouse,
-    plate_number = sce$plate_number,
-    row.names = rownames(pred_mrad_cell_fine)),
-  annotation_colors = list(
-    cluster = cluster_colours,
-    genotye = genotype_colours,
-    sex = sex_colours,
-    mouse = mouse_colours,
-    plate_number = plate_number_colours),
-  fontsize = 6)
-```
-
-```{r heat-mrad-fine, fig.cap = "Heatmap of normalized scores using the fine labels from the `MouseRNAseqData` reference set. Cells are columns, rows are labels. Columns are ordered by and annotated by the column labels.", fig.asp = 0.9, layout = "l-body-outset"}
-stopifnot(identical(rownames(pred_mrad_cell_fine), colnames(sce)))
-plotScoreHeatmap(
-  pred_mrad_cell_fine,
-  order.by.clusters = TRUE,
-  clusters = sce$cluster,
-    annotation_col = data.frame(
-    cluster = sce$cluster,
-    genotype = sce$genotype,
-    sex = sce$sex,
-    mouse = sce$mouse,
-    plate_number = sce$plate_number,
-    row.names = rownames(pred_mrad_cell_fine)),
-  annotation_colors = list(
-    cluster = cluster_colours,
-    genotye = genotype_colours,
-    sex = sex_colours,
-    mouse = mouse_colours,
-    plate_number = plate_number_colours),
-  fontsize = 6)
-```
-
-Figure \@ref(fig:umap-mrad-fine) overlays the normalized scores for the 10 labels with the largest maximum scores on the UMAP plot.
-
-```{r umap-mrad-fine, fig.cap = "UMAP overlaid with normalized scores using the fine labels from the `MouseRNAseqData` reference set. Only the 10 labels with the largest maximum scores are shown.", fig.asp = 2}
-plotScoreReducedDim(
-  pred_mrad_cell_fine,
-  sce,
-  max.labels = 10,
-  ncol = 2,
-  dimred = "UMAP")
-```
-
-## Summary
-
-Any automated cell type annotation method is only as good as its reference set.
-Any cell type present in the test set but with no good match in the reference set will be misannotated to some degree.
-
-# Cell cycle assignment
-
-On occasion, it can be desirable to determine cell cycle activity from scRNA-seq data.
-In and of itself, the distribution of cells across phases of the cell cycle is not usually informative, but we can use this to determine if there are differences in cell cycle progression between subpopulations or across treatment conditions.
-Many of the key events in the cell cycle (e.g., passage through checkpoints) are post-translational and thus not directly visible in transcriptomic data; nonetheless, there are enough changes in expression that can be exploited to determine cell cycle phase.
-
-## Using the cyclins
-
-```{r, results = "hide"}
-cyclin_genes <- grep("^Ccn[abde][0-9]$", rowData(sce)$SYMBOL)
-cyclin_genes <- rownames(sce)[cyclin_genes]
-cyclin_genes
-```
-
-The cyclins control progression through the cell cycle and have well-characterized patterns of expression across cell cycle phases.
-The cyclins available in this dataset are as follows: `r glue::glue_collapse(cyclin_genes, ", ", last = ", and ")`.
-Cyclin D is expressed throughout but peaks at G1; cyclin E is expressed highest in the G1/S transition; cyclin A is expressed across S and G2; and cyclin B is expressed highest in late G2 and mitosis.
-Inspection of the relative expression of cyclins across the population can often be sufficient to determine the relative cell cycle activity in each cluster.
-
-For example, Figure \@ref(fig:cyclin-heatmap) suggests that most clusters have cells in G1 phase.
-
-```{r cyclin-heatmap, fig.cap = "Heatmap of the log-normalized expression values of the cyclin genes in the dataset."}
-plotHeatmap(
-  sce,
-  colour_columns_by = "cluster",
-  cluster_cols = FALSE, 
-  columns = order(sce$cluster),
-  cluster_rows = FALSE, 
-  features = sort(cyclin_genes),
-  show_colnames = FALSE)
-```
-
-We can also use standard differential expression methods to look for upregulation of each cyclin, allowing us to determine if there are more cells in the corresponding phase of the cell cycle between subpopulations.
-
-```{r}
 markers <- findMarkers(
   sce,
-  subset.row = cyclin_genes, 
-  group = sce$cluster,
-  test.type = "wilcox", 
-  direction = "up", 
-  block = sce$plate_number)
+  groups = sce$cluster,
+  test = test.type,
+  direction = direction,
+  block = sce$block,
+  pval.type = pval.type,
+  min.prop = min.prop,
+  row.data = rowData(sce))
 ```
 
-Here we use pairwise Wilcoxon rank sum tests to compute differential expression of cyclin genes between each pair of clusters.
-The Wilcoxon test estimates effect sizes as the area under the curve (`AUC` in the tables below).
-Consider the distribution of expression values for gene $X$ within each of two groups $A$ and $B$.
-The `AUC` is the probability that a randomly selected cell in $A$ has a greater expression of $X$ than a randomly selected cell in $B$^[Ties are assumed to be randomly broken].
-Concordance probabilities near 0 indicate that most observations in $A$ are lower than most observations in $B$; conversely, probabilities near 1 indicate that most observations in $A$ are higher than those in $B$.
-The Wilcoxon rank sum test effectively tests for significant deviations from an `AUC` of 0.5.
-
-Direct examination of cyclin expression is easily understood, interpreted and validated with other technologies.
-However, it is best suited for statements about relative cell cycle activity; for example, we would find it difficult to assign cell cycle phase in Figure \@ref(fig:cyclin-heatmap) without the presence of clusters spanning all phases to provide benchmarks for "high" and "low" expression of each cyclin.
-We also assume that cyclin expression is not affected by biological processes other than the cell cycle, which may be a strong assumption in some cases, e.g., malignant cells.
-
-## Using reference profiles
-
-Cell cycle assignment can be considered a specialized case of cell annotation, which suggests that we can use `r BiocStyle::Biocpkg('SingleR')`.
-For example, given a reference dataset containing mouse ESCs with known cell cycle phases^[Buettner et al. 2015], we could use `r BiocStyle::Biocpkg('SingleR')` to determine the phase of each cell in a test dataset.
-
-We use the reference dataset to identify phase-specific markers from genes with annotated roles in cell cycle.
-The use of prior annotation aims to avoid detecting markers for other biological processes that happen to be correlated with the cell cycle in the reference dataset, which would reduce classification performance if those processes are absent or uncorrelated in the test dataset.
+The following table gives the number of marker genes for each cluster by this approach ($FDR < 0.05$).
 
 ```{r}
-# Adapted from 
-# https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles
-library(scRNAseq)
-sce.ref <- BuettnerESCData()
-# Find genes that are present in both datasets and are cell cycle-related.
-library(org.Mm.eg.db)
-cycle.anno <- select(
-  org.Mm.eg.db,
-  keytype = "GOALL",
-  keys = "GO:0007049", 
-  columns = "ENSEMBL")[,"ENSEMBL"]
-candidates <- Reduce(
-  intersect, 
-  list(rownames(sce.ref), rowData(sce)$ENSEMBL, cycle.anno))
-# Identifying markers between cell cycle phases.
-sce.ref <- logNormCounts(sce.ref)
-phase.stats <- pairwiseWilcox(
-  logcounts(sce.ref), 
-  sce.ref$phase, 
-  direction = "up",
-  subset.row = candidates)
-cycle.markers <- getTopMarkers(phase.stats[[1]], phase.stats[[2]])
+n <- sapply(markers, function(x) sum(x$FDR < 0.05))
+knitr::kable(
+  data.frame(
+    cluster = names(markers),
+    n = sapply(markers, function(x) sum(x$FDR < 0.05))),
+  caption = "Number of marker genes for each cluster. ")
 ```
 
-Unlike the cyclin-based analysis, this approach yields "absolute" assignments of cell cycle phase that do not need to be interpreted relative to other cells in the same dataset.
-
 ```{r}
-# Switching row names back to Ensembl to match the reference.
-test.data <- logcounts(sce)
-rownames(test.data) <- rowData(sce)$ENSEMBL
-assignments <- SingleR(
-  test.data, 
-  ref = sce.ref,
-  label = sce.ref$phase, 
-  genes = cycle.markers,
-  )
-tabyl(
-  data.frame(labels = assignments$labels, cluster = sce$cluster),
-  labels,
-  cluster) %>%
-  knitr::kable(
-    caption = 
-      "Assignement of cells in each cluster to a cell cycle phase with the 'reference profiles' approach.")
+prefix <- paste(test.type, direction, pval.type, sep = "_")
+marker_dir <- file.path(cluster_marker_gene_dir, prefix)
+dir.create(marker_dir)
+
+for (cluster in levels(sce$cluster)) {
+  gzout <- gzfile(
+    description = file.path(
+      marker_dir,
+      sprintf("cluster_%02d.%s.csv.gz", as.integer(cluster), prefix)),
+    open = "wb")
+  write.csv(
+    as.data.frame(flattenDF(markers[[cluster]])),
+    gzout,
+    # NOTE: quote = TRUE needed because some fields contain commas.
+    quote = TRUE,
+    row.names = FALSE)
+  close(gzout)
+}
 ```
 
-The key assumption here is that the cell cycle is orthogonal to cell type and other aspects of cell behaviour.
-This justifies the use of a reference involving cell types that are quite different from the cells in the test dataset, provided that the cell cycle transcriptional program is conserved across datasets^[Bertoli, Skotheim, and Bruin 2013; Conboy et al. 2007].
-However, it is not difficult to find routine violations of this assumption^[see [https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles](https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles) for an illustration].
-
-Thus, a healthy dose of scepticism is required when interpreting these assignments. 
-Our hope is that any systematic assignment error is consistent across clusters and conditions such that they cancel out in comparisons of phase frequencies, which is the more interesting analysis anyway.
-Indeed, while the availability of absolute phase calls may be more appealing, it may not make much practical difference to the conclusions if the frequencies are ultimately interpreted in a relative sense (e.g., using a chi-squared test).
-
-## Using the `cyclone()` classifier
-
-The prediction method described by [@scialdone2015computational] is another approach for classifying cells into cell cycle phases.
-Using a reference dataset, we first compute the sign of the difference in expression between each pair of genes.
-Pairs with changes in the sign across cell cycle phases are chosen as markers.
-Cells in a test dataset can then be classified into the appropriate phase, based on whether the observed sign for each marker pair is consistent with one phase or another. 
-This approach is implemented in the `cyclone()` function from the `R BiocStyle::Biocpkg("scran")` package.
+#### `direction = "up"` and `pval.type = "some"`
 
 ```{r}
-mm_pairs <- readRDS(
-  system.file("exdata", "mouse_cycle_markers.rds", package = "scran"))
-# Using Ensembl IDs to match up with the annotation in 'mm.pairs'.
-set.seed(100)
-assignments <- cyclone(
+# Sanity check
+stopifnot(nlevels(sce$cluster) == 7)
+```
+
+We set `min.prop` = $\frac{2}{n - 1}$ where $n$ is the number of clusters (i.e. `min.prop` = $\frac{2}{7 - 1} = \frac{1}{3}$) so that 'some' means 'two or more pairwise comparisons'. 
+
+```{r}
+direction <- "up"
+pval.type <- "some"
+min.prop <- 2 / (nlevels(sce$cluster) - 1)
+
+markers <- findMarkers(
   sce,
-  mm_pairs,
-  gene.names = rowData(sce)$ENSEMBL)
-sce$cyclone_phases <- assignments$phases
-sce$cyclone_scores <- assignments$scores
-sce$cyclone_normalized.scores <- assignments$normalized.scores
+  groups = sce$cluster,
+  test = test.type,
+  direction = direction,
+  block = sce$block,
+  pval.type = pval.type,
+  min.prop = min.prop,
+  row.data = rowData(sce))
 ```
 
-The phase assignment result for each cell in the dataset is shown in Figure \@ref(fig:cyclone). 
-
-```{r cyclone, fig.cap = "Cell cycle phase scores from applying the pair-based classifier on the dataset. Each point represents a cell, plotted according to its scores for G1 and G2/M phases, and coloured according to cluster.", fig.asp = 1}
-plot(
-  x = assignments$score$G1, 
-  y = assignments$score$G2M,
-  xlab = "G1 score",
-  ylab = "G2/M score",
-  pch = 16,
-  col = cluster_colours[sce$cluster])
-legend(
-  "bottomleft",
-  pch = 16,
-  col = cluster_colours,
-  legend = names(cluster_colours),
-  title = "Cluster",
-  ncol = 2)
-```
-
-For each cell, a higher score for a phase corresponds to a higher probability that the cell is in that phase.
-We focus on the G1 and G2/M scores as these are the most informative for classification.
-
-Cells are classified as being in G1 phase if the G1 score is above 0.5 and greater than the G2/M score; in G2/M phase if the G2/M score is above 0.5 and greater than the G1 score; and in S phase if neither score is above 0.5.
-
-Figure \@ref(fig:clusters-by-cyclone-phase) shows most cells are predicted as being in G1 phase.
-
-```{r clusters-by-cyclone-phase, fig.asp = 2 / 5, fig.cap = "Breakdown of clusters by phase (as predicted using cyclone)."}
-phase_colours <- setNames(
-  RColorBrewer::brewer.pal(3, "Accent"),
-  sort(unique(assignments$phases)))
-plot_grid(
-  ggplot(data.frame(phase = assignments$phases, cluster = sce$cluster)) +
-    geom_bar(
-      aes(x = cluster, fill = phase),
-      position = position_fill(reverse = TRUE)) + 
-    coord_flip() +
-    ylab("Frequency") +
-    scale_fill_manual(values = phase_colours) +
-    theme_cowplot(font_size = 6),
-  ggplot(as.data.frame(colData(sce))) + 
-    geom_bar(aes(x = cluster, fill = cluster)) +
-    coord_flip() +
-    ylab("Number of cells") +
-    scale_fill_manual(values = cluster_colours) +
-    theme_cowplot(font_size = 6),
-  align = "h",
-  ncol = 2)
-```
-
-The same considerations and caveats described for the 'reference profiles' approach are also applicable here.
-
-# Concluding remarks
+The following table gives the number of marker genes for each cluster by this approach ($FDR < 0.05$).
 
 ```{r}
-saveRDS(
-  sce,
-  here("data", "SCEs", "C075_Grant_Coultas.annotated.SCE.rds"),
-  compress = "xz")
+n <- sapply(markers, function(x) sum(x$FDR < 0.05))
+knitr::kable(
+  data.frame(
+    cluster = names(markers),
+    n = sapply(markers, function(x) sum(x$FDR < 0.05))),
+  caption = "Number of marker genes for each cluster. ")
 ```
 
-The processed *SingleCellExperiment* object is available (see [`data/SCEs/C075_Grant_Coultas.annotated.SCE.rds`](../data/SCEs/C075_Grant_Coultas.annotated.SCE.rds)).
-This will be used in downstream analyses, e.g., differential expression analysis between conditions within each cluster and differential abundance analyses between conditions for each cluster.
+```{r}
+prefix <- paste(test.type, direction, pval.type, sep = "_")
+marker_dir <- file.path(cluster_marker_gene_dir, prefix)
+dir.create(marker_dir)
+
+for (cluster in levels(sce$cluster)) {
+  gzout <- gzfile(
+    description = file.path(
+      marker_dir,
+      sprintf("cluster_%02d.%s.csv.gz", as.integer(cluster), prefix)),
+    open = "wb")
+  write.csv(
+    as.data.frame(flattenDF(markers[[cluster]])),
+    gzout,
+    # NOTE: quote = TRUE needed because some fields contain commas.
+    quote = TRUE,
+    row.names = FALSE)
+  close(gzout)
+}
+```
+
+#### `direction = "any"` and `pval.type = "any"`
+
+```{r}
+direction <- "any"
+pval.type <- "any"
+min.prop <- NULL
+
+markers <- findMarkers(
+  sce,
+  groups = sce$cluster,
+  test = test.type,
+  direction = direction,
+  block = sce$block,
+  pval.type = pval.type,
+  min.prop = min.prop,
+  row.data = rowData(sce))
+```
+
+The following table gives the number of marker genes for each cluster by this approach ($FDR < 0.05$).
+
+```{r}
+n <- sapply(markers, function(x) sum(x$FDR < 0.05))
+knitr::kable(
+  data.frame(
+    cluster = names(markers),
+    n = sapply(markers, function(x) sum(x$FDR < 0.05))),
+  caption = "Number of marker genes for each cluster. ")
+```
+
+```{r}
+prefix <- paste(test.type, direction, pval.type, sep = "_")
+marker_dir <- file.path(cluster_marker_gene_dir, prefix)
+dir.create(marker_dir)
+
+for (cluster in levels(sce$cluster)) {
+  gzout <- gzfile(
+    description = file.path(
+      marker_dir,
+      sprintf("cluster_%02d.%s.csv.gz", as.integer(cluster), prefix)),
+    open = "wb")
+  write.csv(
+    as.data.frame(flattenDF(markers[[cluster]])),
+    gzout,
+    # NOTE: quote = TRUE needed because some fields contain commas.
+    quote = TRUE,
+    row.names = FALSE)
+  close(gzout)
+}
+```
+
+### Visualization
+
+As an example of the information available in these gene lists, Figure \@ref(fig:t-up-all-heatmap) is a heatmap showing the expression of the top-10 marker genes for each cluster from the `t_up_all` analysis (see [`direction = "up"` and `pval.type = "up"`]). 
+From this figure we can observe that:
+
+- Most clusters only have a small number of marker genes, if any, by this approach.
+- Cluster 1 has very high and distinct expression of several histone genes.
+
+```{r t-up-all-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of log-expression values for top-10 upregulated cluster-specific marker genes. Each column is a sample, each row a gene. Note that some clusters have as few as zero upregulated cluster-specific marker genes.", fig.asp = 1.5}
+direction <- "up"
+pval.type <- "all"
+min.prop <- NULL
+
+markers <- findMarkers(
+  sce,
+  groups = sce$cluster,
+  test = test.type,
+  direction = direction,
+  block = sce$block,
+  pval.type = pval.type,
+  min.prop = min.prop,
+  row.data = rowData(sce))
+
+k <- 10
+marker_names <- lapply(markers, function(x) {
+  xx <- x[x$FDR < 0.05, ]
+  rownames(xx[order(xx$summary.logFC, decreasing = TRUE), ])
+})
+features <- unlist(lapply(marker_names, head, n = k))
+mat <- assay(sce, "logcounts")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-max(abs(mat)), max(abs(mat)))
+mat[mat < zlim[1]] <- zlim[1]
+mat[mat > zlim[2]] <- zlim[2]
+o <- order(sce$cluster, sce$genotype)
+pheatmap(
+  mat = mat[, o],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_row = data.frame(
+    cluster = rep(levels(sce$cluster), times = pmin(lengths(marker_names), k)),
+    row.names = features),
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    genotype = sce$genotype[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)],
+    genotype = genotype_colours),
+  breaks = seq(zlim[1], zlim[2], length.out = 101))
+```
+
+#### TODOs
+
+- [ ] Exclude pseudo, ribo, sex, and mito from marker gene heatmaps.
+- [ ] Create versions of heatmaps using `logcounts` and `reconstructed` values
+
+# Summary
+
+We have now identified cluster-specific marker genes (i.e. genes that are uniquely upregulated in each cluster compared to all other clusters) and performed a focused analysis using Zoe's marker genes and the cyclin genes.
+
+<aside>
+Additional analyses focused on specific gene sets could be considered.
+</aside>
+
+**TODO:** Re-write summary
+The cluster marker gene analysis analysis identified cluster `r g2_cluster` as having by far the largest number of cluster-specific marker genes.
+Cells in this same cluster had high expression of genes associated with a different phase of the cell cycle (G2) to the majority of cells in other clusters (G1).
+Figure \@ref(fig:libsize) shows that cells in this cluster also have larger library sizes than cells in other clusters.
+
+```{r libsize, fig.cap = "Library sizes of cells in each cluster."}
+plotColData(sce, "sum", x = "cluster", colour_by = "cluster") + 
+  scale_fill_manual(values = cluster_colours) + 
+  scale_y_log10() + 
+  guides(FALSE)
+```
+
+However, based on the `r BiocStyle::Biocpkg("SingleR")` analysis, the cells in this cluster appear to be CD4+ T-cells, just like the other cells in the dataset and not of any unique subtype.
+
+One possibility that is suggested by this set of results is that these are activated T-cells that are actively proliferating.
+
+<aside>
+It is worth noting that cells in this cluster are split roughly 50:50 between `Infected` and `Uninfected` samples. So this 'activation' signal does not appear to be associated with `Treatment`.
+</aside>
+
+These marker gene lists should be used in combination with the automated cell type labelling from `r BiocStyle::Biocpkg("SingleR")` to develop biologically relevant, meaningful, and useful labels for cells in this dataset.
+
+<!-- # Concluding remarks -->
+
+<!-- TODO: If Zoe provides cell or cluster-level annotation, I'll add them to the bottom of this report and add to the SCE. -->
+
+<!-- ```{r} -->
+<!-- saveRDS( -->
+<!--   sce, -->
+<!--   here("data", "SCEs", "C075_Grant_Coultas.annotated.SCE.rds"), -->
+<!--   compress = "xz") -->
+<!-- ``` -->
+
+<!-- The processed *SingleCellExperiment* object is available (see [`data/SCEs/C075_Grant_Coultas.annotated.SCE.rds`](../data/SCEs/C075_Grant_Coultas.annotated.SCE.rds)). -->
+<!-- This will be used in downstream analyses, e.g., differential expression analysis between conditions within each cluster and differential abundance analyses between conditions for each cluster. -->
 
 # Additional information {.appendix}
 
@@ -1160,5 +780,3 @@ The following are available on request:
 ```{r}
 sessioninfo::session_info()
 ```
-
-</details>
