@@ -1318,7 +1318,7 @@ sizeFactors(altExp(sce)) <- librarySizeFactors(altExp(sce))
 
 We can now use the size factors to compute normalized expression values for each cell.
 This is done by dividing the count for each gene/spike-in transcript with the appropriate size factor for that cell and then taking the logarithm^[$log_2$] of the normalized values^[When log-transforming, we typically add a pseudo-count to avoid undefined values at zero. Larger pseudo-counts will effectively shrink the log-fold changes between cells towards zero for low-abundance genes, meaning that downstream high-dimensional analyses will be driven more by differences in expression for high-abundance genes. Conversely, smaller pseudo-counts will increase the relative contribution of low-abundance genes. We use a pseudo-count of 1.].
-These are called the 'logcounts'^[Technically, these are "log-transformed normalized expression values", but that’s too much of a mouthful.] and are the basis of much of our downstream analysis.
+These are called the `logcounts`^[Technically, these are "log-transformed normalized expression values", but that’s too much of a mouthful.] and are the basis of much of our downstream analysis.
 
 <aside>
 To reiterate, the assumptions required for spike-in size factors are not met and so we use the deconvolution size factors.
