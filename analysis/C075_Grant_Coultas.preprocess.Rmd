@@ -1476,8 +1476,7 @@ legend(
   legend = c("Union", "Pseudogene", "Ribosomal protein", "Sex", "Mitochondrial"))
 ```
 
-Ribosomal protein and mitochondrial genes are of lesser biological relevance to this study, so it was decided to exclude them from the HVGs.
-Zoe and Anne also requested that the pseudogenes and sex chromosome genes be excluded from the HVGs.
+Zoe and Anne advised that pseudogenes, ribosomal protein genes, genes on the sex chromosomes, and mitochondrial genes are of lesser biological relevance to this study, so it was decided to exclude them from the HVGs.
 This means that these genes can no longer **directly** influence some of the subsequent steps in the analysis, including:
 
 - Dimensionality reduction
@@ -1491,7 +1490,7 @@ Although the exclusion of these genes from the HVGs prevents them from directly 
 For example, if there is a set of (non ribosomal protein) genes that are strongly associated with ribosomal protein gene expression, then we may still see a cluster associated with ribosomal protein gene expression.
 
 Finally, and to emphasise, we have only excluded these gene sets from the HVGs, i.e. we have not excluded them entirely from the dataset.
-In particular, this means that these genes may appear in downstream results (e.g., tables of cluster marker genes and differentially expressed genes).
+In particular, this means that these genes may appear in downstream results (e.g., gene lists resulting from a differential expression analysis between cells in different clusters or with different genotypes).
 
 ```{r}
 hvg <- hvg[!(is_mito | is_ribo | is_sex | is_pseudogene)]
