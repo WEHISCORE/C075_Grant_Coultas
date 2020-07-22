@@ -37,7 +37,7 @@ knitr::opts_chunk$set(fig.path = "C075_Grant_Coultas.annotate_files/")
 
 # Preparing the data
 
-We start from the preprocessed *SingleCellExperiment* object created in ['Selection of biologically relevant cells for the Cooney (C057) memory CD4+ T-cell data set'](C075_Grant_Coultas.cell_selection.html).
+We start from the preprocessed *SingleCellExperiment* object created in ['Selection of biologically relevant cells for the Grant (C075) retinal epithelial cells data set'](C075_Grant_Coultas.cell_selection.html).
 
 ```{r}
 sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.cells_selected.SCE.rds"))
@@ -88,101 +88,80 @@ pseudogene_set <- rownames(sce)[
 The most challenging task in scRNA-seq data analysis is arguably the annotation of cells with meaningful labels.
 We might attempt to label cells individually or to label clusters (with cells assigned to those clusters 'inheriting' the cluster-level label).
 
-In ['Selection of biologically relevant cells for the Cooney (C057) memory CD4+ T-cell data set'](C075_Grant_Coultas.cell_selection.html), we obtained one set of labels:
+In ['Selection of biologically relevant cells for the Grant (C075) retinal epithelial cells data set'](C075_Grant_Coultas.cell_selection.html), we obtained one set of labels:
 
 1. 'cluster' labels using clustering. Obtaining clusters of cells is fairly straightforward, but it is more difficult to determine what biological state is represented by each of those clusters.
 
-In this section we use pre-defined gene lists and construct *de novo* marker gene lists to help us interpret the clustering results.
+In this section we use [Pre-defined marker genes] and perform [Cluster marker gene detection] to construct *de novo* marker gene lists that can be used to aid the interpretation of the clustering results, i
 The *de novo* marker genes lists use a data driven approach to identify those genes that drive separation between clusters whereas the pre-defined marker genes are a more targeted approach to cluster annotation.
 These two approaches complement one another.
+We also describe the choice of [Visualization] options for marker gene analyses.
 
-# Visualizations
+As a reminder, Figure \@ref(fig:mnn-corrected-clusterplot-umap) shows the clustering results overlaid on the UMAP plot and Figure \@ref(fig:mnn-corrected-cluster-barplot) breaks down the clusters by key experimental factors.
 
-A reminder that the `logcounts` (log-transformed normalized expression values) are the basis for any and all gene-based analyses, like DE-based marker gene detection.
-However, we can visualize the results of such an analysis using either the `logcounts` or the `reconstructed` values (batch-corrected `logcounts`).
-The advantage of using the `reconstructed` values for visualization is that these will generally eliminate any visual differences between the batches (in this case, between the plates), which can result in 'cleaner' figures.
-As always, however, it is essential to also examine the 'raw data' (in this case the `logcounts`) to ensure that the 'cleaner' figures do not belie the truth. 
-If you opt to use the `reconstructed` data for a figure it is vital that you make note of this (e.g., in the figure caption).
+```{r mnn-corrected-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
+p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = cluster), size = 0.25) +
+  scale_colour_manual(values = cluster_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p2 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = genotype), size = 0.25) +
+  scale_colour_manual(values = genotype_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p3 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = sex), size = 0.25) +
+  scale_colour_manual(values = sex_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
+p4 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = plate_number), size = 0.25) +
+  scale_colour_manual(values = plate_number_colours) + 
+  theme_cowplot(font_size = 8) + 
+  xlab("Dimension 1") + 
+  ylab("Dimension 2")
 
-<aside>
-See the 'Data integration' section of [`docs/C075_Grant_Coultas.cell_selection.html`](../docs/C075_Grant_Coultas.cell_selection.html) for details of the `reconstructed` data.
-</aside>
-
-To give some examples of the difference between visualizing `logcounts` and `reconstructed` values, Figure \@ref(fig:visualization-violin) illustrates this with a violin plot of *Sox17* expression while Figure \@ref(fig:visualization-heatmap) illustrates this with a heatmap of ribosomal protein gene expression.
-Together, these figures demonstrate that:
-
-- An arbitrary correction algorithm, such as MNN, is not obliged to preserve the magnitude (or even direction) of differences in per-gene expression when attempting to align multiple batches. This can lead to 'exaggerated' differences (Figure \@ref(fig:visualization-violin)) or, conversely, artificial agreement across batches (Figure \@ref(fig:visualization-heatmap)).
-- This means that absolute values (like zero) lose their meaning, i.e. `reconstructed` = 0 does not mean anything special. In contrast, `logcounts` = 0 means that there were zero `counts`, i.e. the gene was not detected in that sample.
-
-```{r visualization-violin, fig.cap = "Violin plot of *Sox17* gene expression using the `logcounts` (left) and the `reconstructed` values (right) for cells in each cluster."}
-features <- "Sox17"
-
-p1 <- plotExpression(
-  sce, 
-  features = features,
-  x = "cluster",
-  exprs_values = "logcounts",
-  colour_by = "cluster",
-  other_fields = c("sex", "genotype")) + 
-  scale_fill_manual(values = cluster_colours) +
-  guides(fill = FALSE) +
-  ggtitle(features)
-
-p2 <- plotExpression(
-  sce, 
-  features = features,
-  x = "cluster",
-  exprs_values = "reconstructed",
-  colour_by = "cluster",
-  other_fields = c("sex", "genotype")) + 
-  scale_fill_manual(values = cluster_colours) +
-  guides(fill = FALSE) +
-  ggtitle(features)
-
-p1 | p2
+(p1 | p2) / (p3 | p4)
 ```
 
-```{r visualization-heatmap, fig.cap = "Heatmap of some ribosomoal protein gene expression using the `logcounts` (left) and the `reconstructed` values (right) for cells in each cluster. Row (gene) and column (cell) order are preserved across the two heatmaps.", fig.asp = 1.1}
-features <- intersect(rownames(sce), ribo_set)[1:50]
-o <- order(sce$cluster)
+```{r mnn-corrected-cluster-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of clusters by experimental factors."}
+p1 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = genotype),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = genotype_colours) +
+  theme_cowplot(font_size = 8)
+p2 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = sex),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = sex_colours) +
+  theme_cowplot(font_size = 8)
+p3 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = cluster, fill = plate_number),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = plate_number_colours) +
+  theme_cowplot(font_size = 8)
+p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) + 
+  geom_bar(aes(x = cluster, fill = cluster)) +
+  coord_flip() +
+  ylab("Number of droplets") +
+  scale_fill_manual(values = cluster_colours) +
+  theme_cowplot(font_size = 8) + 
+  guides(fill = FALSE)
 
-mat <- assay(sce, "logcounts")[features, ]
-mat <- mat - rowMeans(mat)
-zlim <- c(-max(abs(mat)), max(abs(mat)))
-p1 <- pheatmap(
-  mat = mat[, o],
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  show_colnames = FALSE,
-  annotation_col = data.frame(
-    cluster = sce$cluster[o],
-    row.names = colnames(sce)[o]),
-  annotation_colors = list(
-    cluster = cluster_colours[levels(sce$cluster)]),
-  breaks = seq(zlim[1], zlim[2], length.out = 101),
-  silent = TRUE,
-  fontsize = 6,
-  main = "logcounts")
-
-mat <- assay(sce, "reconstructed")[features, ]
-mat <- mat - rowMeans(mat)
-zlim <- c(-max(abs(mat)), max(abs(mat)))
-p2 <- pheatmap(
-  mat = mat[, o],
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  show_colnames = FALSE,
-  annotation_col = data.frame(
-    cluster = sce$cluster[o],
-    row.names = colnames(sce)[o]),
-  annotation_colors = list(
-    cluster = cluster_colours[levels(sce$cluster)]),
-  breaks = seq(zlim[1], zlim[2], length.out = 101),
-  silent = TRUE,
-  fontsize = 6,
-  main = "reconstructed")
-
-gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
+(p1 | p2) / (p3 | p4)
 ```
 
 # Pre-defined marker genes
@@ -273,13 +252,12 @@ It is challenging to immediately associate clusters with a cell type on the basi
 - `Artery, tip` marker genes are highly expressed in clusters 5 and 7.
 - `Tip` marker genes are highly expressed in cluster 5.
 - `Angiogenic` marker genes are highly expressed in clusters 3 and 4. 
-- Some of these marker genes are not cluster-specific (e.g., *Igfbp3*, *Egr1*, *Spock2*, *Ccna2*), which may mean that they are not cell type-specific.
 
 <aside>
-Violin plots of per-gene expression measurements (`logcounts` and `reconstructed`) can be found in the [`output/zoes_marker_genes/`](../output/zoes_marker_genes/) directory.
+Violin plots of per-gene expression measurements and heatmaps (`logcounts` and `reconstructed`) can be found in the [`output/zoes_marker_genes/`](../output/zoes_marker_genes/) directory.
 </aside>
 
-```{r zoes-markers-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of row-normalized `logcounts` (left) and `reconstructed` values (right) for Zoe's marker genes. Each column is a sample, each row a gene. Samples are ordered by `cluster` then by `genotype`. Row (gene) and column (cell) order are preserved across the two heatmaps.", fig.asp = 1.1}
+```{r, results = "hide"}
 features <- dplyr::filter(zoes_markers, Expressed) %>% 
   dplyr::pull(Gene)
 gene_set <- dplyr::filter(zoes_markers, Expressed) %>% 
@@ -309,7 +287,7 @@ p1 <- pheatmap(
     genotype = genotype_colours),
   breaks = seq(zlim[1], zlim[2], length.out = 101),
   silent = TRUE,
-  main = "logcounts",
+  main = "logcounts (row-normalized)",
   fontsize = 6)
 
 mat <- assay(sce, "reconstructed")[features, ]
@@ -334,10 +312,31 @@ p2 <- pheatmap(
     genotype = genotype_colours),
   breaks = seq(zlim[1], zlim[2], length.out = 101),
   silent = TRUE,
-  main = "reconstructed",
+  main = "reconstructed (row-normalized)",
   fontsize = 6)
+```
 
-gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
+```{r zoes-markers-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of row-normalized `logcounts` for Zoe's marker genes. Each column is a sample, each row a gene. Samples are ordered by `cluster` then by `genotype`.", fig.asp = 1.1}
+p1
+```
+
+```{r}
+heatmap_dir <- file.path(zoes_marker_gene_dir, "heatmaps")
+dir.create(heatmap_dir)
+
+pdf(
+  file.path(heatmap_dir, "zoes_markers.heatmap.logcounts.pdf"),
+  width = 5,
+  height = 5)
+p1
+dev.off()
+
+pdf(
+  file.path(heatmap_dir, "zoes_markers.heatmap.reconstructed.pdf"),
+  width = 5,
+  height = 5)
+p2
+dev.off()
 ```
 
 ## Cell cycle gene list
@@ -605,7 +604,11 @@ This mirrors the p-value calculation but, again, is reported only for the benefi
 
 ## Analysis
 
-CSV files of the cluster marker gene lists can be found in the [`output/cluster_marker_genes/`](../output/cluster_marker_genes/) directory.
+CSV files of the cluster marker gene lists and PDFs files of heatmaps for *selected* genes from these cluster marker gene lists can be found in the [`output/cluster_marker_genes/`](../output/cluster_marker_genes/) directory.
+
+<aside>
+See [Visualization] for further details of these heatmaps.
+</aside>
 
 ```{r}
 cluster_marker_gene_dir <- here("output", "cluster_marker_genes")
@@ -641,7 +644,11 @@ markers <- findMarkers(
 t_up_all_markers <- markers
 ```
 
-The following table gives the number of marker genes for each cluster by this approach ($FDR < 0.05$).
+The following table gives the number of marker genes for each cluster by this approach.
+
+<aside>
+For spreadsheets and heatmaps of these gene lists see [`output/cluster_marker_genes/t_up_all/`](../output/cluster_marker_genes/t_up_all/).
+</aside>
 
 ```{r}
 n <- sapply(markers, function(x) sum(x$FDR < 0.05))
@@ -649,28 +656,21 @@ knitr::kable(
   data.frame(
     cluster = names(markers),
     n = sapply(markers, function(x) sum(x$FDR < 0.05))),
-  caption = "Number of marker genes for each cluster. ")
+  caption = "Number of marker genes for each cluster (FDR < 0.05).")
 ```
 
-```{r}
+```{r, message = FALSE}
+# Create outputs
 prefix <- paste(test.type, direction, pval.type, sep = "_")
 marker_dir <- file.path(cluster_marker_gene_dir, prefix)
 dir.create(marker_dir)
-
-for (cluster in levels(sce$cluster)) {
-  gzout <- gzfile(
-    description = file.path(
-      marker_dir,
-      sprintf("cluster_%02d.%s.csv.gz", as.integer(cluster), prefix)),
-    open = "wb")
-  write.csv(
-    as.data.frame(flattenDF(markers[[cluster]])),
-    gzout,
-    # NOTE: quote = TRUE needed because some fields contain commas.
-    quote = TRUE,
-    row.names = FALSE)
-  close(gzout)
-}
+createClusterMarkerOutputs(
+  prefix = prefix, 
+  outdir = marker_dir, 
+  exprs_values = c("logcounts", "reconstructed"), 
+  k = 100,
+  width = 6,
+  height = 7.5)
 ```
 
 ### `t_up_some`
@@ -700,7 +700,11 @@ markers <- findMarkers(
 t_up_some_markers <- markers
 ```
 
-The following table gives the number of marker genes for each cluster by this approach ($FDR < 0.05$).
+The following table gives the number of marker genes for each cluster by this approach.
+
+<aside>
+For spreadsheets and heatmaps of these gene lists see [`output/cluster_marker_genes/t_up_some/`](../output/cluster_marker_genes/t_up_some/).
+</aside>
 
 ```{r}
 n <- sapply(markers, function(x) sum(x$FDR < 0.05))
@@ -708,28 +712,21 @@ knitr::kable(
   data.frame(
     cluster = names(markers),
     n = sapply(markers, function(x) sum(x$FDR < 0.05))),
-  caption = "Number of marker genes for each cluster. ")
+  caption = "Number of marker genes for each cluster (FDR < 0.05).")
 ```
 
-```{r}
+```{r, message = FALSE}
+# Create outputs
 prefix <- paste(test.type, direction, pval.type, sep = "_")
 marker_dir <- file.path(cluster_marker_gene_dir, prefix)
 dir.create(marker_dir)
-
-for (cluster in levels(sce$cluster)) {
-  gzout <- gzfile(
-    description = file.path(
-      marker_dir,
-      sprintf("cluster_%02d.%s.csv.gz", as.integer(cluster), prefix)),
-    open = "wb")
-  write.csv(
-    as.data.frame(flattenDF(markers[[cluster]])),
-    gzout,
-    # NOTE: quote = TRUE needed because some fields contain commas.
-    quote = TRUE,
-    row.names = FALSE)
-  close(gzout)
-}
+createClusterMarkerOutputs(
+  prefix = prefix, 
+  outdir = marker_dir, 
+  exprs_values = c("logcounts", "reconstructed"), 
+  k = 100,
+  width = 6,
+  height = 7.5)
 ```
 
 ### `t_any_any`
@@ -752,7 +749,11 @@ markers <- findMarkers(
 t_any_any_markers <- markers
 ```
 
-The following table gives the number of marker genes for each cluster by this approach ($FDR < 0.05$).
+The following table gives the number of marker genes for each cluster by this approach.
+
+<aside>
+For spreadsheets and heatmaps of these gene lists see [`output/cluster_marker_genes/t_up_any/`](../output/cluster_marker_genes/t_up_any/).
+</aside>
 
 ```{r}
 n <- sapply(markers, function(x) sum(x$FDR < 0.05))
@@ -760,49 +761,135 @@ knitr::kable(
   data.frame(
     cluster = names(markers),
     n = sapply(markers, function(x) sum(x$FDR < 0.05))),
-  caption = "Number of marker genes for each cluster. ")
+  caption = "Number of marker genes for each cluster (FDR < 0.05).")
 ```
 
-```{r}
+```{r, message = FALSE}
+# Create outputs
 prefix <- paste(test.type, direction, pval.type, sep = "_")
 marker_dir <- file.path(cluster_marker_gene_dir, prefix)
 dir.create(marker_dir)
-
-for (cluster in levels(sce$cluster)) {
-  gzout <- gzfile(
-    description = file.path(
-      marker_dir,
-      sprintf("cluster_%02d.%s.csv.gz", as.integer(cluster), prefix)),
-    open = "wb")
-  write.csv(
-    as.data.frame(flattenDF(markers[[cluster]])),
-    gzout,
-    # NOTE: quote = TRUE needed because some fields contain commas.
-    quote = TRUE,
-    row.names = FALSE)
-  close(gzout)
-}
+createClusterMarkerOutputs(
+  prefix = prefix, 
+  outdir = marker_dir, 
+  exprs_values = c("logcounts", "reconstructed"), 
+  k = 100,
+  width = 6,
+  height = 7.5)
 ```
 
 # Visualization
 
-For each marker gene strategy we provide a PDF of selected marker genes for each cluster in **TODO**: directory.
-Here, we describe the details of the choices made in creating these heatmaps.
-**TODO:** Summarise these choices and link to relevant subsection.
+For each marker gene strategy (e.g. `t_up_all`) we provide PDF heatmaps of *selected* marker genes for each cluster in [`output/cluster_marker_genes/`](../output/cluster_marker_genes/).
 
-**TODO**: Figure out how to merge with the top-level 'Visualization' section; I think I just want to move the top-level section down here and incorporate it (making any PDFs in the relevant sections).
+<aside>
+The supplied heatmaps are limited to showing a maximum of 100 genes (any more and they fast become illegible without considerable manual tweaking).
+We can assist with customised figures for publication.
+</aside>
 
-## Limitations of `t_up_all` strategy
+In this section we describe the rationale behind choices made in creating these heatmaps, namely:
 
-As an example of the information available in these gene lists, Figure \@ref(fig:t-up-all-heatmap) is a heatmap showing the expression of the top-10 marker genes for each cluster from the [`t_up_all`] analysis. 
-From this figure we can observe that:
+- The considerations behind the [Choice of expression values: `logcounts` vs. `corrected`] used for visualization.
+- The [Exclusion of certain types of genes] from the provided heatmaps.
 
-- Most clusters only have a small number of marker genes, if any, by this approach.
-- Cluster 1 has very high and distinct expression of several histone genes.
+We also use the heatmaps to illustrate the [Limitations of the `t_up_all` strategy] to further motivate the need for the other marker gene lists.
 
-The lack of marker genes for some clusters under the `t_up_all` strategy necessitates the other strategies.
+## Choice of expression values: `logcounts` vs. `corrected`  
 
-```{r t-up-all-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of top-10 `t_up_all` marker genes using the row-normalized `logcounts (left) and the row-normalized `reconstructed values (right) for cells in each cluster. Each column is a sample, each row a gene. Note that some clusters have as few as zero upregulated cluster-specific marker genes. Row (gene) and column (cell) order are preserved across the two heatmaps.", fig.asp = 1.1}
+A reminder that the `logcounts` (log-transformed normalized expression values) are the basis for any and all gene-based analyses, like DE-based marker gene detection.
+However, we can visualize the results of such an analysis using either the `logcounts` or the `reconstructed` values (batch-corrected `logcounts`).
+The advantage of using the `reconstructed` values for visualization is that these will generally eliminate some of the visual differences between the batches (in this case, between the plates), which can result in 'cleaner' figures.
+As always, however, it is essential to also examine the 'raw data' (in this case the `logcounts`) to ensure that the 'cleaner' figures do not belie the truth. 
+If you opt to use the `reconstructed` data for a figure it is vital that you make note of this (e.g., in the figure caption).
+
+<aside>
+See the 'Data integration' section of [`docs/C075_Grant_Coultas.cell_selection.html`](../docs/C075_Grant_Coultas.cell_selection.html) for details of the `reconstructed` data.
+</aside>
+
+To give some examples of the difference between visualizing `logcounts` and `reconstructed` values, Figure \@ref(fig:visualization-violin) illustrates this with a violin plot of *Sox17* expression while Figure \@ref(fig:visualization-heatmap) illustrates this with a heatmap of ribosomal protein gene expression.
+Together these figures demonstrate that:
+
+- An arbitrary correction algorithm, such as MNN, is not obliged to preserve the magnitude (or even direction) of differences in per-gene expression when attempting to align multiple batches. This can lead to 'exaggerated' differences (Figure \@ref(fig:visualization-violin)) or, conversely, artificial agreement across batches (Figure \@ref(fig:visualization-heatmap)).
+- This means that absolute values (like zero) lose their meaning, i.e. `reconstructed` = 0 does not mean anything special. In contrast, `logcounts` = 0 means that there were zero `counts`, i.e. the gene was not detected in that sample.
+
+```{r visualization-violin, fig.cap = "Violin plot of *Sox17* gene expression using the `logcounts` (left) and the `reconstructed` values (right) for cells in each cluster."}
+features <- "Sox17"
+
+p1 <- plotExpression(
+  sce, 
+  features = features,
+  x = "cluster",
+  exprs_values = "logcounts",
+  colour_by = "cluster",
+  other_fields = c("sex", "genotype")) + 
+  scale_fill_manual(values = cluster_colours) +
+  guides(fill = FALSE) +
+  ggtitle(features)
+
+p2 <- plotExpression(
+  sce, 
+  features = features,
+  x = "cluster",
+  exprs_values = "reconstructed",
+  colour_by = "cluster",
+  other_fields = c("sex", "genotype")) + 
+  scale_fill_manual(values = cluster_colours) +
+  guides(fill = FALSE) +
+  ggtitle(features)
+
+p1 | p2
+```
+
+```{r visualization-heatmap, fig.cap = "Heatmap of some ribosomoal protein gene expression using the `logcounts` (left) and the `reconstructed` values (right) for cells in each cluster. Row (gene) and column (cell) order are preserved across the two heatmaps.", fig.asp = 1.1}
+features <- intersect(rownames(sce), ribo_set)[1:50]
+o <- order(sce$cluster)
+
+mat <- assay(sce, "logcounts")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-max(abs(mat)), max(abs(mat)))
+p1 <- pheatmap(
+  mat = mat[, o],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)]),
+  breaks = seq(zlim[1], zlim[2], length.out = 101),
+  silent = TRUE,
+  fontsize = 6,
+  main = "logcounts (row-normalized)")
+
+mat <- assay(sce, "reconstructed")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-max(abs(mat)), max(abs(mat)))
+p2 <- pheatmap(
+  mat = mat[, o],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)]),
+  breaks = seq(zlim[1], zlim[2], length.out = 101),
+  silent = TRUE,
+  fontsize = 6,
+  main = "reconstructed (row-normalized)")
+
+gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
+```
+
+## Limitations of the `t_up_all` strategy
+
+Figure \@ref(fig:t-up-all-heatmap) is a heatmap showing the expression of the top-10 marker genes ($FDR < 0.05$) for each cluster from the [`t_up_all`] analysis. 
+From this figure we can observe that some clusters do not have any marker genes, and some other clusters only have a small number of marker genes, using the `t_up_all` strategy.
+The lack of marker genes for some clusters under the [`t_up_all`] strategy necessitates the other strategies ([`t_up_some`] and [`t_any_any`]).
+
+```{r t-up-all-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of top-10 `t_up_all` marker genes (FDR < 0.05) using the row-normalized `logcounts` for cells in each cluster. Each column is a sample, each row a gene. Note that some clusters have as few as zero upregulated cluster-specific marker genes.", fig.asp = 1.1}
 markers <- t_up_all_markers
 
 k <- 10
@@ -820,7 +907,7 @@ mat <- mat - rowMeans(mat)
 zlim <- c(-max(abs(mat)), max(abs(mat)))
 mat[mat < zlim[1]] <- zlim[1]
 mat[mat > zlim[2]] <- zlim[2]
-p1 <- pheatmap(
+pheatmap(
   mat = mat[, o],
   cluster_rows = FALSE,
   cluster_cols = FALSE,
@@ -837,47 +924,16 @@ p1 <- pheatmap(
     genotype = genotype_colours),
   breaks = seq(zlim[1], zlim[2], length.out = 101),
   main = "logcounts  (row-normalized)",
-  fontsize = 6,
-  silent = TRUE)
-
-mat <- assay(sce, "reconstructed")[features, ]
-mat <- mat - rowMeans(mat)
-zlim <- c(-max(abs(mat)), max(abs(mat)))
-mat[mat < zlim[1]] <- zlim[1]
-mat[mat > zlim[2]] <- zlim[2]
-p2 <- pheatmap(
-  mat = mat[, o],
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  show_colnames = FALSE,
-  annotation_row = data.frame(
-    cluster = rep(levels(sce$cluster), times = pmin(lengths(marker_names), k)),
-    row.names = features),
-  annotation_col = data.frame(
-    cluster = sce$cluster[o],
-    genotype = sce$genotype[o],
-    row.names = colnames(sce)[o]),
-  annotation_colors = list(
-    cluster = cluster_colours[levels(sce$cluster)],
-    genotype = genotype_colours),
-  breaks = seq(zlim[1], zlim[2], length.out = 101),
-  main = "reconstructed  (row-normalized)",
-  fontsize = 6,
-  silent = TRUE)
-
-gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
+  fontsize = 6)
 ```
 
 ## Exclusion of certain types of genes
 
-Figure \@ref(fig:t-up-some-heatmap) is a heatmap showing the expression of the top-50 marker genes for cluster 2 from the [`t_up_some`] analysis. 
-From this figure we can observe that:
-
-- Many of the cluster 2 `t_up_some` marker genes are pseudogenes, with several others that are ribosomal protein genes and sex chromosome genes.
-
+Figure \@ref(fig:t-up-some-cluster-2-heatmap) is a heatmap showing the expression of the top-50 marker genes for cluster 2 from the [`t_up_some`] analysis. 
+From this figure we can observe that many of the cluster 2 `t_up_some` marker genes are pseudogenes, while several others are ribosomal protein genes and sex chromosome genes.
 This prompted Zoe and Anne to request heatmaps that exclude mitochondrial genes, ribosomal protein genes, sex chromosome genes, and pseudogenes.
 
-```{r t-up-some-cluster-2-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of top-50 `t_up_all` marker genes for cluster 2 using the row-normalized `logcounts (left) and the row-normalized `reconstructed values (right) for cells in each cluster. Each column is a sample, each row a gene. Row (gene) and column (cell) order are preserved across the two heatmaps. Genes are annotated according to `gene_type`.", fig.asp = 1.1, eval = FALSE}
+```{r t-up-some-cluster-2-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of top-50 `t_up_all` marker genes for cluster 2 using the row-normalized `logcounts` for cells in each cluster. Each column is a sample, each row a gene. Genes are annotated according to `gene_type`.", fig.asp = 1.1}
 markers <- t_up_some_markers[[2]]
 
 k <- 50
@@ -890,43 +946,7 @@ mat <- mat - rowMeans(mat)
 zlim <- c(-max(abs(mat)), max(abs(mat)))
 mat[mat < zlim[1]] <- zlim[1]
 mat[mat > zlim[2]] <- zlim[2]
-p1 <- pheatmap(
-  mat = mat[, o],
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  show_colnames = FALSE,
-  annotation_col = data.frame(
-    cluster = sce$cluster[o],
-    genotype = sce$genotype[o],
-    row.names = colnames(sce)[o]),
-  annotation_row = data.frame(
-    gene_type = dplyr::case_when(
-      features %in% mito_set ~ "mito",
-      features %in% ribo_set ~ "ribo",
-      features %in% sex_set ~ "sex",
-      features %in% pseudogene_set ~ "pseudo",
-      TRUE ~ "other"),
-    row.names = features),
-  annotation_colors = list(
-    cluster = cluster_colours[levels(sce$cluster)],
-    genotype = genotype_colours,
-    gene_type = c(
-      "pseudo" = "#2297E6",
-"ribo" = "#61D04F",
-"sex" = "#28E2E5",
-"mito" = "#DF536B", 
-"other" = "white")),
-breaks = seq(zlim[1], zlim[2], length.out = 101),
-main = "logcounts  (row-normalized)",
-fontsize = 6,
-silent = TRUE)
-
-mat <- assay(sce, "reconstructed")[features, ]
-mat <- mat - rowMeans(mat)
-zlim <- c(-max(abs(mat)), max(abs(mat)))
-mat[mat < zlim[1]] <- zlim[1]
-mat[mat > zlim[2]] <- zlim[2]
-p2 <- pheatmap(
+pheatmap(
   mat = mat[, o],
   cluster_rows = FALSE,
   cluster_cols = FALSE,
@@ -953,43 +973,33 @@ p2 <- pheatmap(
       "mito" = "#DF536B", 
       "other" = "white")),
   breaks = seq(zlim[1], zlim[2], length.out = 101),
-  main = "reconstructed  (row-normalized)",
-  fontsize = 6,
-  silent = TRUE)
-
-gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
+  main = "logcounts  (row-normalized)",
+  fontsize = 6)
 ```
 
 # Summary
 
-**TODO**: Re-write
-We have now performed a focused analysis using Zoe's marker genes and the cyclin genes, and identified cluster marker genes for each cluster using severa strategies.
+We have performed a focused analysis using Zoe's marker genes and the cyclin genes, and identified cluster marker genes for each cluster using several strategies.
+Some preliminary high-level summaries of the clusters are as follows:
+
+- Clusters 1, 5, and 7 can be readily distinguished from the other clusters (`t_up_all` analysis).
+    - Cluster 1 has very high and distinct expression of many genes, most obviously including *Hist1h2* genes.
+    - Cluster 5 has high and fairly distinct expression of Zoe's `Artery, Tip` and `Tip` marker genes.
+    - Cluster 7 has very high and distinct expression of many genes, including Zoe's `Artery` marker genes.
+- Clusters 2 and 6 share some marker genes with each other but also with other clusters (`t_up_some` analysis).
+    - Cluster 2 shares many marker genes with cluster 1.
+    - Cluster 6 shares some markers with cluster 1 and some with clusters 3 or 4.
+- Clusters 3 and 4 are perhaps less distinct than the other clusters and share some marker genes with each other but  (`t_up_all`, `t_up_some`, and `t_any_any` analyses).
+    - Cluster 3 shares some markers with clusters $4 - 7$.
+    - Cluster 4 is perhaps the least distinct cluster in terms of marker genes.
+
+This preliminary summary is just that, preliminary.
+The provided cluster marker gene lists should be used to develop biologically relevant, meaningful, and useful labels for cells/clusters in this dataset.
+The cluster marker gene lists can be analysed like any other gene list, such as by using gene set enrichment analysis against the Gene Ontology (GO) or Kyoto Encyclopedia of Genes and Genomes (KEGG) databases.
 
 <aside>
-Additional analyses focused on specific gene sets could be considered.
+We strongly recommend that you visualise the expression patterns of any genes of interest to better understand what is driving their inclusion in the marker gene lists.
 </aside>
-
-**TODO:** Re-write summary
-The cluster marker gene analysis analysis identified cluster `r g2_cluster` as having by far the largest number of cluster-specific marker genes.
-Cells in this same cluster had high expression of genes associated with a different phase of the cell cycle (G2) to the majority of cells in other clusters (G1).
-Figure \@ref(fig:libsize) shows that cells in this cluster also have larger library sizes than cells in other clusters.
-
-```{r libsize, fig.cap = "Library sizes of cells in each cluster.", eval = FALSE}
-plotColData(sce, "sum", x = "cluster", colour_by = "cluster") + 
-  scale_fill_manual(values = cluster_colours) + 
-  scale_y_log10() + 
-  guides(FALSE)
-```
-
-However, based on the `r BiocStyle::Biocpkg("SingleR")` analysis, the cells in this cluster appear to be CD4+ T-cells, just like the other cells in the dataset and not of any unique subtype.
-
-One possibility that is suggested by this set of results is that these are activated T-cells that are actively proliferating.
-
-<aside>
-It is worth noting that cells in this cluster are split roughly 50:50 between `Infected` and `Uninfected` samples. So this 'activation' signal does not appear to be associated with `Treatment`.
-</aside>
-
-These marker gene lists should be used in combination with the automated cell type labelling from `r BiocStyle::Biocpkg("SingleR")` to develop biologically relevant, meaningful, and useful labels for cells in this dataset.
 
 <!-- # Concluding remarks -->
 
@@ -1020,11 +1030,3 @@ The following are available on request:
 ```{r}
 sessioninfo::session_info()
 ```
-
-# TODOs
-
-**TODO**: UP TO HERE
-
-- [ ] Create cluster-specific PDF heatmaps for the top-k set of marker genes (do actual computations in the relevant section) and link to 'Visualization' section.
-  - [ ] Exclude pseudo, ribo, sex, and mito from marker gene heatmaps.
-  - [ ] Perform row clustering.

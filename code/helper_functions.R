@@ -258,3 +258,81 @@ flattenDF <- function(x, sep = "; ") {
     "other")
   factor(tmp4, names(sort(table(tmp4), decreasing = TRUE)))
 }
+
+# NOTE: This function is customised for the C075_Grant_Coultas project.
+createClusterMarkerOutputs <- function(prefix, outdir, exprs_values, k, ...) {
+
+  # Create CSVs
+  message("Creating CSVs")
+  for (cluster in levels(sce$cluster)) {
+    message(cluster)
+    gzout <- gzfile(
+      description = file.path(
+        outdir,
+        sprintf("cluster_%02d.%s.csv.gz", as.integer(cluster), prefix)),
+      open = "wb")
+    write.csv(
+      as.data.frame(flattenDF(markers[[cluster]])),
+      gzout,
+      # NOTE: quote = TRUE needed because some fields contain commas.
+      quote = TRUE,
+      row.names = FALSE)
+    close(gzout)
+  }
+
+  # Create PDFs
+  message("Creating PDFs")
+  o <- order(sce$cluster, sce$genotype)
+  for (exprs_value in exprs_values) {
+    message(exprs_value)
+    for (cluster in levels(sce$cluster)) {
+      message(cluster)
+      cluster_markers <- markers[[cluster]]
+      # Filter genes
+      cluster_markers <- cluster_markers[cluster_markers$FDR < 0.05, ]
+      features <- rownames(cluster_markers)
+      features <- setdiff(
+        features,
+        c(mito_set, ribo_set, pseudogene_set, sex_set))
+      # Select top-k
+      features <- head(features, k)
+      if (length(features) >= 2) {
+        mat <- assay(sce, exprs_value)[features, ]
+        mat <- mat - rowMeans(mat)
+        zlim <- c(-max(abs(mat)), max(abs(mat)))
+        mat[mat < zlim[1]] <- zlim[1]
+        mat[mat > zlim[2]] <- zlim[2]
+        pheatmap(
+          mat = mat[, o],
+          cluster_rows = TRUE,
+          cluster_cols = FALSE,
+          show_colnames = FALSE,
+          annotation_row = data.frame(
+            cluster = rep(cluster, min(k, length(features))),
+            row.names = features),
+          annotation_col = data.frame(
+            cluster = sce$cluster[o],
+            genotype = sce$genotype[o],
+            row.names = colnames(sce)[o]),
+          annotation_colors = list(
+            cluster = cluster_colours[levels(sce$cluster)],
+            genotype = genotype_colours),
+          breaks = seq(zlim[1], zlim[2], length.out = 101),
+          main = paste0(exprs_value, " (row-normalized)"),
+          fontsize = 6,
+          # NOTE: Leave it to pheatmap() to create the PDFs because multipage
+          #       PDFs containing pheatmap() outputs are often broken (I
+          #       suspect it's something to do with not closing the PDF
+          #       graphics device, but I wasted too much time trying to fix
+          #       this).
+          filename = file.path(
+            outdir,
+            sprintf("cluster_%02d.%s.%s.heatmap.pdf",
+                    as.integer(cluster),
+                    prefix,
+                    exprs_value)),
+          ...)
+      }
+    }
+  }
+}
