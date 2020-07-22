@@ -17,8 +17,10 @@ navbar:
       menu:
         - text: "scPipe reports"
           href: ../output/scPipe/
-        - text: "Marker gene tables"
-          href: ../output/marker_genes/
+        - text: "Zoe's marker gene tables"
+          href: ../output/zoes_marker_genes/
+        - text: "Cluster marker gene tables"
+          href: ../output/cluster_marker_genes/
         - text: "Differentially expressed genes"
           href: ../output/DEGs/
         - text: "Glimma plots"
