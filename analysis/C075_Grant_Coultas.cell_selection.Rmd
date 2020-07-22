@@ -241,8 +241,8 @@ We use two sets of marker genes for this analysis:
 sce$cluster_batches <- factor(
   ifelse(
     sce$plate_number %in% c("LC294", "LC358"),
-    "LC294 and LC358", 
-    "rest"))
+    "LC294_and_LC358", 
+    "not_LC294_and_LC358"))
 ```
 
 ### Pre-defined marker genes
@@ -253,7 +253,7 @@ Zoe sent me a list of marker genes to help characterise the cells^[Email 2020-05
 zoes_markers <- readxl::read_excel(
   here(
     "data", 
-    "marker_genes",
+    "zoes_marker_genes",
     "Genes for violin plots Hbo1 retina ECs.xlsx")) %>%
   # NOTE: Zoe forgot to label the cell cycle genes
   dplyr::mutate(
@@ -262,17 +262,29 @@ zoes_markers <- readxl::read_excel(
       "Cell cycle",
       `Endothelial identity`),
     Expressed = Gene %in% rownames(sce))
+
+zoes_stem_markers <- readxl::read_excel(
+  here(
+    "data", 
+    "zoes_marker_genes",
+    "Stalk endothelial cell genes.xlsx"),
+  skip = 2) %>%
+  # NOTE: I'm assuming the reference field continues down the rows.
+  tidyr::fill(Reference) %>%
+  dplyr::mutate(
+    `Endothelial identity` = "Stem",
+    Expressed = Gene %in% rownames(sce))
+
+zoes_markers <- dplyr::full_join(zoes_markers, zoes_stem_markers)
+
 DT::datatable(
   zoes_markers,
-  caption = "Zoe's supplied list of marker genes, their 'Endothelial identity', and whether they are expressed in the current dataset.")
+  caption = "Zoe's supplied list of marker genes, their 'Endothelial identity', the reference (if supplied), and whether they are expressed in the current dataset.")
 ```
 
 Figure \@ref(fig:cluster-batches-zoes-markers) is a heatmap of Zoe's marker genes.
-There is perhaps some evidence that some of these genes have lower expression in cells from plates `LC294` and `LC358` compared to cells from the rest of the plates, but it's not especially compelling
-
-<aside>
-It's certainly not as striking as the result below in [Marker gene discovery].
-</aside>
+There is evidence that some of the `Stem` marker genes are only expressed in plates `LC294` and `LC358`.
+There is also some evidence that most of the other marker genes have lower expression in cells from plates `LC294` and `LC358` compared to cells from the rest of the plates.
 
 ```{r cluster-batches-zoes-markers, fig.wide = TRUE, fig.cap = "Heatmap of row-normalized log-expression values for Zoe's marker genes. Each column is a sample, each row a gene. Samples have been separetely clustered within each `cluster_batches`.", fig.asp = 1.1}
 features <- dplyr::filter(zoes_markers, Expressed) %>% 
@@ -282,18 +294,18 @@ gene_set <- dplyr::filter(zoes_markers, Expressed) %>%
 
 # Samples are hierarchically ordered within each level of `cluster_batches`.
 mat <- logcounts(sce)[features, ]
-mat1 <- logcounts(sce)[features, sce$cluster_batches == "LC294 and LC358"]
+mat1 <- logcounts(sce)[features, sce$cluster_batches == "LC294_and_LC358"]
 mat1 <- mat1 - rowMeans(mat)
 h1 <- hclust(dist(t(mat1)))
 o1 <- h1$order
-mat2 <- logcounts(sce)[features, sce$cluster_batches == "rest"]
+mat2 <- logcounts(sce)[features, sce$cluster_batches == "not_LC294_and_LC358"]
 mat2 <- mat2 - rowMeans(mat)
 h2 <- hclust(dist(t(mat2)))
 o2 <- h2$order
 
 z <- cbind(
-  sce[, sce$cluster_batches == "LC294 and LC358"][, o1],
-  sce[, sce$cluster_batches == "rest"][, o2])
+  sce[, sce$cluster_batches == "LC294_and_LC358"][, o1],
+  sce[, sce$cluster_batches == "not_LC294_and_LC358"][, o2])
 mat <- logcounts(z)[features, ]
 mat <- mat - rowMeans(mat)
 zlim <- c(-4, 4)
@@ -332,48 +344,43 @@ For the purposes of this section, a cell is considered to express a gene simply 
 </aside>
 
 ```{r}
+test.type <- "binom"
+direction <- "up"
+pval.type <- "all"
+
 markers <- findMarkers(
   sce,
   groups = sce$cluster_batches,
-  direction = "up",
-  test.type = "binom", 
+  test = test.type,
+  direction = direction,
+  pval.type = pval.type,
   row.data = rowData(sce))
 ```
 
 ```{r}
-# TODO: Rename outputs (in line with marker genes but so as not to clobber one 
-#       another).
-dir.create(here("output", "marker_genes", "binom"), recursive = TRUE)
+plate_specific_marker_gene_dir <- here("output", "plate-specific_marker_genes")
+dir.create(plate_specific_marker_gene_dir)
+prefix <- paste(test.type, direction, pval.type, sep = "_")
+marker_dir <- file.path(plate_specific_marker_gene_dir, prefix)
+dir.create(marker_dir)
 
-write.csv(
-  as.data.frame(flattenDF(markers[["LC294 and LC358"]])),
-  gzfile(
-    here(
-      "output", 
-      "marker_genes", 
-      "binom", 
-      "binom_markers.LC294_and_LC358.plate-specific_clusters.csv.gz")),
-  # NOTE: quote = TRUE needed because some fields contain commas.
-  quote = TRUE,
-  row.names = FALSE)
-
-write.csv(
-  as.data.frame(flattenDF(markers[["rest"]])),
-  gzfile(
-    here(
-      "output", 
-      "marker_genes", 
-      "binom", 
-      "binom_markers.rest_of_plates.plate-specific_clusters.csv.gz")),
-  # NOTE: quote = TRUE needed because some fields contain commas.
-  quote = TRUE,
-  row.names = FALSE)
+for (n in names(markers)) {
+  write.csv(
+    x =  as.data.frame(flattenDF(markers[[n]])),
+    file = gzfile(
+      file.path(
+        marker_dir, 
+        sprintf("%s.%s.csv.gz", n, prefix))),
+    # NOTE: quote = TRUE needed because some fields contain commas.
+    quote = TRUE,
+    row.names = FALSE)
+}
 ```
 
-There are `r sum(markers[["LC294 and LC358"]][["FDR"]] < 0.05)` genes (`r round(100 * sum(markers[["LC294 and LC358"]][["FDR"]] < 0.05) / nrow(sce), 1)`%) more frequently expressed in cells from plates `LC294` and `LC358` and `r sum(markers[["rest"]][["FDR"]] < 0.05)` genes (`r round(100 * sum(markers[["rest"]][["FDR"]] < 0.05) / nrow(sce), 1)`%) more frequently expressed in cells from the rest of the plates (FDR $< 0.05$).
+There are `r sum(markers[["LC294_and_LC358"]][["FDR"]] < 0.05)` genes (`r round(100 * sum(markers[["LC294_and_LC358"]][["FDR"]] < 0.05) / nrow(sce), 1)`%) more frequently expressed in cells from plates `LC294` and `LC358` and `r sum(markers[["not_LC294_and_LC358"]][["FDR"]] < 0.05)` genes (`r round(100 * sum(markers[["not_LC294_and_LC358"]][["FDR"]] < 0.05) / nrow(sce), 1)`%) more frequently expressed in cells from the rest of the plates (FDR $< 0.05$).
 
 <aside>
-The complete gene lists from the differential expression analysis^[Effect sizes for each comparison are reported as log2-fold changes in the proportion of expressing cells in one group over the proportion in another group.] are available in [`output/marker_genes/binom/`](../output/marker_genes/binom/) (see those with files with `plate-specific_clusters` in the filename).
+The complete gene lists from the differential expression analysis^[Effect sizes for each comparison are reported as log2-fold changes in the proportion of expressing cells in one group over the proportion in another group.] are available in [`output/plate-specific_marker_genes/binom_up_all/`](../output/plate-specific_marker_genes/binom_up_all/).
 </aside>
 
 As an example of the information available in these gene lists, Figure \@ref(fig:cluster-batches-markers) highlights the top-50 genes for each group of plates.
@@ -427,6 +434,7 @@ It was therefore decided to exclude cells from plates on LC294 and LC358 from fu
 
 ```{r}
 sce <- sce[, keep]
+sce$cluster_batches <- NULL
 colData(sce) <- droplevels(colData(sce))
 ```
 
