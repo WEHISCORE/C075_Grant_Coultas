@@ -260,11 +260,11 @@ flattenDF <- function(x, sep = "; ") {
 }
 
 # NOTE: This function is customised for the C075_Grant_Coultas project.
-createClusterMarkerOutputs <- function(prefix, outdir, exprs_values, k, ...) {
+createClusterMarkerOutputs <- function(prefix, outdir, markers, exprs_values, k, ...) {
 
   # Create CSVs
   message("Creating CSVs")
-  for (cluster in levels(sce$cluster)) {
+  for (cluster in names(markers)) {
     message(cluster)
     gzout <- gzfile(
       description = file.path(
@@ -285,7 +285,7 @@ createClusterMarkerOutputs <- function(prefix, outdir, exprs_values, k, ...) {
   o <- order(sce$cluster, sce$genotype)
   for (exprs_value in exprs_values) {
     message(exprs_value)
-    for (cluster in levels(sce$cluster)) {
+    for (cluster in names(markers)) {
       message(cluster)
       cluster_markers <- markers[[cluster]]
       # Filter genes
