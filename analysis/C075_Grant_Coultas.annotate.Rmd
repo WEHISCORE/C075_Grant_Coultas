@@ -97,9 +97,9 @@ The *de novo* marker genes lists use a data driven approach to identify those ge
 These two approaches complement one another.
 We also describe the choice of [Visualization] options for marker gene analyses.
 
-As a reminder, Figure \@ref(fig:mnn-corrected-clusterplot-umap) shows the clustering results overlaid on the UMAP plot and Figure \@ref(fig:mnn-corrected-cluster-barplot) breaks down the clusters by key experimental factors.
+As a reminder, Figure \@ref(fig:clusterplot-umap) shows the clustering results overlaid on the UMAP plot and Figure \@ref(fig:cluster-barplot) breaks down the clusters by key experimental factors.
 
-```{r mnn-corrected-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
+```{r clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
 p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
   geom_point(aes(colour = cluster), size = 0.25) +
   scale_colour_manual(values = cluster_colours) + 
@@ -128,7 +128,7 @@ p4 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
 (p1 | p2) / (p3 | p4)
 ```
 
-```{r mnn-corrected-cluster-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of clusters by experimental factors."}
+```{r cluster-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of clusters by experimental factors."}
 p1 <- ggcells(sce) + 
   geom_bar(
     aes(x = cluster, fill = genotype),
@@ -167,6 +167,7 @@ p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) +
 # Pre-defined marker genes
 
 We examine [Zoe's gene list] and a [Cell cycle gene list].
+We also perform a simple visualization of the [FACS markers].
 
 ## Zoe's gene list
 
@@ -178,7 +179,7 @@ Zoe sent me a list of marker genes to help characterise the cells^[Email 2020-05
 zoes_markers <- readxl::read_excel(
   here(
     "data", 
-    "marker_genes",
+    "zoes_marker_genes",
     "Genes for violin plots Hbo1 retina ECs.xlsx")) %>%
   # NOTE: Zoe forgot to label the cell cycle genes
   dplyr::mutate(
@@ -187,16 +188,39 @@ zoes_markers <- readxl::read_excel(
       "Cell cycle",
       `Endothelial identity`),
     Expressed = Gene %in% rownames(sce))
+
+zoes_stem_markers <- readxl::read_excel(
+  here(
+    "data", 
+    "zoes_marker_genes",
+    "Stalk endothelial cell genes.xlsx"),
+  skip = 2) %>%
+  # NOTE: I'm assuming the reference field continues down the rows.
+  tidyr::fill(Reference) %>%
+  dplyr::mutate(
+    `Endothelial identity` = "Stem",
+    Expressed = Gene %in% rownames(sce))
+
+zoes_markers <- dplyr::full_join(zoes_markers, zoes_stem_markers) %>%
+  # Order `Endothelial identity` as Zoe did in her spreadsheets.
+  dplyr::mutate(
+    `Endothelial identity` = factor(
+      `Endothelial identity`, 
+      unique(`Endothelial identity`)))
+
 DT::datatable(
   zoes_markers,
-  caption = "Zoe's supplied list of marker genes, their 'Endothelial identity', and whether they are expressed in the current dataset.")
+  caption = "Zoe's supplied list of marker genes, their 'Endothelial identity', the reference (if supplied), and whether they are expressed in the current dataset.")
+
+# Exclude non-expressed genes.
+zoes_markers <- dplyr::filter(zoes_markers, Expressed)
 ```
 
 ### Analysis
 
 ```{r}
 zoes_marker_gene_dir <- here("output", "zoes_marker_genes")
-dir.create(zoes_marker_gene_dir, recursive = TRUE)
+dir.create(zoes_marker_gene_dir)
 ```
 
 ```{r, results = "hide"}
@@ -251,7 +275,8 @@ It is challenging to immediately associate clusters with a cell type on the basi
 - `Artery` marker genes are highly expressed in cluster 7.
 - `Artery, tip` marker genes are highly expressed in clusters 5 and 7.
 - `Tip` marker genes are highly expressed in cluster 5.
-- `Angiogenic` marker genes are highly expressed in clusters 3 and 4. 
+
+The expressions patterns for the other marker gene sets are more complex, such as a subset of the gene set being not expressed, restricted to particular cluster(s), or ubiquitously expressed across clusters.
 
 <aside>
 Violin plots of per-gene expression measurements and heatmaps (`logcounts` and `reconstructed`) can be found in the [`output/zoes_marker_genes/`](../output/zoes_marker_genes/) directory.
@@ -316,11 +341,11 @@ p2 <- pheatmap(
   fontsize = 6)
 ```
 
-```{r zoes-markers-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of row-normalized `logcounts` for Zoe's marker genes. Each column is a sample, each row a gene. Samples are ordered by `cluster` then by `genotype`.", fig.asp = 1.1}
+```{r zoes-markers-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of row-normalized `logcounts` for Zoe's marker genes. Each column is a sample, each row a gene. Samples are ordered by `cluster` then by `genotype`.", fig.asp = 1.1, results = "hide"}
 p1
 ```
 
-```{r}
+```{r, results = "hide"}
 heatmap_dir <- file.path(zoes_marker_gene_dir, "heatmaps")
 dir.create(heatmap_dir)
 
@@ -452,6 +477,75 @@ knitr::kable(
 Direct examination of cyclin expression is easily understood, interpreted and validated with other technologies.
 However, it is best suited for statements about relative cell cycle activity; for example, we would find it difficult to assign cell cycle phase in Figure \@ref(fig:cyclin-heatmap) without the presence of clusters spanning all phases to provide benchmarks for "high" and "low" expression of each cyclin.
 We also assume that cyclin expression is not affected by biological processes other than the cell cycle, which may be a strong assumption in some cases, e.g., malignant cells.
+
+## FACS markers
+
+```{r}
+facs_markers <- grep(
+  "^B|^V|^R|^Y|^FSC|^SSC",
+  colnames(colData(sce)),
+  value = TRUE)
+```
+
+Several FACS markers were collected for these cells: `r glue::glue_collapse(facs_markers, sep = ", ", last = ", and ")`.
+
+Absolute FACS measurements are generally not comparable across samples for a number of reasons^[E.g., different machines and reagents] and normalization methods are underdeveloped.
+We apply a simple 'scaled rank' normalization method, which is to rank within each plate the FACS measurements between 0 and 1 (0 being the lowest and 1 being the highest).
+This is a very drastic normalization that removes much of the quantitative information potentially available in the FACS data.
+
+<aside>
+Any sort of sophisticated analysis of the FACS data is very challenging because of this lack of standardization in data collection. The normalization of this data and integration with scRNA-seq data is a research question that is beyond the scope of this analysis.
+</aside>
+
+Figure \@ref(fig:umap-with-facs) presents a simple summary of the FACS data by overlaying it on the UMAP plot. 
+
+```{r umap-with-facs, fig.asp = 3, fig.cap = "Overlay of index sorting data on UMAP plot. For each marker, the left-hand plot shows the 'raw' or 'pseudo-logged' fluorescence intensity and the right-side plots the 'scaled rank' of the raw intensity. The pseudo-log transformation is a transformation mapping numbers to a signed logarithmic scale with a smooth transition to linear scale around 0. This transformation is commonly used when plotting fluorescence intensities from FACS. The scaled rank is applied within each `plate_number` and assigns the maximum fluorescence intensity a value of one and the minimum fluorescence intensities a value of zero. It can be thought of as a crude normalization of the FACS data that allows us to compare fluorescence intensities from different plates."}
+p <- lapply(facs_markers, function(m) {
+  new_umap <- makePerCellDF(sce)
+  new_umap <- new_umap[!is.na(dplyr::select(new_umap, all_of(m))), ]
+  p1 <- ggplot(new_umap, aes(x = UMAP.1, y = UMAP.2)) +
+    geom_point(aes_string(colour = m, fill = m), alpha = 1, size = 0.2) +
+    scale_fill_viridis_c(trans = ifelse(
+      grepl("^FSC|^SSC", m), 
+      "identity",
+      scales::pseudo_log_trans(sigma = 150 / 2)),
+      breaks = c(0, 10, 100, 1000, 10000, 100000),
+      name = "") +
+    scale_colour_viridis_c(trans = ifelse(
+      grepl("^FSC|^SSC", m), 
+      "identity",
+      scales::pseudo_log_trans(sigma = 150 / 2)),
+      breaks = c(0, 10, 100, 1000, 10000, 100000),
+      name = "") +
+    theme_cowplot(font_size = 8) + 
+    xlab("Dimension 1") + 
+    ylab("Dimension 2") + 
+    ggtitle(ifelse(grepl("^FSC|^SSC", m), "Raw", "Pseudo-logged"), m) + 
+    facet_grid(. ~ genotype)
+  
+  new_umap$scaled_rank <- as.data.frame(colData(sce[, !is.na(sce[[m]])])) %>%
+    dplyr::group_by(plate_number) %>%
+    dplyr::mutate(
+      rank = rank(!!sym(m), na.last = "keep"),
+      max_rank = max(rank, na.rm = TRUE),
+      scaled_rank = rank / max_rank) %>%
+    dplyr::pull(scaled_rank)
+  
+  p2 <- ggplot(data = new_umap, aes(x = UMAP.1, y = UMAP.2)) +
+    geom_point(aes(colour = scaled_rank, fill = scaled_rank), alpha = 1, size = 0.2) +
+    scale_fill_viridis_c(name = "") +
+    scale_colour_viridis_c(name = "") +
+    theme_cowplot(font_size = 8) + 
+    xlab("Dimension 1") + 
+    ylab("Dimension 2") + 
+    ggtitle("Scaled rank", m) +
+    facet_grid(. ~ genotype)
+  list(p1, p2)
+})
+multiplot(
+  plotlist = unlist(p, recursive = FALSE),
+  layout = matrix(seq_len(length(p) * 2), ncol = 2, byrow = TRUE))
+```
 
 ## Summary
 
@@ -612,7 +706,7 @@ See [Visualization] for further details of these heatmaps.
 
 ```{r}
 cluster_marker_gene_dir <- here("output", "cluster_marker_genes")
-dir.create(cluster_marker_gene_dir, recursive = TRUE)
+dir.create(cluster_marker_gene_dir)
 ```
 
 These files are organised as follows:
@@ -667,6 +761,7 @@ dir.create(marker_dir)
 createClusterMarkerOutputs(
   prefix = prefix, 
   outdir = marker_dir, 
+  markers = markers,
   exprs_values = c("logcounts", "reconstructed"), 
   k = 100,
   width = 6,
@@ -722,7 +817,8 @@ marker_dir <- file.path(cluster_marker_gene_dir, prefix)
 dir.create(marker_dir)
 createClusterMarkerOutputs(
   prefix = prefix, 
-  outdir = marker_dir, 
+  outdir = marker_dir,
+  markers = markers,
   exprs_values = c("logcounts", "reconstructed"), 
   k = 100,
   width = 6,
@@ -772,6 +868,71 @@ dir.create(marker_dir)
 createClusterMarkerOutputs(
   prefix = prefix, 
   outdir = marker_dir, 
+  markers = markers,
+  exprs_values = c("logcounts", "reconstructed"), 
+  k = 100,
+  width = 6,
+  height = 7.5)
+```
+
+### Targeted
+
+We can also perform targeted comparisons between particular clusters of interest.
+For example, this can be useful when two clusters ($A$ and $B$) share a set of marker genes that distinguish $(A, B)$ from the remaining clusters and we now want to hone in on what specifically distinguishes $A$ from $B$.
+
+#### `t_up_all_clusters_01_and_02`
+
+This analysis compares clusters 1 and 2.
+
+```{r}
+test.type <- "t"
+direction <- "up"
+pval.type <- "all"
+min.prop <- NULL
+restrict <- c("1", "2")
+
+markers <- findMarkers(
+  sce,
+  groups = sce$cluster,
+  test = test.type,
+  direction = direction,
+  block = sce$block,
+  pval.type = pval.type,
+  min.prop = min.prop,
+  row.data = rowData(sce),
+  restrict = restrict)
+```
+
+The following table gives the number of marker genes for each cluster by this approach.
+
+<aside>
+For spreadsheets and heatmaps of these gene lists see [`output/cluster_marker_genes/t_up_all_clusters_01_and_02/`](../output/cluster_marker_genes/t_up_all_clusters_01_and_02/).
+</aside>
+
+```{r}
+n <- sapply(markers, function(x) sum(x$FDR < 0.05))
+knitr::kable(
+  data.frame(
+    cluster = names(markers),
+    n = sapply(markers, function(x) sum(x$FDR < 0.05))),
+  caption = "Number of marker genes for each cluster (FDR < 0.05).")
+```
+
+```{r, message = FALSE}
+# Create outputs
+prefix <- sprintf(
+  "%s_%s_%s_clusters_%02d_and_%02d", 
+  test.type, 
+  direction, 
+  pval.type, 
+  as.integer(restrict[1]), 
+  as.integer(restrict[2]))
+marker_dir <- file.path(cluster_marker_gene_dir, prefix)
+dir.create(marker_dir)
+createClusterMarkerOutputs(
+  prefix = prefix, 
+  outdir = marker_dir, 
+  markers = markers,
   exprs_values = c("logcounts", "reconstructed"), 
   k = 100,
   width = 6,
@@ -986,16 +1147,95 @@ Some preliminary high-level summaries of the clusters are as follows:
     - Cluster 1 has very high and distinct expression of many genes, most obviously including *Hist1h2* genes.
     - Cluster 5 has high and fairly distinct expression of Zoe's `Artery, Tip` and `Tip` marker genes.
     - Cluster 7 has very high and distinct expression of many genes, including Zoe's `Artery` marker genes.
-- Clusters 2 and 6 share some marker genes with each other but also with other clusters (`t_up_some` analysis).
-    - Cluster 2 shares many marker genes with cluster 1.
-    - Cluster 6 shares some markers with cluster 1 and some with clusters 3 or 4.
-- Clusters 3 and 4 are perhaps less distinct than the other clusters and share some marker genes with each other but  (`t_up_all`, `t_up_some`, and `t_any_any` analyses).
+- Cluster 2 shares many marker genes with cluster 1 (`t_up_some` analysis).
+- Clusters 3, 4, and 6 are perhaps less distinct than the other clusters and share some marker genes with each other and also with clusters 1, 2, 5, and 7 (`t_up_all` and `t_up_some` analyses).
     - Cluster 3 shares some markers with clusters $4 - 7$.
     - Cluster 4 is perhaps the least distinct cluster in terms of marker genes.
+    - Cluster 6 shares some markers with clusters 1 and 2 and others with clusters 3, 4, and 7.
+    
+<aside>
+The [Targeted] gene lists may help identify genes that specifically distinguish clusters 2 and 6. We can do further targeted analyses as required.
+</aside>
 
+As mentioned, cluster 4 is perhaps the least distinct cluster in terms of marker genes.
+Cluster 4 contains the fewest cells of all the clusters, with these cells coming from all plates, but is is also the cluster most enriched for `Mutant` cells (in terms of the percentage of cells in that cluster with each genotype; Figure \@ref(fig:cluster-barplot)).
+Figure \@ref(fig:qcplot-by-cluster) shows that cells in this cluster have on average poorer QC metrics than cells in most other clusters, perhaps meaning that this cluster is comprised of a 'mixed bag' of cells that are hard to place with their 'correct' cluster.
+
+```{r qcplot-by-cluster, fig.cap = "Distributions of various QC metrics for all cells in the data set. This includes the library sizes, number of expressed genes, and proportion of reads mapped to spike-in transcripts or mitochondrial genes.", fig.asp = 2 / 3}
+plot_grid(
+  ggcells(
+    sce,
+    exprs_values = "counts",
+    aes(x = cluster, y = sum, colour = cluster, fill = cluster)) +
+    geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
+    ggbeeswarm::geom_quasirandom(size = 0.1) +
+    theme_cowplot(font_size = 8) +
+    scale_colour_manual(values = cluster_colours) + 
+    scale_fill_manual(values = cluster_colours) +
+    scale_y_log10(limits = c(1, NA)) +
+    annotation_logticks(
+      sides = "l",
+      short = unit(0.03, "cm"),
+      mid = unit(0.06, "cm"),
+      long = unit(0.09, "cm")) +
+    guides(fill = FALSE, colour = FALSE),
+  ggcells(
+    sce,
+    exprs_values = "counts",
+    aes(
+      x = cluster,
+      y = altexps_ERCC_percent,
+      colour = cluster,
+      fill = cluster)) +
+    geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
+    ggbeeswarm::geom_quasirandom(size = 0.1) +
+    ylim(0, 100) +
+    theme_cowplot(font_size = 8) +
+    scale_colour_manual(values = cluster_colours) + 
+    scale_fill_manual(values = cluster_colours) +
+    guides(fill = FALSE, colour = FALSE),
+  ggcells(
+    sce,
+    exprs_values = "counts",
+    aes(
+      x = cluster,
+      y = detected,
+      colour = cluster,
+      fill = cluster)) +
+    geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
+    ggbeeswarm::geom_quasirandom(size = 0.1) +
+    theme_cowplot(font_size = 8) +
+    scale_colour_manual(values = cluster_colours) + 
+    scale_fill_manual(values = cluster_colours) +
+    scale_y_log10(limits = c(1, NA)) +
+    annotation_logticks(
+      sides = "l",
+      short = unit(0.03, "cm"),
+      mid = unit(0.06, "cm"),
+      long = unit(0.09, "cm")) +
+    guides(fill = FALSE, colour = FALSE),
+  ggcells(
+    sce,
+    exprs_values = "counts",
+    aes(
+      x = cluster,
+      y = subsets_Mt_percent,
+      colour = cluster,
+      fill = cluster)) +
+    geom_violin(scale = "width", width = 0.8, alpha = 0.2) +
+    ggbeeswarm::geom_quasirandom(size = 0.1) +
+    ylim(0, 100) +
+    theme_cowplot(font_size = 8) +
+    scale_colour_manual(values = cluster_colours) + 
+    scale_fill_manual(values = cluster_colours) +
+    guides(fill = FALSE, colour = FALSE),
+  ncol = 2,
+  align = "v")
+```
+    
 This preliminary summary is just that, preliminary.
-The provided cluster marker gene lists should be used to develop biologically relevant, meaningful, and useful labels for cells/clusters in this dataset.
 The cluster marker gene lists can be analysed like any other gene list, such as by using gene set enrichment analysis against the Gene Ontology (GO) or Kyoto Encyclopedia of Genes and Genomes (KEGG) databases.
+Used this way, the provided cluster marker gene lists can help develop biologically relevant, meaningful, and useful labels for cells/clusters in this dataset.
 
 <aside>
 We strongly recommend that you visualise the expression patterns of any genes of interest to better understand what is driving their inclusion in the marker gene lists.
