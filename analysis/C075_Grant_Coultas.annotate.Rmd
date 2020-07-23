@@ -45,25 +45,25 @@ sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.cells_selected.SCE.rds")
 # Some useful colours
 plate_number_colours <- setNames(
   unique(sce$plate_number_colours),
-  levels(sce$plate_number))
+  unique(names(sce$plate_number_colours)))
 sample_type_colours <- setNames(
   unique(sce$sample_type_colours),
-  levels(sce$sample_type))
+  unique(names(sce$sample_type_colours)))
 genotype_colours <- setNames(
   unique(sce$genotype_colours),
-  levels(sce$genotype))
+  unique(names(sce$genotype_colours)))
 mouse_colours <- setNames(
   unique(sce$mouse_colours),
-  levels(sce$mouse))
+  unique(names(sce$mouse_colours)))
 sex_colours <- setNames(
   unique(sce$sex_colours),
-  levels(sce$sex))
+  unique(names(sce$sex_colours)))
 sequencing_run_colours <- setNames(
   unique(sce$sequencing_run_colours),
-  levels(sce$sequencing_run))
+  unique(names(sce$sequencing_run_colours)))
 cluster_colours <- setNames(
   unique(sce$cluster_colours),
-  levels(sce$cluster))
+  unique(names(sce$cluster_colours)))
 
 # Some useful gene sets
 mito_set <- rownames(sce)[any(rowData(sce)$ENSEMBL.SEQNAME == "MT")]

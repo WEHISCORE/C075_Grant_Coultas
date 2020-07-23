@@ -103,22 +103,22 @@ sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.preprocessed.SCE.rds"))
 # Some useful colours
 plate_number_colours <- setNames(
   unique(sce$plate_number_colours),
-  levels(sce$plate_number))
+  unique(names(sce$plate_number_colours)))
 sample_type_colours <- setNames(
   unique(sce$sample_type_colours),
-  levels(sce$sample_type))
+  unique(names(sce$sample_type_colours)))
 genotype_colours <- setNames(
   unique(sce$genotype_colours),
-  levels(sce$genotype))
+  unique(names(sce$genotype_colours)))
 mouse_colours <- setNames(
   unique(sce$mouse_colours),
-  levels(sce$mouse))
+  unique(names(sce$mouse_colours)))
 sex_colours <- setNames(
   unique(sce$sex_colours),
-  levels(sce$sex))
+  unique(names(sce$sex_colours)))
 sequencing_run_colours <- setNames(
   unique(sce$sequencing_run_colours),
-  levels(sce$sequencing_run))
+  unique(names(sce$sequencing_run_colours)))
 
 # Some useful gene sets
 mito_set <- rownames(sce)[any(rowData(sce)$ENSEMBL.SEQNAME == "MT")]
@@ -149,6 +149,7 @@ stopifnot(nlevels(sce$cluster) == 8)
 cluster_colours <- setNames(
   palette("Okabe-Ito"),
   levels(sce$cluster))
+sce$cluster_colours <- cluster_colours[sce$cluster]
 ```
 
 There are `r nlevels(sce$cluster)` clusters detected, shown on the UMAP plot Figure \@ref(fig:clusterplot-umap) and broken down by experimental factors in Figure \@ref(fig:cluster-barplot).
@@ -673,7 +674,7 @@ The MNN algorithm returns two sets of corrected values for use in downstream ana
 
 The `corrected` data contains the low-dimensional corrected coordinates for all cells, which we will use in place of the PCs in our downstream analyses.
 The `reconstructed` data contains the corrected expression values for each gene in each cell, obtained by projecting the low-dimensional coordinates in corrected back into gene expression space.
-**We do not recommend using the `reconstructed` data for anything other than visualization^[See [here](https://osca.bioconductor.org/integrating-datasets.html#using-corrected-values) for a detailed explanation of this recommendation.].
+**We do not recommend using the `reconstructed` data for anything other than visualization**^[See [here](https://osca.bioconductor.org/integrating-datasets.html#using-corrected-values) for a detailed explanation of this recommendation.].
 
 ## Re-processing
 
@@ -691,6 +692,7 @@ stopifnot(nlevels(sce$cluster) == 7)
 cluster_colours <- setNames(
   palette("Okabe-Ito"),
   levels(sce$cluster))
+sce$cluster_colours <- cluster_colours[sce$cluster]
 ```
 
 There are `r nlevels(sce$cluster)` clusters detected, shown on the UMAP plot Figure \@ref(fig:mnn-corrected-clusterplot-umap) and broken down by experimental factors in Figure \@ref(fig:mnn-corrected-cluster-barplot).
