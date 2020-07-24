@@ -939,6 +939,183 @@ createClusterMarkerOutputs(
   height = 7.5)
 ```
 
+#### `t_up_all_clusters_03_and_04`
+
+This analysis compares clusters 3 and 4.
+
+```{r}
+test.type <- "t"
+direction <- "up"
+pval.type <- "all"
+min.prop <- NULL
+restrict <- c("3", "4")
+
+markers <- findMarkers(
+  sce,
+  groups = sce$cluster,
+  test = test.type,
+  direction = direction,
+  block = sce$block,
+  pval.type = pval.type,
+  min.prop = min.prop,
+  row.data = rowData(sce),
+  restrict = restrict)
+```
+
+The following table gives the number of marker genes for each cluster by this approach.
+
+<aside>
+For spreadsheets and heatmaps of these gene lists see [`output/cluster_marker_genes/t_up_all_clusters_03_and_04/`](../output/cluster_marker_genes/t_up_all_clusters_03_and_04/).
+</aside>
+
+```{r}
+n <- sapply(markers, function(x) sum(x$FDR < 0.05))
+knitr::kable(
+  data.frame(
+    cluster = names(markers),
+    n = sapply(markers, function(x) sum(x$FDR < 0.05))),
+  caption = "Number of marker genes for each cluster (FDR < 0.05).")
+```
+
+```{r, message = FALSE}
+# Create outputs
+prefix <- sprintf(
+  "%s_%s_%s_clusters_%02d_and_%02d", 
+  test.type, 
+  direction, 
+  pval.type, 
+  as.integer(restrict[1]), 
+  as.integer(restrict[2]))
+marker_dir <- file.path(cluster_marker_gene_dir, prefix)
+dir.create(marker_dir)
+createClusterMarkerOutputs(
+  prefix = prefix, 
+  outdir = marker_dir, 
+  markers = markers,
+  exprs_values = c("logcounts", "reconstructed"), 
+  k = 100,
+  width = 6,
+  height = 7.5)
+```
+
+#### `t_up_all_clusters_03_and_06`
+
+This analysis compares clusters 3 and 6.
+
+```{r}
+test.type <- "t"
+direction <- "up"
+pval.type <- "all"
+min.prop <- NULL
+restrict <- c("3", "6")
+
+markers <- findMarkers(
+  sce,
+  groups = sce$cluster,
+  test = test.type,
+  direction = direction,
+  block = sce$block,
+  pval.type = pval.type,
+  min.prop = min.prop,
+  row.data = rowData(sce),
+  restrict = restrict)
+```
+
+The following table gives the number of marker genes for each cluster by this approach.
+
+<aside>
+For spreadsheets and heatmaps of these gene lists see [`output/cluster_marker_genes/t_up_all_clusters_03_and_06/`](../output/cluster_marker_genes/t_up_all_clusters_03_and_06/).
+</aside>
+
+```{r}
+n <- sapply(markers, function(x) sum(x$FDR < 0.05))
+knitr::kable(
+  data.frame(
+    cluster = names(markers),
+    n = sapply(markers, function(x) sum(x$FDR < 0.05))),
+  caption = "Number of marker genes for each cluster (FDR < 0.05).")
+```
+
+```{r, message = FALSE}
+# Create outputs
+prefix <- sprintf(
+  "%s_%s_%s_clusters_%02d_and_%02d", 
+  test.type, 
+  direction, 
+  pval.type, 
+  as.integer(restrict[1]), 
+  as.integer(restrict[2]))
+marker_dir <- file.path(cluster_marker_gene_dir, prefix)
+dir.create(marker_dir)
+createClusterMarkerOutputs(
+  prefix = prefix, 
+  outdir = marker_dir, 
+  markers = markers,
+  exprs_values = c("logcounts", "reconstructed"), 
+  k = 100,
+  width = 6,
+  height = 7.5)
+```
+
+#### `t_up_all_clusters_04_and_06`
+
+This analysis compares clusters 4 and 6.
+
+```{r}
+test.type <- "t"
+direction <- "up"
+pval.type <- "all"
+min.prop <- NULL
+restrict <- c("4", "6")
+
+markers <- findMarkers(
+  sce,
+  groups = sce$cluster,
+  test = test.type,
+  direction = direction,
+  block = sce$block,
+  pval.type = pval.type,
+  min.prop = min.prop,
+  row.data = rowData(sce),
+  restrict = restrict)
+```
+
+The following table gives the number of marker genes for each cluster by this approach.
+
+<aside>
+For spreadsheets and heatmaps of these gene lists see [`output/cluster_marker_genes/t_up_all_clusters_04_and_06/`](../output/cluster_marker_genes/t_up_all_clusters_04_and_06/).
+</aside>
+
+```{r}
+n <- sapply(markers, function(x) sum(x$FDR < 0.05))
+knitr::kable(
+  data.frame(
+    cluster = names(markers),
+    n = sapply(markers, function(x) sum(x$FDR < 0.05))),
+  caption = "Number of marker genes for each cluster (FDR < 0.05).")
+```
+
+```{r, message = FALSE}
+# Create outputs
+prefix <- sprintf(
+  "%s_%s_%s_clusters_%02d_and_%02d", 
+  test.type, 
+  direction, 
+  pval.type, 
+  as.integer(restrict[1]), 
+  as.integer(restrict[2]))
+marker_dir <- file.path(cluster_marker_gene_dir, prefix)
+dir.create(marker_dir)
+createClusterMarkerOutputs(
+  prefix = prefix, 
+  outdir = marker_dir, 
+  markers = markers,
+  exprs_values = c("logcounts", "reconstructed"), 
+  k = 100,
+  width = 6,
+  height = 7.5)
+```
+
 # Visualization
 
 For each marker gene strategy (e.g. `t_up_all`) we provide PDF heatmaps of *selected* marker genes for each cluster in [`output/cluster_marker_genes/`](../output/cluster_marker_genes/).
@@ -1154,7 +1331,7 @@ Some preliminary high-level summaries of the clusters are as follows:
     - Cluster 6 shares some markers with clusters 1 and 2 and others with clusters 3, 4, and 7.
     
 <aside>
-The [Targeted] gene lists may help identify genes that specifically distinguish clusters 2 and 6. We can do further targeted analyses as required.
+The [Targeted] gene lists may help identify genes that specifically distinguish clusters 2 and 6 as well as clusters 3, 4, and 6. We can add further targeted analyses as required.
 </aside>
 
 As mentioned, cluster 4 is perhaps the least distinct cluster in terms of marker genes.
