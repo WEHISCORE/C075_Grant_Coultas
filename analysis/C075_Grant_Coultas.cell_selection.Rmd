@@ -697,6 +697,10 @@ sce$cluster_colours <- cluster_colours[sce$cluster]
 
 There are `r nlevels(sce$cluster)` clusters detected, shown on the UMAP plot Figure \@ref(fig:mnn-corrected-clusterplot-umap) and broken down by experimental factors in Figure \@ref(fig:mnn-corrected-cluster-barplot).
 
+<aside>
+PDFs version of the panels in Figure \@ref(fig:mnn-corrected-clusterplot-umap), with and without legends, are available in [`output/umap_plots/](../output/umap_plots/).
+</aside>
+
 ```{r mnn-corrected-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
 p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
   geom_point(aes(colour = cluster), size = 0.25) +
@@ -724,6 +728,51 @@ p4 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
   ylab("Dimension 2")
 
 (p1 | p2) / (p3 | p4)
+
+umap_plot_dir <- here("output", "umap_plots")
+
+dir.create(umap_plot_dir)
+ggsave(
+  file.path(umap_plot_dir, "umap_coloured_by_cluster.pdf"),
+  p1, 
+  width = 7,
+  height = 6)
+ggsave(
+  file.path(umap_plot_dir, "umap_coloured_by_genotype.pdf"),
+  p2, 
+  width = 7,
+  height = 6)
+ggsave(
+  file.path(umap_plot_dir, "umap_coloured_by_sex.pdf"),
+  p3, 
+  width = 7,
+  height = 6)
+ggsave(
+  file.path(umap_plot_dir, "umap_coloured_by_plate_number.pdf"),
+  p4, 
+  width = 7,
+  height = 6)
+
+ggsave(
+  file.path(umap_plot_dir, "umap_coloured_by_cluster_no_legend.pdf"),
+  p1 + guides(colour = FALSE), 
+  width = 5,
+  height = 5)
+ggsave(
+  file.path(umap_plot_dir, "umap_coloured_by_genotype_no_legend.pdf"),
+  p2 + guides(colour = FALSE), 
+  width = 5,
+  height = 5)
+ggsave(
+  file.path(umap_plot_dir, "umap_coloured_by_sex_no_legend.pdf"),
+  p3 + guides(colour = FALSE), 
+  width = 5,
+  height = 5)
+ggsave(
+  file.path(umap_plot_dir, "umap_coloured_by_plate_number_no_legend.pdf"),
+  p4 + guides(colour = FALSE), 
+  width = 5,
+  height = 5)
 ```
 
 ```{r mnn-corrected-cluster-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of clusters by experimental factors."}
