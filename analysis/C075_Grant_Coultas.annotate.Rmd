@@ -239,8 +239,8 @@ lapply(seq_len(nrow(zoes_markers)), function(i) {
     x = "cluster",
     exprs_values = "logcounts",
     colour_by = "cluster",
-    other_fields = c("sex", "genotype")) + 
-    facet_grid(sex ~ genotype) + 
+    other_fields = "genotype") +
+    facet_grid(~ genotype) +
     scale_fill_manual(values = cluster_colours) +
     guides(fill = guide_legend(title = "cluster")) +
     ggtitle(feature)
@@ -260,8 +260,8 @@ lapply(seq_len(nrow(zoes_markers)), function(i) {
     x = "cluster",
     exprs_values = "reconstructed",
     colour_by = "cluster",
-    other_fields = c("sex", "genotype")) + 
-    facet_grid(sex ~ genotype) + 
+    other_fields = c("genotype")) + 
+    facet_grid(~ genotype) + 
     scale_fill_manual(values = cluster_colours) +
     guides(fill = guide_legend(title = "cluster")) +
     ggtitle(feature)
