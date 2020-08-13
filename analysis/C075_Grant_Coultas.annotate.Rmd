@@ -1153,6 +1153,7 @@ cycle.markers <- getTopMarkers(phase.stats[[1]], phase.stats[[2]])
 Unlike the cyclin-based analysis, this approach yields "absolute" assignments of cell cycle phase that do not need to be interpreted relative to other cells in the same dataset.
 
 ```{r}
+library(SingleR)
 # Switching row names back to Ensembl to match the reference.
 test.data <- logcounts(sce)
 rownames(test.data) <- sub("\\.[0-9]+$", "", rowData(sce)$ENSEMBL.GENEID)
