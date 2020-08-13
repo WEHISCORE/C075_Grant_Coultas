@@ -1528,7 +1528,7 @@ sce <- logNormCounts(sce)
 
 Zoe requested a violin plot of *Pglyrp1* expression in all cells, which is available as [`output/violin_plots/Pglyrp1.violin_plot.logcounts.pdf`](output/violin_plots/Pglyrp1.violin_plot.logcounts.pdf).
 
-```{r}
+```{r, results = "hide"}
 dir.create(here("output", "violin_plots"))
 pdf(
   here("output", "violin_plots", "Pglyrp1.violin_plot.logcounts.pdf"), 
