@@ -1600,19 +1600,33 @@ Used this way, the provided cluster marker gene lists can help develop biologica
 We strongly recommend that you visualise the expression patterns of any genes of interest to better understand what is driving their inclusion in the marker gene lists.
 </aside>
 
-<!-- # Concluding remarks -->
+# Concluding remarks
 
-<!-- TODO: If Zoe provides cell or cluster-level annotation, I'll add them to the bottom of this report and add to the SCE. -->
+Zoe requested that clusters 3, 4, and 6 be aggregated for the purposes of differential analyses.
 
-<!-- ```{r} -->
-<!-- saveRDS( -->
-<!--   sce, -->
-<!--   here("data", "SCEs", "C075_Grant_Coultas.annotated.SCE.rds"), -->
-<!--   compress = "xz") -->
-<!-- ``` -->
+```{r}
+colLabels(sce) <- dplyr::case_when(
+  sce$cluster %in% c("3", "4", "6") ~ "clusters_3_4_6",
+  TRUE ~ paste0("cluster_", sce$cluster))
+sce$label_colours <- setNames(
+  dplyr::case_when(
+    sce$cluster %in% c("3", "4", "6") ~ "dodgerblue",
+    TRUE ~ sce$cluster_colours),
+  colLabels(sce))
+label_colours <- setNames(
+  unique(sce$label_colours),
+  unique(names(sce$label_colours)))
+```
 
-<!-- The processed *SingleCellExperiment* object is available (see [`data/SCEs/C075_Grant_Coultas.annotated.SCE.rds`](../data/SCEs/C075_Grant_Coultas.annotated.SCE.rds)). -->
-<!-- This will be used in downstream analyses, e.g., differential expression analysis between conditions within each cluster and differential abundance analyses between conditions for each cluster. -->
+```{r}
+saveRDS(
+  sce,
+  here("data", "SCEs", "C075_Grant_Coultas.annotated.SCE.rds"),
+  compress = "xz")
+```
+
+The processed *SingleCellExperiment* object is available (see [`data/SCEs/C075_Grant_Coultas.annotated.SCE.rds`](../data/SCEs/C075_Grant_Coultas.annotated.SCE.rds)).
+This will be used in downstream analyses, e.g., differential expression analysis between conditions within each cluster and differential abundance analyses between conditions for each cluster.
 
 # Additional information {.appendix}
 
