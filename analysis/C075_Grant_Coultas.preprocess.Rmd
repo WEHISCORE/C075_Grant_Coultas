@@ -1524,6 +1524,20 @@ To reiterate, the assumptions required for spike-in size factors are not met and
 sce <- logNormCounts(sce)
 ```
 
+# Inspecting *Pglyrp1* expression
+
+Zoe requested a violin plot of *Pglyrp1* expression in all cells, which is available as [`output/violin_plots/Pglyrp1.violin_plot.logcounts.pdf`](output/violin_plots/Pglyrp1.violin_plot.logcounts.pdf).
+
+```{r}
+dir.create(here("output", "violin_plots"))
+pdf(
+  here("output", "violin_plots", "Pglyrp1.violin_plot.logcounts.pdf"), 
+  height = 5,
+  width = 5)
+plotExpression(sce, "Pglyrp1", feature_colours = FALSE)
+dev.off()
+```
+
 # Feature selection
 
 ## Motivation
