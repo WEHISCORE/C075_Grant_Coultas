@@ -311,6 +311,27 @@ Such cells can interfere with downstream analyses, e.g., by forming distinct clu
 
 ## Visualizing the QC metrics
 
+The plate-level summaries of selected QC metrics are given in the table below.
+
+```{r}
+dplyr::bind_rows(
+  makePerCellDF(sce, exprs_values = "counts") %>%
+    dplyr::group_by(plate_number) %>%
+    dplyr::summarise(
+      median_sum = median(sum),
+      mean_sum = mean(sum),
+      median_detected = median(detected),
+      mean_detected = mean(detected)),
+  makePerCellDF(sce, exprs_values = "counts") %>%
+  dplyr::summarise(
+    median_sum = median(sum),
+    mean_sum = mean(sum),
+    median_detected = median(detected),
+    mean_detected = mean(detected)) %>%
+  dplyr::mutate(plate_number = "overall")) %>%
+  knitr::kable(caption = "Summary of selected QC metrics.")
+```
+
 The distributions of these metrics are shown in Figure \@ref(fig:qcplot-by-plate-by-mouse), stratified by plate and mouse.
 
 <aside>
