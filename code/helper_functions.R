@@ -362,5 +362,6 @@ my_cvd_grid <- function(plot = last_plot(), severity = 1) {
     label_x = 0.01,
     label_y = 0.99,
     label_size = 12,
-    label_fontface = "bold")
+    label_fontface = "bold",
+    ncol = 2)
 }

@@ -95,7 +95,7 @@ In ['Selection of biologically relevant cells for the Grant (C075) retinal epith
 In this section we use [Pre-defined marker genes] and perform [Cluster marker gene detection] to construct *de novo* marker gene lists that can be used to aid the interpretation of the clustering results, i
 The *de novo* marker genes lists use a data driven approach to identify those genes that drive separation between clusters whereas the pre-defined marker genes are a more targeted approach to cluster annotation.
 These two approaches complement one another.
-We also describe the choice of [Visualization] options for marker gene analyses.
+We also describe the choice of [Visualization] options for these plots and others, as well instructions for how to make your own plots.
 
 As a reminder, Figure \@ref(fig:clusterplot-umap) shows the clustering results overlaid on the UMAP plot and Figure \@ref(fig:cluster-barplot) breaks down the clusters by key experimental factors.
 
@@ -1313,6 +1313,188 @@ pheatmap(
   breaks = seq(zlim[1], zlim[2], length.out = 101),
   main = "logcounts  (row-normalized)",
   fontsize = 6)
+```
+
+## Choice of gradient colour scale
+
+A commonly used plot is a UMAP plot overlaid with the expression of a selected gene using a gradient colour scale.
+For example, Figure \@ref(fig:sox17-umap-viridis) shows this for *Sox17*.
+
+<aside>
+Similar plots are shown in Figure \@ref(fig:umap-with-facs) but visualizing cell surface protein expression as measured by FACS index sorting instead of gene expression. 
+</aside>
+
+```{r sox17-umap-viridis, fig.cap = "UMAP plot with points coloured by Sox17 expression using the viridis colour gradient.", fig.asp = 0.8}
+ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17)) +
+  theme_cowplot() +
+  scale_colour_viridis_c(option = "viridis")
+```
+
+The gene expression measurements are shown using the 'viridis' colour gradient, which is one of the five viridis colour palettes ('viridis', 'magma', 'plasma', 'inferno', and 'cividis').
+
+<aside>
+Yep, *viridis* is both the name of the set of palettes *and* the name of one of the individual palettes. ¯\\\_(ツ)\_/¯
+</aside>
+
+I strongly recommend using one of the viridis colour palettes to show the expression values because they are designed to be^[See [https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html](https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html) for details.]:
+
+- **Colourful**, spanning as wide a palette as possible so as to make differences easy to see
+- **Perceptually uniform**, meaning that values close to each other have similar-appearing colours and values far away from each other have more different-appearing colours, consistently across the range of values
+- **Robust to colour blindness**, so that the above properties hold true for people with common forms of colourblindness, as well as in grey scale printing
+
+Figure \@ref(fig:sox-17-lightblue-red) compares the viridis palette to the commonly used lightblue-red colour gradient for these same data, revealing that the lightblue-red colour gradient is not perceptually uniform, e.g.,:
+
+- The bottom half of the lightblue-red colour gradient is perceptually 'compressed'
+- It is hard to distinguish values between 3--5 using the lightblue-red gradient
+- The perceptual midpoint of the viridis colour gradient matches the midpoint of the 0--5 range of expression values whereas the perceptual midpoint of the lightblue-red colour gradient occurs somewhere below 1
+
+```{r sox-17-lightblue-red, fig.cap = "UMAP plot with points coloured by Sox17 expression using the lightblue-red colour gradient.", fig.asp = 2 / 5}
+p <- ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17), size = 0.5) +
+  theme_cowplot(font_size = 10) +
+  scale_colour_viridis_c(option = "viridis")
+
+plot_grid(
+  p,
+  p + scale_colour_gradient(low = "lightblue", high = "red"),
+  ncol = 2)
+```
+
+Figure \@ref(fig:sox17-umap-viridis-cvd) to \@ref(fig:sox17-umap-cividis-cvd) simulate what this same plot would like to people with various common colour-deficiencies using each of the viridis palettes and shows that the data are still very much interpretable in all cases using any of these palettes.
+
+```{r sox17-umap-viridis-cvd, fig.cap = "UMAP plot with points coloured by Sox17 expression using the viridis colour gradient and simulating various common colour deficiencies.", fig.asp = 1.2}
+p <- ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17), size = 0.5) +
+  theme_cowplot(font_size = 10) +
+  scale_colour_viridis_c(option = "viridis")
+
+my_cvd_grid(p)
+```
+
+```{r sox17-umap-magma-cvd, fig.cap = "UMAP plot with points coloured by Sox17 expression using the magma colour gradient and simulating various common colour deficiencies.", fig.asp = 1.2}
+p <- ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17), size = 0.5) +
+  theme_cowplot(font_size = 10) +
+  scale_colour_viridis_c(option = "magma")
+
+my_cvd_grid(p)
+```
+
+```{r sox17-umap-inferno-cvd, fig.cap = "UMAP plot with points coloured by Sox17 expression using the inferno colour gradient and simulating various common colour deficiencies.", fig.asp = 1.2}
+p <- ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17), size = 0.5) +
+  theme_cowplot(font_size = 10) +
+  scale_colour_viridis_c(option = "inferno")
+
+my_cvd_grid(p)
+```
+
+```{r sox17-umap-plasma-cvd, fig.cap = "UMAP plot with points coloured by Sox17 expression using the plasma colour gradient and simulating various common colour deficiencies.", fig.asp = 1.2}
+p <- ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17), size = 0.5) +
+  theme_cowplot(font_size = 10) +
+  scale_colour_viridis_c(option = "plasma")
+
+my_cvd_grid(p)
+```
+
+```{r sox17-umap-cividis-cvd, fig.cap = "UMAP plot with points coloured by Sox17 expression using the cividis colour gradient and simulating various common colour deficiencies.", fig.asp = 1.2}
+p <- ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17), size = 0.5) +
+  theme_cowplot(font_size = 10) +
+  scale_colour_viridis_c(option = "cividis")
+
+my_cvd_grid(p)
+```
+
+Finally, if a greyscale version of the plot is required then it may be preferable to reverse the direction of the colour gradient (i.e. low is lightgrey, high is black).
+Figure \@ref(fig:sox17-umap-greyscale) shows both options.
+
+```{r sox17-umap-greyscale, fig.cap = "UMAP plot with points coloured by Sox17 expression using a greyscale colour gradient running in each direction.", fig.asp = 2 / 5}
+p <- ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17), size = 0.5) +
+  theme_cowplot(font_size = 10) +
+  scale_colour_viridis_c(option = "cividis")
+
+plot_grid(
+  p + scale_colour_gradient(low = "black", high = "grey90"),
+  p + scale_colour_gradient(low = "grey90", high = "black"),
+  ncol = 2)  
+```
+
+## Making your own UMAP plot coloured by gene expression
+
+To make your own UMAP plot coloured by gene expression is fairly straightforward.
+Here I give some example code demonstrating how I made the UMAP plot showing *Sox17* expression and how you might extend this.
+Each plot can be saved as a PDF within RStudio (see the 'Export' tab in the 'Plots' pane.)
+
+To run these examples you will need R version 4.0 and I also recommend using RStudio.
+You will first need to install a few R packages (if they are not already installed).
+These packages can be installed and loaded as follows:
+
+```{r, eval = FALSE, echo = TRUE}
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
+
+if (!requireNamespace("scater", quietly = TRUE)) {
+    BiocManager::install("scater")
+}
+
+if (!requireNamespace("cowplot", quietly = TRUE)) {
+    BiocManager::install("cowplot")
+}
+```
+
+Once these are installed, you can load the required packages into the R session as follows:
+
+```{r, eval = FALSE, echo = FALSE}
+library(scater)
+library(cowplot)
+```
+
+You will then need to load the `data/SCEs/C075_Grant_Coultas.cells_selected.SCE.rds` *SingleCellExperiment* object into your R session.
+One way of doing this is to adapt the following code:
+
+<aside>
+Alternatively, you can load the object from the 'Files' pane in RStudio.
+</aside>
+
+```{r, echo = TRUE, eval = FALSE}
+# NOTE: You will need to modify this to where the object is saved on your 
+#       computer.
+path_to_se <- "data/SCEs/C075_Grant_Coultas.annotated.SCE.rds"
+
+sce <- readRDS(path_to_se)
+```
+
+You can then create a plot in your R session.
+Let's re-make the the UMAP plot showing *Sox17* expression with the viridis colour palette:
+
+```{r, echo = TRUE, fig.asp = 0.8}
+ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17)) +
+  theme_cowplot() +
+  scale_colour_viridis_c(option = "viridis")
+```
+
+To make a version of that plot using the greyscale colour palette requires us to change just the final line of that command:
+
+```{r, echo = TRUE, fig.asp = 0.8}
+ggcells(sce, features = "Sox17") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Sox17)) +
+  theme_cowplot() +
+  scale_colour_gradient(low = "grey90", high = "black")
+```
+
+To plot a different gene requires just two small changes, e.g., to plot *Hist1h2ap* expression:
+
+```{r, echo = TRUE, fig.asp = 0.8}
+ggcells(sce, features = "Hist1h2ap") + 
+  geom_point(aes(x = UMAP.1, y = UMAP.2, colour = Hist1h2ap)) +
+  theme_cowplot() +
+  scale_colour_viridis_c(option = "viridis")
 ```
 
 # Summary
