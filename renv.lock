@@ -516,6 +516,18 @@
       "Repository": "CRAN",
       "Hash": "08cf4045c149a0f0eaf405324c7495bd"
     },
+    "colorblindr": {
+      "Package": "colorblindr",
+      "Version": "0.1.0",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "colorblindr",
+      "RemoteUsername": "clauswilke",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "1d0d5afef105df0f97715fcdd67f3203a383a2dc",
+      "Hash": "b13ef0011a6a32a9e81260e0e327e9a0"
+    },
     "colorspace": {
       "Package": "colorspace",
       "Version": "1.4-1",
