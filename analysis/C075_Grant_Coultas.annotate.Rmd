@@ -92,10 +92,9 @@ In ['Selection of biologically relevant cells for the Grant (C075) retinal epith
 
 1. 'cluster' labels using clustering. Obtaining clusters of cells is fairly straightforward, but it is more difficult to determine what biological state is represented by each of those clusters.
 
-In this section we use [Pre-defined marker genes] and perform [Cluster marker gene detection] to construct *de novo* marker gene lists that can be used to aid the interpretation of the clustering results, i
+In this section we use [Pre-defined marker genes] and perform [Cluster marker gene detection] to construct *de novo* marker gene lists that can be used to aid the interpretation of the clustering results.
 The *de novo* marker genes lists use a data driven approach to identify those genes that drive separation between clusters whereas the pre-defined marker genes are a more targeted approach to cluster annotation.
 These two approaches complement one another.
-We also describe the choice of [Visualization] options for these plots and others, as well instructions for how to make your own plots.
 
 As a reminder, Figure \@ref(fig:clusterplot-umap) shows the clustering results overlaid on the UMAP plot and Figure \@ref(fig:cluster-barplot) breaks down the clusters by key experimental factors.
 
@@ -164,10 +163,11 @@ p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) +
 (p1 | p2) / (p3 | p4)
 ```
 
+We conclude by performing [Cell cycle assignment] and by describing the choice of [Visualization] options for the plots used in this report, as well instructions for how to make your own plots.
+
 # Pre-defined marker genes
 
-We examine [Zoe's gene list] and a [Cell cycle gene list].
-We also perform a simple visualization of the [FACS markers].
+We examine [Zoe's gene list] and also perform a simple visualization of the [FACS markers].
 
 ## Zoe's gene list
 
@@ -364,120 +364,6 @@ p2
 dev.off()
 ```
 
-## Cell cycle gene list
-
-### Motivation
-
-On occasion, it can be desirable to determine cell cycle activity from scRNA-seq data.
-In and of itself, the distribution of cells across phases of the cell cycle is not usually informative, but we can use this to determine if there are differences in cell cycle progression between subpopulations or across treatment conditions.
-Many of the key events in the cell cycle (e.g., passage through checkpoints) are post-translational and thus not directly visible in transcriptomic data; nonetheless, there are enough changes in expression that can be exploited to determine cell cycle phase.
-
-### Analysis
-
-#### Using the cyclins
-
-```{r, results = "hide"}
-cyclin_genes <- grep("^Ccn[abde][0-9]$", rownames(sce))
-cyclin_genes <- rownames(sce)[cyclin_genes]
-cyclin_genes
-```
-
-The cyclins control progression through the cell cycle and have well-characterized patterns of expression across cell cycle phases.
-The cyclins available in this dataset are as follows: `r glue::glue_collapse(cyclin_genes, ", ", last = ", and ")`.
-
-- Cyclin A is expressed across S and G2.
-- cyclin B is expressed highest in late G2 and mitosis.
-- Cyclin D is expressed throughout but peaks at G1.
-- Cyclin E is expressed highest in the G1/S transition.
-
-Inspection of the relative expression of cyclins across the population can often be sufficient to determine the relative cell cycle activity in each cluster.
-
-For example, Figure \@ref(fig:cyclin-heatmap) shows that clusters 1 and 2 have higher expression of cyclins A, B, and E and therefore may be in S,G2 or G2/M phase while the other clusters are scattered across the later phases.
-
-```{r cyclin-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of `logcounts` (left) and row-normalized `logcounts` values (right) for Zoe's marker genes. Each column is a sample, each row a gene. Samples are ordered by `cluster` then by `genotype`. Row (gene) and column (cell) order are preserved across the two heatmaps."}
-features <- sort(cyclin_genes)
-
-o <- order(sce$cluster, sce$genotype)
-
-mat <- assay(sce, "logcounts")[features, ]
-p1 <- pheatmap(
-  mat = mat[, o],
-  color = viridisLite::magma(101),
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  show_colnames = FALSE,
-  annotation_col = data.frame(
-    cluster = sce$cluster[o],
-    genotype = sce$genotype[o],
-    row.names = colnames(sce)[o]),
-  annotation_colors = list(
-    cluster = cluster_colours[levels(sce$cluster)],
-    genotype = genotype_colours),
-  silent = TRUE,
-  main = "logcounts",
-  fontsize = 6)
-
-mat <- mat - rowMeans(mat)
-zlim <- c(-max(abs(mat)), max(abs(mat)))
-mat[mat < zlim[1]] <- zlim[1]
-mat[mat > zlim[2]] <- zlim[2]
-p2 <- pheatmap(
-  mat = mat[, o],
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  show_colnames = FALSE,
-  annotation_col = data.frame(
-    cluster = sce$cluster[o],
-    genotype = sce$genotype[o],
-    row.names = colnames(sce)[o]),
-  annotation_colors = list(
-    cluster = cluster_colours[levels(sce$cluster)],
-    genotype = genotype_colours),
-  breaks = seq(zlim[1], zlim[2], length.out = 101),
-  silent = TRUE,
-  main = "logcounts (row-normalized)",
-  fontsize = 6)
-
-gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
-```
-
-We can also use standard differential expression methods to look for upregulation of each cyclin, allowing us to determine if there are more cells in the corresponding phase of the cell cycle between subpopulations.
-
-Here we use pairwise Wilcoxon rank sum tests to compute differential expression of cycline genes between each pair of clusters.
-The Wilcoxon test estimates effect sizes as overlap proportions (`overlap` in the tables below).
-The overlap proportion is defined as the probability that a randomly selected cell in $A$ has a greater expression value of $X$ than a randomly selected cell in $B$.
-Overlap proportions near 0 ($A$ is lower than $B$) or 1 ($A$ is higher than $B$) indicate that the expression distributions are well-separated.
-The Wilcoxon rank sum test effectively tests for significant deviations from an overlap proportion of 0.5.
-
-```{r}
-cyclin_markers <- findMarkers(
-  sce, 
-  subset.row = sort(cyclin_genes), 
-  group = sce$cluster, 
-  block = sce$Sample, 
-  direction = "up", 
-  pval.type = "any",
-  test.type = "wilcox")
-
-g2_cluster <- "1"
-```
-
-We can infer that cluster `r g2_cluster` likely has more cells in S,G2 or G2/M than the other clusters, based on higher expression of some of the cyclin A, B, and E genes.
-
-```{r}
-knitr::kable(
-  as.data.frame(cyclin_markers[[g2_cluster]]),
-  caption = paste0(
-    "Cyclin DE analysis comparing cluster ",
-    g2_cluster,
-    " to all other clusters."),
-  digits = 2)
-```
-
-Direct examination of cyclin expression is easily understood, interpreted and validated with other technologies.
-However, it is best suited for statements about relative cell cycle activity; for example, we would find it difficult to assign cell cycle phase in Figure \@ref(fig:cyclin-heatmap) without the presence of clusters spanning all phases to provide benchmarks for "high" and "low" expression of each cyclin.
-We also assume that cyclin expression is not affected by biological processes other than the cell cycle, which may be a strong assumption in some cases, e.g., malignant cells.
-
 ## FACS markers
 
 ```{r}
@@ -547,16 +433,7 @@ multiplot(
   layout = matrix(seq_len(length(p) * 2), ncol = 2, byrow = TRUE))
 ```
 
-## Summary
 
-We can infer that cluster `r g2_cluster` likely contains cells in S,G2 or G2/M phase (based on higher expression of some of the cyclin A, B, and E genes) and that the remaining clusters are likely in G1 (based on fairly ubiquitous expression of cyclin D genes and no strong upregulation of the other cyclins).
-
-For some time, it was popular to regress out the cell cycle phase prior to downstream analyses.
-The aim was to remove uninteresting variation due to cell cycle, thus improving resolution of other biological processes of interest.
-However, we do not consider adjusting for cell cycle to be a necessary step in routine scRNA-seq analyses.
-
-Any attempt at removal would need to assume that the cell cycle effect is orthogonal to other biological processes.
-If this was violated (i.e. the cell cycle effect was associated with other biological processes), then the regression would potentially remove interesting signal if cell cycle activity varied across clusters or conditions.
 
 # Cluster marker gene detection
 
@@ -1115,6 +992,282 @@ createClusterMarkerOutputs(
   width = 6,
   height = 7.5)
 ```
+
+# Cell cycle assignment
+
+On occasion, it can be desirable to determine cell cycle activity from scRNA-seq data.
+In and of itself, the distribution of cells across phases of the cell cycle is not usually informative, but we can use this to determine if there are differences in cell cycle progression between subpopulations or across treatment conditions.
+Many of the key events in the cell cycle (e.g., passage through checkpoints) are post-translational and thus not directly visible in transcriptomic data; nonetheless, there are enough changes in expression that can be exploited to determine cell cycle phase.
+
+## Using the cyclins
+
+```{r, results = "hide"}
+cyclin_genes <- grep("^Ccn[abde][0-9]$", rownames(sce))
+cyclin_genes <- rownames(sce)[cyclin_genes]
+cyclin_genes
+```
+
+The cyclins control progression through the cell cycle and have well-characterized patterns of expression across cell cycle phases.
+The cyclins available in this dataset are as follows: `r glue::glue_collapse(cyclin_genes, ", ", last = ", and ")`.
+
+- Cyclin A is expressed across S and G2.
+- cyclin B is expressed highest in late G2 and mitosis.
+- Cyclin D is expressed throughout but peaks at G1.
+- Cyclin E is expressed highest in the G1/S transition.
+
+Inspection of the relative expression of cyclins across the population can often be sufficient to determine the relative cell cycle activity in each cluster.
+
+For example, Figure \@ref(fig:cyclin-heatmap) shows that clusters 1 and 2 have higher expression of cyclins A, B, and E and therefore may be in S,G2 or G2/M phase while the other clusters are scattered across the later phases.
+
+```{r cyclin-heatmap, fig.wide = TRUE, fig.cap = "Heatmap of `logcounts` (left) and row-normalized `logcounts` values (right) for Zoe's marker genes. Each column is a sample, each row a gene. Samples are ordered by `cluster` then by `genotype`. Row (gene) and column (cell) order are preserved across the two heatmaps."}
+features <- sort(cyclin_genes)
+
+o <- order(sce$cluster, sce$genotype)
+
+mat <- assay(sce, "logcounts")[features, ]
+p1 <- pheatmap(
+  mat = mat[, o],
+  color = viridisLite::magma(101),
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    genotype = sce$genotype[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)],
+    genotype = genotype_colours),
+  silent = TRUE,
+  main = "logcounts",
+  fontsize = 6)
+
+mat <- mat - rowMeans(mat)
+zlim <- c(-max(abs(mat)), max(abs(mat)))
+mat[mat < zlim[1]] <- zlim[1]
+mat[mat > zlim[2]] <- zlim[2]
+p2 <- pheatmap(
+  mat = mat[, o],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    cluster = sce$cluster[o],
+    genotype = sce$genotype[o],
+    row.names = colnames(sce)[o]),
+  annotation_colors = list(
+    cluster = cluster_colours[levels(sce$cluster)],
+    genotype = genotype_colours),
+  breaks = seq(zlim[1], zlim[2], length.out = 101),
+  silent = TRUE,
+  main = "logcounts (row-normalized)",
+  fontsize = 6)
+
+gridExtra::grid.arrange(p1$gtable, p2$gtable, ncol = 2)
+```
+
+We can also use standard differential expression methods to look for upregulation of each cyclin, allowing us to determine if there are more cells in the corresponding phase of the cell cycle between subpopulations.
+
+Here we use pairwise Wilcoxon rank sum tests to compute differential expression of cyclin genes between each pair of clusters.
+The Wilcoxon test estimates effect sizes as overlap proportions (`overlap` in the tables below).
+The overlap proportion is defined as the probability that a randomly selected cell in $A$ has a greater expression value of $X$ than a randomly selected cell in $B$.
+Overlap proportions near 0 ($A$ is lower than $B$) or 1 ($A$ is higher than $B$) indicate that the expression distributions are well-separated.
+The Wilcoxon rank sum test effectively tests for significant deviations from an overlap proportion of 0.5.
+
+```{r}
+cyclin_markers <- findMarkers(
+  sce, 
+  subset.row = sort(cyclin_genes), 
+  group = sce$cluster, 
+  block = sce$Sample, 
+  direction = "up", 
+  pval.type = "any",
+  test.type = "wilcox")
+
+g2_clusters <- c("1", "2")
+```
+
+We can infer that clusters `r glue::glue_collapse(g2_clusters, sep = " and ")` likely have more cells in S, G2, and M phases than the other clusters, based on higher expression of some of the cyclin A and B genes.
+
+```{r}
+DT::datatable(
+  as.data.frame(cyclin_markers[[g2_clusters[[1]]]]),
+  caption = paste0(
+    "Cyclin DE analysis comparing cluster ",
+    g2_clusters[1],
+    " to all other clusters.")) %>%
+  DT::formatSignif(
+    c("p.value", "FDR", "summary.AUC", paste0("AUC.", 2:7)),
+    digits = 2)
+```
+
+```{r}
+DT::datatable(
+  as.data.frame(cyclin_markers[[g2_clusters[[2]]]]),
+  caption = paste0(
+    "Cyclin DE analysis comparing cluster ",
+    g2_clusters[2],
+    " to all other clusters.")) %>%
+  DT::formatSignif(
+    c("p.value", "FDR", "summary.AUC", paste0("AUC.", c(1, 3:7))),
+    digits = 2)
+```
+
+Direct examination of cyclin expression is easily understood, interpreted and validated with other technologies.
+However, it is best suited for statements about relative cell cycle activity; for example, we would find it difficult to assign cell cycle phase in Figure \@ref(fig:cyclin-heatmap) without the presence of clusters spanning all phases to provide benchmarks for "high" and "low" expression of each cyclin.
+We also assume that cyclin expression is not affected by biological processes other than the cell cycle, which may be a strong assumption in some cases, e.g., malignant cells.
+
+## Using reference profiles
+
+Cell cycle assignment can be considered a specialized case of cell annotation, which suggests that we can use the `r BiocStyle::Biocpkg("SingleR")` package with an appropriate reference dataset.
+For example, given a reference dataset containing mouse ESCs with known cell cycle phases^[Buettner et al. 2015], we could use `r BiocStyle::Biocpkg('SingleR')` to determine the phase of each cell in a test dataset.
+
+We use the reference dataset to identify phase-specific markers from genes with annotated roles in cell cycle.
+The use of prior annotation aims to avoid detecting markers for other biological processes that happen to be correlated with the cell cycle in the reference dataset, which would reduce classification performance if those processes are absent or uncorrelated in the test dataset.
+
+```{r}
+# Adapted from 
+# https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles
+library(scRNAseq)
+sce.ref <- BuettnerESCData()
+# Find genes that are present in both datasets and are cell cycle-related.
+library(org.Mm.eg.db)
+cycle.anno <- select(
+  org.Mm.eg.db,
+  keytype = "GOALL",
+  keys = "GO:0007049", 
+  columns = "ENSEMBL")[,"ENSEMBL"]
+candidates <- Reduce(
+  intersect, 
+  list(rownames(sce.ref), sub("\\.[0-9]+$", "", rowData(sce)$ENSEMBL.GENEID), cycle.anno))
+# Identifying markers between cell cycle phases.
+sce.ref <- logNormCounts(sce.ref)
+phase.stats <- pairwiseWilcox(
+  logcounts(sce.ref), 
+  sce.ref$phase, 
+  direction = "up",
+  subset.row = candidates)
+cycle.markers <- getTopMarkers(phase.stats[[1]], phase.stats[[2]])
+```
+
+Unlike the cyclin-based analysis, this approach yields "absolute" assignments of cell cycle phase that do not need to be interpreted relative to other cells in the same dataset.
+
+```{r}
+# Switching row names back to Ensembl to match the reference.
+test.data <- logcounts(sce)
+rownames(test.data) <- sub("\\.[0-9]+$", "", rowData(sce)$ENSEMBL.GENEID)
+assignments <- SingleR(
+  test.data, 
+  ref = sce.ref,
+  label = sce.ref$phase, 
+  genes = cycle.markers,
+  )
+janitor::tabyl(
+  data.frame(labels = assignments$labels, cluster = sce$cluster),
+  cluster,
+  labels) %>%
+  knitr::kable(
+    caption = 
+      "Assignement of cells in each cluster to a cell cycle phase with the 'reference profiles' approach.")
+```
+
+The key assumption here is that the cell cycle is orthogonal to cell type and other aspects of cell behaviour.
+This justifies the use of a reference involving cell types that are quite different from the cells in the test dataset, provided that the cell cycle transcriptional program is conserved across datasets^[Bertoli, Skotheim, and Bruin 2013; Conboy et al. 2007].
+However, it is not difficult to find routine violations of this assumption^[see [https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles](https://osca.bioconductor.org/cell-cycle-assignment.html#using-reference-profiles) for an illustration].
+
+Thus, a healthy dose of scepticism is required when interpreting these assignments. 
+Our hope is that any systematic assignment error is consistent across clusters and conditions such that they cancel out in comparisons of phase frequencies, which is the more interesting analysis anyway.
+Indeed, while the availability of absolute phase calls may be more appealing, it may not make much practical difference to the conclusions if the frequencies are ultimately interpreted in a relative sense (e.g., using a chi-squared test).
+
+## Using the `cyclone()` classifier
+
+The prediction method described by [@scialdone2015computational] is another approach for classifying cells into cell cycle phases.
+Using a reference dataset, we first compute the sign of the difference in expression between each pair of genes.
+Pairs with changes in the sign across cell cycle phases are chosen as markers.
+Cells in a test dataset can then be classified into the appropriate phase, based on whether the observed sign for each marker pair is consistent with one phase or another. 
+This approach is implemented in the `cyclone()` function from the `R BiocStyle::Biocpkg("scran")` package.
+
+```{r}
+mm_pairs <- readRDS(
+  system.file("exdata", "mouse_cycle_markers.rds", package = "scran"))
+# Using Ensembl IDs to match up with the annotation in `mm_pairs`.
+set.seed(100)
+assignments <- cyclone(
+  sce,
+  mm_pairs,
+  gene.names = sub("\\.[0-9]+$", "", rowData(sce)$ENSEMBL.GENEID))
+sce$cyclone_phases <- assignments$phases
+```
+
+The phase assignment result for each cell in the dataset is shown in Figure \@ref(fig:cyclone). 
+For each cell, a higher score for a phase corresponds to a higher probability that the cell is in that phase.
+We recommend focusing on the G1 and G2/M scores as these are the most informative for classification.
+
+```{r cyclone, fig.cap = "Cell cycle phase scores from applying the pair-based classifier on the dataset. Each point represents a cell, plotted according to its scores for G1 and G2/M phases, and coloured according to cluster.", fig.asp = 1}
+plot(
+  x = assignments$score$G1, 
+  y = assignments$score$G2M,
+  xlab = "G1 score",
+  ylab = "G2/M score",
+  pch = 16,
+  col = cluster_colours[sce$cluster])
+legend(
+  "bottomleft",
+  pch = 16,
+  col = cluster_colours[levels(sce$cluster)],
+  legend = names(cluster_colours[levels(sce$cluster)]),
+  title = "Cluster",
+  ncol = 2)
+```
+
+Cells are classified as being in G1 phase if the G1 score is above 0.5 and greater than the G2/M score; in G2/M phase if the G2/M score is above 0.5 and greater than the G1 score; and in S phase if neither score is above 0.5.
+
+Figure \@ref(fig:clusters-by-cyclone-phase) shows most cells are estimated as being in G1 phase.
+
+```{r clusters-by-cyclone-phase, fig.asp = 2 / 5, fig.cap = "Breakdown of clusters by phase (as predicted using cyclone)."}
+phase_colours <- setNames(
+  RColorBrewer::brewer.pal(3, "Accent"),
+  sort(unique(assignments$phases)))
+plot_grid(
+  ggplot(data.frame(phase = assignments$phases, cluster = sce$cluster)) +
+    geom_bar(
+      aes(x = cluster, fill = phase),
+      position = position_fill(reverse = TRUE)) + 
+    coord_flip() +
+    ylab("Frequency") +
+    scale_fill_manual(values = phase_colours) +
+    theme_cowplot(font_size = 6),
+  ggplot(as.data.frame(colData(sce))) + 
+    geom_bar(aes(x = cluster, fill = cluster)) +
+    coord_flip() +
+    ylab("Number of cells") +
+    scale_fill_manual(values = cluster_colours) +
+    theme_cowplot(font_size = 6),
+  align = "h",
+  ncol = 2)
+```
+
+The data used to generate Figure \@ref(fig:clusters-by-cyclone-phase) are also given in the table below.
+
+```{r}
+makePerCellDF(sce) %>%
+  janitor::tabyl(cluster, cyclone_phases) %>%
+  knitr::kable(
+    caption = "Number of cells from each cluster estimated to be in each cell cycle phase using the `cyclone()` classifier.")
+```
+
+The same considerations and caveats described for the 'reference profiles' approach are also applicable here.
+
+## Summary
+
+We can conclude that clusters `r glue::glue_collapse(g2_clusters, sep = " and ")` likely have more cells in S, G2, and M phases than the other clusters and that the remaining clusters are likely in G1 (based on fairly ubiquitous expression of cyclin D genes and no strong upregulation of the other cyclins).
+
+For some time, it was popular to regress out the cell cycle phase prior to downstream analyses.
+The aim was to remove uninteresting variation due to cell cycle, thus improving resolution of other biological processes of interest.
+However, we do not consider adjusting for cell cycle to be a necessary step in routine scRNA-seq analyses.
+
+Any attempt at removal would need to assume that the cell cycle effect is orthogonal to other biological processes.
+If this was violated (i.e. the cell cycle effect was associated with other biological processes), then the regression would potentially remove interesting signal if cell cycle activity varied across clusters or conditions.
 
 # Visualization
 
