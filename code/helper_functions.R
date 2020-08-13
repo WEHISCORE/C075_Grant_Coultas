@@ -336,3 +336,31 @@ createClusterMarkerOutputs <- function(prefix, outdir, markers, exprs_values, k,
     }
   }
 }
+
+# Adapted from colorblindr::cvd_grid() to include original plot.
+my_cvd_grid <- function(plot = last_plot(), severity = 1) {
+  deut <- function(c) colorspace::deutan(c, severity)
+  p1 <- colorblindr::edit_colors(plot, deut)
+  prot <- function(c) colorspace::protan(c, severity)
+  p2 <- colorblindr::edit_colors(plot, prot)
+  trit <- function(c) colorspace::tritan(c, severity)
+  p3 <- colorblindr::edit_colors(plot, trit)
+  des <- function(c) colorspace::desaturate(c, severity)
+  p4 <- colorblindr::edit_colors(plot, des)
+
+  cowplot::plot_grid(
+    plot, p1, p2, p3, p4,
+    scale = 0.9,
+    hjust = 0,
+    vjust = 1,
+    labels = c(
+      "Original",
+      "Deutanomaly",
+      "Protanomaly",
+      "Tritanomaly",
+      "Desaturated"),
+    label_x = 0.01,
+    label_y = 0.99,
+    label_size = 12,
+    label_fontface = "bold")
+}
