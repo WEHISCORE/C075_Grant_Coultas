@@ -365,3 +365,29 @@ my_cvd_grid <- function(plot = last_plot(), severity = 1) {
     label_fontface = "bold",
     ncol = 2)
 }
+
+# NOTE: This function is customised for the C075_Grant_Coultas project.
+createDEGOutputs <- function(outdir, de_results) {
+
+  # Create CSVs
+  message("Creating CSVs")
+  for (n in names(de_results)) {
+    message(n)
+    gzout <- gzfile(
+      description = file.path(outdir, paste0(n, ".DEGs.csv.gz")),
+      open = "wb")
+    here("output", "DEGs", paste0(n, ".DEGs.csv.gz"))
+    write.csv(
+      cbind(flattenDF(rowData(sce)), de_results[[n]]),
+      gzout,
+      # NOTE: quote = TRUE needed because some fields contain commas.
+      quote = TRUE,
+      row.names = FALSE)
+    close(gzout)
+  }
+
+  # TODO: Decide what figures I'm producing for DEGs.
+  # Create PDFs
+  # message("Creating PDFs")
+}
+

@@ -13,4 +13,350 @@ editor_options:
 bibliography: ref.bib
 ---
 
-**TODO**: This needs a complete re-write to modernise it to current best practices and in light of changes to the preceding steps in the analysis workflow.
+```{r setup}
+library(SingleCellExperiment)
+library(here)
+library(scater)
+library(cowplot)
+library(patchwork)
+library(BiocParallel)
+
+source(here("code", "helper_functions.R"))
+
+# NOTE: Using multiple cores seizes up my laptop. Can use more on unix box.
+options("mc.cores" = ifelse(Sys.info()[["nodename"]] == "PC1331", 2L, 8L))
+register(MulticoreParam(workers = getOption("mc.cores")))
+
+knitr::opts_chunk$set(
+  fig.path = "C075_Grant_Coultas.multi-sample_comparisons_files/")
+```
+
+# Motivation
+
+A powerful use of scRNA-seq technology lies in the design of replicated multi-condition experiments to detect changes in composition or expression between conditions.
+For example, a researcher could use this strategy to detect changes in cell type abundance after drug treatment [@richard2018tcell] or genetic modifications [@scialdone2016resolving].
+This provides more biological insight than conventional scRNA-seq experiments involving only one biological condition, especially if we can relate population changes to specific experimental perturbations.
+
+Differential analyses of multi-condition scRNA-seq experiments can be broadly split into two categories - differential expression (DE) and differential abundance (DA) analyses.
+The former tests for changes in expression between conditions for cells of the same type that are present in both conditions, while the latter tests for changes in the composition of cell types (or states, etc.) between conditions.
+
+For this experiment, we are interested in identifying differences between `genotype`.
+We are not interested in the differences due to `plate_number`, `sex`, and `mouse`, so we will block on these variables where possible.
+
+# Setting up the data
+
+We start from the preprocessed *SingleCellExperiment* object created in ['Annotating the Grant (C075) retinal epithelial cells data set'](C075_Grant_Coultas.annotate.html).
+
+```{r}
+sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.annotated.SCE.rds"))
+
+# Some useful colours
+plate_number_colours <- setNames(
+  unique(sce$plate_number_colours),
+  unique(names(sce$plate_number_colours)))
+sample_type_colours <- setNames(
+  unique(sce$sample_type_colours),
+  unique(names(sce$sample_type_colours)))
+genotype_colours <- setNames(
+  unique(sce$genotype_colours),
+  unique(names(sce$genotype_colours)))
+mouse_colours <- setNames(
+  unique(sce$mouse_colours),
+  unique(names(sce$mouse_colours)))
+sex_colours <- setNames(
+  unique(sce$sex_colours),
+  unique(names(sce$sex_colours)))
+sequencing_run_colours <- setNames(
+  unique(sce$sequencing_run_colours),
+  unique(names(sce$sequencing_run_colours)))
+cluster_colours <- setNames(
+  unique(sce$cluster_colours),
+  unique(names(sce$cluster_colours)))
+label_colours <- setNames(
+  unique(sce$label_colours),
+  unique(names(sce$label_colours)))
+
+# Some useful gene sets
+mito_set <- rownames(sce)[any(rowData(sce)$ENSEMBL.SEQNAME == "MT")]
+
+ribo_set <- grep("^Rp(s|l)", rownames(sce), value = TRUE)
+# NOTE: A more curated approach for identifying ribosomal protein genes 
+#       (https://github.com/Bioconductor/OrchestratingSingleCellAnalysis-base/blob/ae201bf26e3e4fa82d9165d8abf4f4dc4b8e5a68/feature-selection.Rmd#L376-L380)
+library(msigdbr)
+c2_sets <- msigdbr(species = "Mus musculus", category = "C2")
+ribo_set <- union(
+  ribo_set,
+  c2_sets[c2_sets$gs_name == "KEGG_RIBOSOME", ]$gene_symbol)
+
+sex_set <- rownames(sce)[any(rowData(sce)$ENSEMBL.SEQNAME %in% c("X", "Y"))]
+
+pseudogene_set <- rownames(sce)[
+  any(grepl("pseudogene", rowData(sce)$ENSEMBL.GENEBIOTYPE))]
+```
+
+As a reminder, Zoe requested that clusters 3, 4, and 6 be aggregated for the purposes of differential analyses.
+**We use these collapsed cluster labels as the cell labels in what follows.**
+Figure \@ref(fig:collabels-umap) shows the cell labels the UMAP plot.
+
+```{r collabels-umap, fig.cap = "UMAP plot, where each point represents a cell and is coloured according to the legend.", fig.asp = 2 / 5}
+p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = cluster), size = 0.5) +
+  scale_colour_manual(values = cluster_colours) + 
+  theme_cowplot(font_size = 8)
+p2 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
+  geom_point(aes(colour = label), size = 0.5) +
+  scale_colour_manual(values = label_colours) + 
+  theme_cowplot(font_size = 8)
+p1 | p2
+```
+
+Figure \@ref(fig:collabels-barplot) breaks down the cell labels by key experimental factors.
+
+```{r collabels-barplot, fig.asp = 1, fig.cap = "Breakdown of cell labels by experimental factors."}
+p1 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = label, fill = genotype),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = genotype_colours) +
+  theme_cowplot(font_size = 8)
+p2 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = label, fill = sex),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = sex_colours) +
+  theme_cowplot(font_size = 8)
+p3 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = label, fill = plate_number),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = plate_number_colours) +
+  theme_cowplot(font_size = 8)
+p4 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = label, fill = mouse),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = mouse_colours) +
+  theme_cowplot(font_size = 8)
+p5 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = label, fill = plate_number),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = plate_number_colours) +
+  theme_cowplot(font_size = 8)
+p6 <- ggcells(sce) + 
+  geom_bar(aes(x = label, fill = label)) +
+  coord_flip() +
+  ylab("Number of droplets") +
+  scale_fill_manual(values = label_colours) +
+  theme_cowplot(font_size = 8) + 
+  guides(fill = FALSE)
+
+(p1 | p2) / (p3 | p4) / (p5 | p6)
+```
+
+Figure \@ref(fig:plate-number-barplot) that the mice are partially matched by genotype, and sibship, within each plate.
+
+```{r plate-number-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of plates by experimental factors."}
+p1 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = plate_number, fill = genotype),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = genotype_colours) +
+  theme_cowplot(font_size = 8)
+
+p2 <- ggcells(sce) + 
+  geom_bar(
+    aes(x = plate_number, fill = mouse),
+    position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = mouse_colours) +
+  theme_cowplot(font_size = 8)
+
+p1 | p2
+```
+
+# Differential expression between conditions
+
+## Creating pseudo-bulk samples
+
+The most obvious differential analysis is to look for changes in expression between conditions.
+We perform the DE analysis separately for each label to identify cell type-specific transcriptional effects of genotype.
+The actual DE testing is performed on "pseudo-bulk" expression profiles [@tung2016batch], generated by summing counts together for all cells with the same combination of label and sample.
+This leverages the resolution offered by single-cell technologies to define the labels, and combines it with the statistical rigor of existing methods for DE analyses involving a small number of samples.
+
+```{r}
+# Define what constitutes a sample (i.e. replicate) in this experiment.
+sce$sample <- sce$mouse
+# Define colData columns to be kept for pseudo-bulked data.
+columns_to_keep <- c("mouse", "plate_number", "genotype")
+
+summed <- aggregateAcrossCells(
+  sce,
+  id = colData(sce)[, c("label", "sample", columns_to_keep)],
+  coldata_merge = FALSE)
+```
+
+At this point, it is worth reflecting on the motivations behind the use of pseudo-bulking:
+
+- Larger counts are more amenable to standard DE analysis pipelines designed for bulk RNA-seq data. Normalization is more straightforward and certain statistical approximations are more accurate^[E.g., the saddlepoint approximation for quasi-likelihood methods or normality for linear models.].
+- Collapsing cells into samples reflects the fact that our biological replication occurs at the sample level [@lun2017overcoming]. Each sample is represented no more than once for each condition, avoiding problems from unmodelled correlations between samples. Supplying the per-cell counts directly to a DE analysis pipeline would imply that each cell is an independent biological replicate, which is not true from an experimental perspective^[A mixed effects model can handle this variance structure but involves extra statistical and computational complexity for little benefit, see @crowell2019discovery.].
+- Variance between cells within each sample is masked, provided it does not affect variance across (replicate) samples. This avoids penalizing DEGs that are not uniformly up- or down-regulated for all cells in all samples of one condition. Masking is generally desirable as DEGs - unlike marker genes - do not need to have low within-sample variance to be interesting, e.g., if the treatment effect is consistent across replicate populations but heterogeneous on a per-cell basis^[Of course, high per-cell variability will still result in weaker DE if it affects the variability across populations, while homogeneous per-cell responses will result in stronger DE due to a larger population-level log-fold change. These effects are also largely desirable.].
+
+## Performing the DE analysis
+
+### Introduction
+
+The DE analysis will be performed using quasi-likelihood (QL) methods from the `r BiocStyle::Biocpkg("edgeR")` package [@robinson2010edgeR;@chen2014differential].
+This uses a negative binomial generalized linear model (NB GLM) to handle overdispersed count data in experiments with limited replication.
+In our case, we have biological variation with four replicates per condition, with the replicates for each condition partially paired as genotype-discordant siblings within each plate, so `r BiocStyle::Biocpkg("edgeR")` (or its contemporaries) is a natural choice for the analysis.
+
+We do not use all labels for GLM fitting as the strong DE between labels makes it difficult to compute a sensible average abundance to model the mean-dispersion trend.
+Moreover, label-specific batch effects would not be easily handled with a single additive term in the design matrix for the batch.
+
+### Statistical methodology and considerations
+
+#### Pre-processing
+
+```{r}
+min_cells <- 10
+```
+
+A typical step in bulk RNA-seq data analyses is to remove samples with very low library sizes due to failed library preparation or sequencing.
+The very low counts in these samples can be troublesome in downstream steps such as normalization or for some statistical approximations used in the DE analysis.
+In our situation, this is equivalent to removing label-sample combinations that have very few or lowly-sequenced cells.
+The exact definition of "very low" will vary, but in this case, we remove combinations containing fewer than `r min_cells` cells.
+
+Another typical step in bulk RNA-seq analyses is to remove genes that are lowly expressed.
+This reduces computational work, improves the accuracy of mean-variance trend modelling and decreases the severity of the multiple testing correction.
+Genes are discarded if they are not expressed above a log-CPM threshold in a minimum number of samples (determined from the size of the smallest treatment group in the experimental design).
+
+Finally, we correct for composition biases by computing normalization factors with the trimmed mean of M-values method [@robinson2010scaling].
+We do not need the bespoke single-cell methods used earlier in this analysis, as the counts for our pseudo-bulk samples are large enough to apply bulk normalization methods.
+
+#### Statistical modelling
+
+We set up the design matrix to block on the plate-to-plate differences across different mice, while retaining an additive term that represents the effect of genotype.
+The latter is represented in our model as the log-fold change in gene expression in `Mutant` cells over their `Control` counterparts within the same label.
+Our aim is to test whether this log-fold change is significantly different from zero.
+
+```{r}
+# Pulling out a sample-level 'targets' data.frame.
+targets <- colData(summed)[!duplicated(summed$sample),]
+
+# Constructing the design matrix.
+design <- model.matrix(~plate_number + genotype, targets)
+colnames(design) <- sub("plate\\_number|genotype", "", colnames(design))
+rownames(design) <- targets$sample
+```
+
+We estimate the negative binomial (NB) dispersions to model the mean-variance trend, which is not easily accommodated by QL dispersions alone due to the quadratic nature of the NB mean-variance trend.
+We also estimate the quasi-likelihood dispersions to model the uncertainty and variability of the per-gene variance, which is not well handled by the NB dispersions.
+So the two dispersion types complement each other in the final analysis.
+
+```{r}
+fdr <- 0.05
+```
+
+We test for differences in expression due to genotype.
+DEGs are defined as those with non-zero log-fold changes at a false discovery rate of `r scales::percent(fdr)`.
+
+### Putting it all together
+
+Now that we have laid out the theory underlying the DE analysis, we repeat this process for each of the labels to identify genotype-associated DE in each cell type.
+To prepare for this, we filter out all sample-label combinations with insufficient cells.
+
+```{r}
+summed_filt <- summed[, summed$ncells >= min_cells]
+```
+
+We then apply the `pseudoBulkDGE()` function from the `r BiocStyle::Biocpkg("scran")` package to obtain a list of genotype-assocate DE genes for each label.
+This function puts some additional effort into automatically dealing with labels that are not represented in both `Mutant` and `Control` cells, for which a DE analysis between conditions is meaningless; or are not represented in a sufficient number of replicate samples to enable modelling of biological variability.
+
+```{r}
+library(scran)
+de_results <- pseudoBulkDGE(
+  summed_filt, 
+  sample = summed_filt$sample,
+  label = summed_filt$label,
+  design = design,
+  coef = "Mutant",
+  condition = summed_filt$genotype)
+```
+
+The following table gives the number of DEGs at a FDR of `r scales::percent(fdr)` for each label.
+Note that genes listed as `NA` were either filtered out as low-abundance genes for a given label’s analysis, or the comparison of interest was not possible for a particular label, e.g., due to lack of residual degrees of freedom or an absence of samples from both conditions.
+In general, there seems to be very little differential expression that is associated with genotype.
+
+<aside>
+For spreadsheets and **TODO What figure** of these gene lists see [`output/DEGs/`](../output/DEGs/).
+</aside>
+
+```{r}
+is_de <- decideTestsPerLabel(de_results, threshold = fdr)
+summarizeTestsPerLabel(is_de) %>%
+  knitr::kable(
+    caption = "Number of DEGs per label. Each row corresponds to a label and each column corresponds to the number of downregulated genes (`-1`), the number of non-differentially expressed genes (`0`), the number of upregulated genes (`1`), and the number of genes not tested (`NA`).")
+```
+
+```{r, message = FALSE}
+# Create outputs
+deg_dir <- here("output", "DEGs")
+dir.create(deg_dir)
+createDEGOutputs(outdir = deg_dir, de_results = de_results)
+```
+
+For each gene, we compute the percentage of labels in which that gene is upregulated or downregulated due to genotype differences^[Here, we consider a gene to be non-DE if it is not retained after filtering.]. 
+
+**TODO** Re-write; is this useful/necessary?
+We see that Xist is consistently downregulated in the injected cells; this is consistent with the fact that the injected cells are male while the background cells are derived from pools of male and female embryos (due to experimental difficulties with resolving sex at this stage). The consistent downregulation of Phlda2 and Cdkn1c in the injected cells is also interesting given that both are imprinted genes.
+
+```{r}
+up_de <- is_de > 0 & !is.na(is_de)
+down_de <- is_de < 0 & !is.na(is_de)
+de_df <- data.frame(
+  gene = rownames(is_de),
+  perc_up = 100 * unname(rowMeans(is_de > 0 & !is.na(is_de))),
+  perc_down = 100 * unname(rowMeans(is_de < 0 & !is.na(is_de))),
+  stringsAsFactors = FALSE)
+DT::datatable(
+  de_df[de_df$perc_up > 0 | de_df$perc_down > 0, ],
+  rownames = FALSE,
+  caption = "Percentage of labels in which each gene is upregulated or downregulated due to genotype differences. Only genes that are DE in at least one label are included.")
+```
+
+Finally, we also list the labels that were skipped due to the absence of replicates or contrasts.
+
+<aside>
+If it is necessary to extract statistics in the absence of replicates, several strategies can be applied such as reducing the complexity of the model, reducing the minimum number of cells per sample, or using a predefined value for the NB dispersion.
+</aside>
+
+```{r}
+knitr::kable(
+  data.frame(label = metadata(de_results)$failed),
+  caption = "Labels that were skipped due the absence of replicates or contrasts.")
+```
+
+**TODO** Glimma
+
+```{r}
+knitr::knit_exit()
+```
+
+# Differential abundance between conditions
+
+# Comments on interpretation
+
+#
