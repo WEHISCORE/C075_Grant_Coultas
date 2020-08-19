@@ -327,10 +327,11 @@ createClusterMarkerOutputs <- function(prefix, outdir, markers, exprs_values, k,
           #       this).
           filename = file.path(
             outdir,
-            sprintf("cluster_%02d.%s.%s.heatmap.pdf",
-                    as.integer(cluster),
-                    prefix,
-                    exprs_value)),
+            sprintf(
+              "cluster_%02d.%s.%s.heatmap.pdf",
+              as.integer(cluster),
+              prefix,
+              exprs_value)),
           ...)
       }
     }
@@ -369,16 +370,14 @@ my_cvd_grid <- function(plot = last_plot(), severity = 1) {
 # NOTE: This function is customised for the C075_Grant_Coultas project.
 createDEGOutputs <- function(outdir, de_results) {
 
-  # Create CSVs
   message("Creating CSVs")
-  for (n in names(de_results)) {
-    message(n)
+  for (label in names(de_results)) {
+    message(label)
     gzout <- gzfile(
-      description = file.path(outdir, paste0(n, ".DEGs.csv.gz")),
+      description = file.path(outdir, paste0(label, ".DEGs.csv.gz")),
       open = "wb")
-    here("output", "DEGs", paste0(n, ".DEGs.csv.gz"))
     write.csv(
-      cbind(flattenDF(rowData(sce)), de_results[[n]]),
+      cbind(flattenDF(rowData(sce)), de_results[[label]]),
       gzout,
       # NOTE: quote = TRUE needed because some fields contain commas.
       quote = TRUE,
@@ -386,8 +385,46 @@ createDEGOutputs <- function(outdir, de_results) {
     close(gzout)
   }
 
-  # TODO: Decide what figures I'm producing for DEGs.
-  # Create PDFs
-  # message("Creating PDFs")
+  message("Creating Glimma plots")
+  for (label in names(de_results)) {
+    x <- de_results[[label]]
+    i <- rownames(x)[!is.na(x$logFC)]
+    if (length(i)) {
+      x <- x[i, ]
+      j <- colnames(sce)[sce$label == label]
+      group <- factor(
+        paste0(
+          substr(sce[, j]$genotype, 1, 1),
+          ".",
+          sce[, j]$plate_number))
+      anno <- cbind(
+        DataFrame(GeneID = i),
+        flattenDF(rowData(sce)[i, ]))
+      colnames(anno) <- sub("ENSEMBL", "ENS", colnames(anno))
+      colnames(anno) <- sub("\\.GENE", "\\.", colnames(anno))
+      Glimma::glMDPlot(
+        x = x[i, ],
+        xval = "logCPM",
+        yval = "logFC",
+        counts = logcounts(sce)[i, j],
+        anno = anno,
+        display.columns = c(
+          "GeneID",
+          paste0("ENS.", c("ID", "BIOTYPE", "SEQNAME")),
+          paste0("NCBI.", c("ALIAS", "NAME")),
+          "FDR"),
+        groups = group,
+        samples = j,
+        status = ifelse(
+          x[i, "FDR"] < 0.05,
+          ifelse(x[i, "logFC"] > 0, 1, -1),
+          0),
+        transform = FALSE,
+        main = "Pseudobulk",
+        sample.cols = sce[, j]$genotype_colours,
+        path = here("output", "DEGs"),
+        html = paste0(label, ".md-plot"),
+        launch = FALSE)
+    }
+  }
 }
-

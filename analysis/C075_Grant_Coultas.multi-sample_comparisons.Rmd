@@ -20,6 +20,7 @@ library(scater)
 library(cowplot)
 library(patchwork)
 library(BiocParallel)
+library(pheatmap)
 
 source(here("code", "helper_functions.R"))
 
@@ -94,9 +95,8 @@ pseudogene_set <- rownames(sce)[
   any(grepl("pseudogene", rowData(sce)$ENSEMBL.GENEBIOTYPE))]
 ```
 
-As a reminder, Zoe requested that clusters 3, 4, and 6 be aggregated for the purposes of differential analyses.
-**We use these collapsed cluster labels as the cell labels in what follows.**
-Figure \@ref(fig:collabels-umap) shows the cell labels the UMAP plot.
+As a reminder, Zoe requested that clusters 3, 4, and 6 be aggregated to create cell labels for the purposes of differential analyses.
+Figure \@ref(fig:collabels-umap) shows the cluster labels and the cell labels (i.e. Zoe's aggregated cluster labels) on the UMAP plot.
 
 ```{r collabels-umap, fig.cap = "UMAP plot, where each point represents a cell and is coloured according to the legend.", fig.asp = 2 / 5}
 p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
@@ -164,7 +164,7 @@ p6 <- ggcells(sce) +
 (p1 | p2) / (p3 | p4) / (p5 | p6)
 ```
 
-Figure \@ref(fig:plate-number-barplot) that the mice are partially matched by genotype, and sibship, within each plate.
+Figure \@ref(fig:plate-number-barplot) is a reminder that the mice are partially matched by genotype (and sibship) within each plate.
 
 ```{r plate-number-barplot, fig.asp = 1 / 2, fig.cap = "Breakdown of plates by experimental factors."}
 p1 <- ggcells(sce) + 
@@ -188,6 +188,16 @@ p2 <- ggcells(sce) +
 p1 | p2
 ```
 
+# Differential abundance between conditions
+
+**TODO** Minimise redundancy with DE analysis section
+
+## Overview
+
+## Performing the DA anlaysis
+
+## Handling composition effects
+
 # Differential expression between conditions
 
 ## Creating pseudo-bulk samples
@@ -199,14 +209,17 @@ This leverages the resolution offered by single-cell technologies to define the 
 
 ```{r}
 # Define what constitutes a sample (i.e. replicate) in this experiment.
-sce$sample <- sce$mouse
+sce$sample <- paste0(sce$plate_number, ".", sce$mouse)
 # Define colData columns to be kept for pseudo-bulked data.
-columns_to_keep <- c("mouse", "plate_number", "genotype")
+columns_to_keep <- c("mouse", "plate_number", "genotype", "sex")
 
 summed <- aggregateAcrossCells(
   sce,
   id = colData(sce)[, c("label", "sample", columns_to_keep)],
   coldata_merge = FALSE)
+
+summed <- logNormCounts(summed)
+colnames(summed) <- paste0(summed$label, ".", summed$sample)
 ```
 
 At this point, it is worth reflecting on the motivations behind the use of pseudo-bulking:
@@ -231,13 +244,14 @@ Moreover, label-specific batch effects would not be easily handled with a single
 #### Pre-processing
 
 ```{r}
-min_cells <- 10
+min_ncells <- 10
 ```
 
 A typical step in bulk RNA-seq data analyses is to remove samples with very low library sizes due to failed library preparation or sequencing.
 The very low counts in these samples can be troublesome in downstream steps such as normalization or for some statistical approximations used in the DE analysis.
 In our situation, this is equivalent to removing label-sample combinations that have very few or lowly-sequenced cells.
-The exact definition of "very low" will vary, but in this case, we remove combinations containing fewer than `r min_cells` cells.
+The exact definition of "very low" will vary, but in this case we remove combinations containing fewer than `r min_ncells` cells.
+This is lower than generally recommended^[E.g., @crowell2019discovery note that "$\approx100$ cells is sufficient to reach decent performance" with pseudobulk DE methods and that "there is a sizable gain in performance in going from 50 to 100 cells" per label per sample.] but here we are limited by the small numbers of cells/mouse that were processed.
 
 Another typical step in bulk RNA-seq analyses is to remove genes that are lowly expressed.
 This reduces computational work, improves the accuracy of mean-variance trend modelling and decreases the severity of the multiple testing correction.
@@ -248,19 +262,9 @@ We do not need the bespoke single-cell methods used earlier in this analysis, as
 
 #### Statistical modelling
 
-We set up the design matrix to block on the plate-to-plate differences across different mice, while retaining an additive term that represents the effect of genotype.
+We set up the design matrix to block on the sample-to-sample differences across different mice and plates, while retaining an additive term that represents the effect of genotype.
 The latter is represented in our model as the log-fold change in gene expression in `Mutant` cells over their `Control` counterparts within the same label.
 Our aim is to test whether this log-fold change is significantly different from zero.
-
-```{r}
-# Pulling out a sample-level 'targets' data.frame.
-targets <- colData(summed)[!duplicated(summed$sample),]
-
-# Constructing the design matrix.
-design <- model.matrix(~plate_number + genotype, targets)
-colnames(design) <- sub("plate\\_number|genotype", "", colnames(design))
-rownames(design) <- targets$sample
-```
 
 We estimate the negative binomial (NB) dispersions to model the mean-variance trend, which is not easily accommodated by QL dispersions alone due to the quadratic nature of the NB mean-variance trend.
 We also estimate the quasi-likelihood dispersions to model the uncertainty and variability of the per-gene variance, which is not well handled by the NB dispersions.
@@ -273,17 +277,29 @@ fdr <- 0.05
 We test for differences in expression due to genotype.
 DEGs are defined as those with non-zero log-fold changes at a false discovery rate of `r scales::percent(fdr)`.
 
-### Putting it all together
+## Analysis using cell labels
+
+As noted in [Setting up the data], we start by using the aggregated cluster labels as the cell labels.
+
+```{r}
+# Pulling out a sample-level 'targets' data.frame.
+targets <- colData(summed)[!duplicated(summed$sample),]
+
+# Constructing the design matrix.
+design <- model.matrix(~plate_number + genotype, targets)
+colnames(design) <- sub("plate\\_number|genotype", "", colnames(design))
+rownames(design) <- targets$sample
+```
 
 Now that we have laid out the theory underlying the DE analysis, we repeat this process for each of the labels to identify genotype-associated DE in each cell type.
 To prepare for this, we filter out all sample-label combinations with insufficient cells.
 
 ```{r}
-summed_filt <- summed[, summed$ncells >= min_cells]
+summed_filt <- summed[, summed$ncells >= min_ncells]
 ```
 
 We then apply the `pseudoBulkDGE()` function from the `r BiocStyle::Biocpkg("scran")` package to obtain a list of genotype-assocate DE genes for each label.
-This function puts some additional effort into automatically dealing with labels that are not represented in both `Mutant` and `Control` cells, for which a DE analysis between conditions is meaningless; or are not represented in a sufficient number of replicate samples to enable modelling of biological variability.
+This function puts some additional effort into automatically dealing with labels that are not represented in both `Mutant` and `Control` cells, for which a DE analysis between conditions is meaningless or are not represented in a sufficient number of replicate samples to enable modelling of biological variability.
 
 ```{r}
 library(scran)
@@ -296,13 +312,53 @@ de_results <- pseudoBulkDGE(
   condition = summed_filt$genotype)
 ```
 
-The following table gives the number of DEGs at a FDR of `r scales::percent(fdr)` for each label.
-Note that genes listed as `NA` were either filtered out as low-abundance genes for a given label’s analysis, or the comparison of interest was not possible for a particular label, e.g., due to lack of residual degrees of freedom or an absence of samples from both conditions.
-In general, there seems to be very little differential expression that is associated with genotype.
+Figure \@ref(fig:degs-heatmap) summarises the DEGs using a heatmap of pseudobulk-level log-expression values.
+In general, there seems to be little differential expression that is associated with genotype.
 
-<aside>
-For spreadsheets and **TODO What figure** of these gene lists see [`output/DEGs/`](../output/DEGs/).
-</aside>
+```{r degs-heatmap, fig.cap = "Heatmap of pseudobulk-level log-expression values normalized to the mean of all samples in the filtered data; rows correspond to genes, columns to label-sample combinations. Included is the union of DEGs detected (FDR < `r fdr`) across all labels. Data is split horizontally by label and rows are annotated to show in which label(s) each gene is DE.", fig.asp = 1.5}
+o <- order(summed_filt$label, summed_filt$genotype, summed_filt$sample)
+
+all_features <- lapply(
+  de_results, 
+  function(x) rownames(x[which(x$FDR < fdr), ]))
+features <- unique(unlist(all_features))
+mat <- logcounts(summed_filt)[features, ]
+mat <- mat - rowMeans(mat)
+pheatmap(
+  mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_row = data.frame(
+    cluster_7 = ifelse(features %in% all_features$cluster_7, "DE", "not DE"),
+    cluster_5 = ifelse(features %in% all_features$cluster_5, "DE", "not DE"),
+    clusters_3_4_6 = ifelse(features %in% all_features$clusters_3_4_6, "DE", "not DE"),
+    cluster_2 = ifelse(features %in% all_features$cluster_2, "DE", "not DE"),
+    cluster_1 = ifelse(features %in% all_features$cluster_1, "DE", "not DE"),
+    row.names = features),
+  annotation_col = data.frame(
+    label = summed_filt$label[o],
+    genotype = summed_filt$genotype[o],
+    plate_number = summed_filt$plate_number[o],
+    sex = summed_filt$sex[o],
+    row.names = colnames(summed_filt)[o]),
+  annotation_colors = list(
+    label = label_colours[levels(summed_filt$label)],
+    genotype = genotype_colours,
+    plate_number = plate_number_colours,
+    sex = sex_colours,
+    cluster_1 = c("not DE" = "white", "DE" = label_colours[["cluster_1"]]),
+    cluster_2 = c("not DE" = "white", "DE" = label_colours[["cluster_2"]]),
+    clusters_3_4_6 = c("not DE" = "white", "DE" = label_colours[["clusters_3_4_6"]]),
+    cluster_5 = c("not DE" = "white", "DE" = label_colours[["cluster_5"]]),
+    cluster_7 = c("not DE" = "white", "DE" = label_colours[["cluster_7"]])),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize = 8,
+  gaps_col = cumsum(runLength(Rle(summed_filt$label[o]))))
+```
+
+The following table gives the number of DEGs at a FDR of `r scales::percent(fdr)` for each label.
 
 ```{r}
 is_de <- decideTestsPerLabel(de_results, threshold = fdr)
@@ -318,45 +374,128 @@ dir.create(deg_dir)
 createDEGOutputs(outdir = deg_dir, de_results = de_results)
 ```
 
-For each gene, we compute the percentage of labels in which that gene is upregulated or downregulated due to genotype differences^[Here, we consider a gene to be non-DE if it is not retained after filtering.]. 
+Note that genes listed as `NA` in the above table were either filtered out as low-abundance genes for a given label’s analysis, or the comparison of interest was not possible for a particular label, e.g., due to lack of residual degrees of freedom or an absence of samples from both conditions.
+If it is necessary to extract statistics in the absence of replicates, several strategies can be applied such as reducing the complexity of the model or using a predefined value for the NB dispersion. We could also consider reducing the minimum number of cells per sample, although we are already using a rather low minimum.
 
-**TODO** Re-write; is this useful/necessary?
-We see that Xist is consistently downregulated in the injected cells; this is consistent with the fact that the injected cells are male while the background cells are derived from pools of male and female embryos (due to experimental difficulties with resolving sex at this stage). The consistent downregulation of Phlda2 and Cdkn1c in the injected cells is also interesting given that both are imprinted genes.
-
-```{r}
-up_de <- is_de > 0 & !is.na(is_de)
-down_de <- is_de < 0 & !is.na(is_de)
-de_df <- data.frame(
-  gene = rownames(is_de),
-  perc_up = 100 * unname(rowMeans(is_de > 0 & !is.na(is_de))),
-  perc_down = 100 * unname(rowMeans(is_de < 0 & !is.na(is_de))),
-  stringsAsFactors = FALSE)
-DT::datatable(
-  de_df[de_df$perc_up > 0 | de_df$perc_down > 0, ],
-  rownames = FALSE,
-  caption = "Percentage of labels in which each gene is upregulated or downregulated due to genotype differences. Only genes that are DE in at least one label are included.")
-```
-
-Finally, we also list the labels that were skipped due to the absence of replicates or contrasts.
+Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets and interactive `r BiocStyle::Biocpkg("Glimma")` plots of these DEG lists.
+The `r BiocStyle::Biocpkg("Glimma")` plots show the pseudobulk data for that label on the lefthand side and the single-cell data for that label on the righthand side.
+The single-cell data are plotted per sample using abbreviated sample labels, e.g., `C.LC280` means "control mouse on plate LC280", `M.LC280` means "mutate mouse on plate LC280", etc.
 
 <aside>
-If it is necessary to extract statistics in the absence of replicates, several strategies can be applied such as reducing the complexity of the model, reducing the minimum number of cells per sample, or using a predefined value for the NB dispersion.
+Note that the spreadsheets contain all labels and genes whereas the Glimma plots only contain labels and genes actually tested for DE. The column names in the Glimma tables may be abbreviated.
 </aside>
 
+## Analysis using 'coarser' labels
+
+As noted in [Pre-processing], by only requiring `r min_ncells` cells/label/mouse we are using fewer cells/label/sample than the generally recommended minimum of 100.
+If we had more cells/label/sample then we would expect to increase our true positive rate, i.e. we would have greater statistical power to identify DEGs [@crowell2019discovery].
+Fortunately, @crowell2019discovery also found that the false discovery rate is not greatly affected by the choice of minimum number of cells, so we are probably not at risk of making more false discoveries by using a low minimum number of cells/label/sample.
+
+To increase the number of cells/label/sample would require one or more of:
+
+1. The acquisition of additional cells (i.e. more experiments)
+2. The use of 'coarser' labels (i.e. aggregation of the existing labels)
+3. The use of 'coarser' samples (i.e. aggregation of the existing samples)
+
+The first is probably not feasible while the latter ignores the known biological (e.g., mouse) and technical (e.g., plate) variability between replicates samples.
+We are therefore left with using 'coarser' labels.
+
+To generate 'coarser' labels, we can simply ignore the clustering results entirely (i.e. the label is `ignoring_clusters`).
+In doing so we are implicitly accepting that any DEGs identified in the subsequent analysis are at increased chance of reflecting differences in 'cell type' between genotypes (i.e. differential abundance) rather than differential gene expression between genotypes *per se*.
+
 ```{r}
-knitr::kable(
-  data.frame(label = metadata(de_results)$failed),
-  caption = "Labels that were skipped due the absence of replicates or contrasts.")
+colLabels(sce) <- "ignoring_clusters"
+
+# Define colData columns to be kept for pseudo-bulked data.
+columns_to_keep <- c("mouse", "plate_number", "genotype", "sex")
+
+summed <- aggregateAcrossCells(
+  sce,
+  id = colData(sce)[, c("label", "sample", columns_to_keep)],
+  coldata_merge = FALSE)
+
+summed <- logNormCounts(summed)
+colnames(summed) <- paste0(summed$label, ".", summed$sample)
+
+targets <- colData(summed)[!duplicated(summed$sample),]
+
+# Constructing the design matrix.
+design <- model.matrix(~plate_number + genotype, targets)
+colnames(design) <- sub("plate\\_number|genotype", "", colnames(design))
+rownames(design) <- targets$sample
+
+summed_filt <- summed[, summed$ncells >= min_ncells]
+
+de_results <- pseudoBulkDGE(
+  summed_filt, 
+  sample = summed_filt$sample,
+  label = summed_filt$label,
+  design = design,
+  coef = "Mutant",
+  condition = summed_filt$genotype)
 ```
 
-**TODO** Glimma
+Figure \@ref(fig:degs-ignoring-clusters-heatmap) summarises the DEGs using a heatmap of pseudobulk-level log-expression values.
+There are more DEGs detected when we use the 'coarser' labels.
 
-```{r}
-knitr::knit_exit()
+```{r degs-ignoring-clusters-heatmap, fig.cap = "Heatmap of pseudobulk-level log-expression values normalized to the mean of all samples in the filtered data; rows correspond to genes, columns to label-sample combinations. Included is the union of DEGs detected (FDR < `r fdr`).", fig.asp = 1.6}
+o <- order(summed_filt$label, summed_filt$genotype, summed_filt$sample)
+
+all_features <- lapply(
+  de_results, 
+  function(x) rownames(x[which(x$FDR < fdr), ]))
+features <- unique(unlist(all_features))
+mat <- logcounts(summed_filt)[features, ]
+mat <- mat - rowMeans(mat)
+pheatmap(
+  mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    genotype = summed_filt$genotype[o],
+    plate_number = summed_filt$plate_number[o],
+    sex = summed_filt$sex[o],
+    row.names = colnames(summed_filt)[o]),
+  annotation_colors = list(
+    genotype = genotype_colours,
+    plate_number = plate_number_colours,
+    sex = sex_colours),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize = 6)
 ```
 
-# Differential abundance between conditions
+The following table gives the number of DEGs at a FDR of `r scales::percent(fdr)`.
+
+```{r}
+is_de <- decideTestsPerLabel(de_results, threshold = fdr)
+summarizeTestsPerLabel(is_de) %>%
+  knitr::kable(
+    caption = "Number of DEGs per label. Each row corresponds to a label and each column corresponds to the number of downregulated genes (`-1`), the number of non-differentially expressed genes (`0`), the number of upregulated genes (`1`), and the number of genes not tested (`NA`).")
+```
+
+```{r, message = FALSE}
+# Create outputs
+createDEGOutputs(outdir = deg_dir, de_results = de_results)
+```
+
+Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets and interactive `r BiocStyle::Biocpkg("Glimma")` plots of these DEG lists.
 
 # Comments on interpretation
 
-#
+# Additional information {.appendix}
+
+The following are available on request:
+
+- Full CSV tables of any data presented.
+- PDF/PNG files of any static plots.
+
+# Session info {.appendix}
+
+<summary>The analysis and this document were prepared using the following software (click triangle to expand)</summary>
+<details>
+
+```{r}
+sessioninfo::session_info()
+```
