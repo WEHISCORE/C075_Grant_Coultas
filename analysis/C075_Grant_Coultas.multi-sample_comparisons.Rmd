@@ -438,7 +438,7 @@ de_results <- pseudoBulkDGE(
 Figure \@ref(fig:degs-ignoring-clusters-heatmap) summarises the DEGs using a heatmap of pseudobulk-level log-expression values.
 There are more DEGs detected when we use the 'coarser' labels.
 
-```{r degs-ignoring-clusters-heatmap, fig.cap = "Heatmap of pseudobulk-level log-expression values normalized to the mean of all samples in the filtered data; rows correspond to genes, columns to label-sample combinations. Included is the union of DEGs detected (FDR < `r fdr`).", fig.asp = 1.6}
+```{r degs-ignoring-clusters-heatmap, fig.cap = "Heatmap of pseudobulk-level log-expression values normalized to the mean of all samples in the filtered data; rows correspond to genes, columns to label-sample combinations. Included is the union of DEGs detected (FDR < `r fdr`).", fig.asp = 1.8}
 o <- order(summed_filt$label, summed_filt$genotype, summed_filt$sample)
 
 all_features <- lapply(
