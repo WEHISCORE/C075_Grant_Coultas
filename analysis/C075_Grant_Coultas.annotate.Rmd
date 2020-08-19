@@ -1759,9 +1759,12 @@ We strongly recommend that you visualise the expression patterns of any genes of
 Zoe requested that clusters 3, 4, and 6 be aggregated for the purposes of differential analyses.
 
 ```{r}
-colLabels(sce) <- dplyr::case_when(
-  sce$cluster %in% c("3", "4", "6") ~ "clusters_3_4_6",
-  TRUE ~ paste0("cluster_", sce$cluster))
+colLabels(sce) <- factor(
+  dplyr::case_when(
+    sce$cluster %in% c("3", "4", "6") ~ "clusters_3_4_6",
+    TRUE ~ paste0("cluster_", sce$cluster)),
+  levels = 
+    c("cluster_1", "cluster_2", "clusters_3_4_6", "cluster_5", "cluster_7"))
 sce$label_colours <- setNames(
   dplyr::case_when(
     sce$cluster %in% c("3", "4", "6") ~ "dodgerblue",
