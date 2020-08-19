@@ -51,6 +51,9 @@ We start from the preprocessed *SingleCellExperiment* object created in ['Annota
 ```{r}
 sce <- readRDS(here("data", "SCEs", "C075_Grant_Coultas.annotated.SCE.rds"))
 
+# Define what constitutes a sample (i.e. replicate) in this experiment.
+sce$sample <- paste0(sce$plate_number, ".", sce$mouse)
+
 # Some useful colours
 plate_number_colours <- setNames(
   unique(sce$plate_number_colours),
@@ -194,7 +197,56 @@ p1 | p2
 
 ## Overview
 
+In a DA analysis, we test for significant changes in per-label cell abundance across conditions.
+This will reveal which cell types are depleted or enriched with differences in genotype, which is arguably just as interesting as changes in expression within each cell type.
+The DA analysis has a long history in flow cytometry [@finak2015mast; @lun2017testing] where it is routinely used to examine the effects of different conditions on the composition of complex cell populations.
+By performing it here, we effectively treat scRNA-seq as a "super-FACS" technology for defining relevant subpopulations using the entire transcriptome.
+
+We prepare for the DA analysis by quantifying the number of cells assigned to each label.
+
+```{r}
+abundances <- table(sce$label, sce$sample)
+abundances <- unclass(abundances)
+
+tmp <- as.data.frame(colData(sce)) %>%
+  dplyr::count(label, sample, genotype) %>%
+  tidyr::pivot_wider(
+    names_from = label,
+    id_cols = c(sample, genotype), 
+    values_from = n,
+    values_fill = 0L)
+knitr::kable(
+  tmp,
+  fig.cap = "Number of cells assigned to each label from each sample.")
+```
+
+In this case, we are aiming to identify labels that change in abundance among the `Mutant` cells compared to the `Control` cells.
+
 ## Performing the DA anlaysis
+
+Our DA analysis will be performed with the `r BiocStyle::Biocpkg("edgeR")` package. 
+This allows us to take advantage of the negative binomial generalized linear model (NB GLM) methods to model overdispersed count data in the presence of limited replication - except that the counts are not of reads per gene, but of cells per label [@lun2017testing]. 
+The aim is to share information across labels to improve our estimates of the biological variability in cell abundance between replicates.
+
+```{r}
+library(edgeR)
+
+# Attaching some column metadata.
+extra_info <- colData(sce)[match(colnames(abundances), sce$sample),]
+y_ab <- DGEList(abundances, samples = extra_info)
+```
+
+We filter out low-abundance labels to avoid cluttering the result table with very rare subpopulations that contain only a handful of cells.
+However, for a DA analysis of cluster abundances, filtering is generally not required as most clusters will not be of low-abundance (otherwise there would not have been enough evidence to define the cluster in the first place).
+
+```{r}
+keep <- filterByExpr(y_ab, group = y_ab$samples$genotype)
+y_ab <- y_ab[keep, ]
+```
+
+In this case, we filter out `r names(which(!keep))`.
+
+**TODO** UP TO HERE
 
 ## Handling composition effects
 
@@ -208,8 +260,6 @@ The actual DE testing is performed on "pseudo-bulk" expression profiles [@tung20
 This leverages the resolution offered by single-cell technologies to define the labels, and combines it with the statistical rigor of existing methods for DE analyses involving a small number of samples.
 
 ```{r}
-# Define what constitutes a sample (i.e. replicate) in this experiment.
-sce$sample <- paste0(sce$plate_number, ".", sce$mouse)
 # Define colData columns to be kept for pseudo-bulked data.
 columns_to_keep <- c("mouse", "plate_number", "genotype", "sex")
 
