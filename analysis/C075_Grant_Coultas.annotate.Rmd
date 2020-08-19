@@ -98,7 +98,7 @@ These two approaches complement one another.
 
 As a reminder, Figure \@ref(fig:clusterplot-umap) shows the clustering results overlaid on the UMAP plot and Figure \@ref(fig:cluster-barplot) breaks down the clusters by key experimental factors.
 
-```{r clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
+```{r clusterplot-umap, fig.cap = "UMAP plot, where each point represents a cell and is coloured according to the legend.", fig.asp = 0.7}
 p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
   geom_point(aes(colour = cluster), size = 0.25) +
   scale_colour_manual(values = cluster_colours) + 
@@ -152,10 +152,10 @@ p3 <- ggcells(sce) +
   ylab("Frequency") +
   scale_fill_manual(values = plate_number_colours) +
   theme_cowplot(font_size = 8)
-p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) + 
+p4 <- ggcells(sce) +
   geom_bar(aes(x = cluster, fill = cluster)) +
   coord_flip() +
-  ylab("Number of droplets") +
+  ylab("Number of cells") +
   scale_fill_manual(values = cluster_colours) +
   theme_cowplot(font_size = 8) + 
   guides(fill = FALSE)

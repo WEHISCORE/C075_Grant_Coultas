@@ -937,7 +937,7 @@ Another concern is whether the cells removed during QC preferentially derive fro
 Reassuringly, Figure \@ref(fig:barplot-highlighting-outliers) shows that this is mostly not the case.
 The exception is plate LC398, which has systematically fewer cells to start with and for which the quality is lower in the part of the plate containing the `Mutant` cells.
 
-```{r barplot-highlighting-outliers, fig.cap = "Droplets removed during QC, stratified by `plate_number` and `genotype`. "}
+```{r barplot-highlighting-outliers, fig.cap = "Cells removed during QC, stratified by `plate_number` and `genotype`. "}
 ggcells(sce_pre_QC_outlier_removal, exprs_values = "counts") +
   geom_bar(aes(x = batch, fill = keep)) + 
   ylab("Number of cells") + 
@@ -1778,9 +1778,9 @@ sce <- runUMAP(sce, dimred = "PCA")
 umap_df <- makePerCellDF(sce)
 ```
 
-Figure \@ref(fig:umap) visualizes the droplets using the UMAP co-ordinates.
+Figure \@ref(fig:umap) visualizes the cells using the UMAP co-ordinates.
 
-```{r umap, fig.cap = "UMAP plot of the dataset. Each point represents a cell and is coloured by `plate_number`. Each panel highlights droplets from a particular combination of `genotype` and `sex`.", fig.asp = 0.8}
+```{r umap, fig.cap = "UMAP plot of the dataset. Each point represents a cell and is coloured by `plate_number`. Each panel highlights cells from a particular combination of `genotype` and `sex`.", fig.asp = 0.8}
 bg <- dplyr::select(umap_df, -plate_number, -genotype, -sex)
 ggplot(aes(x = UMAP.1, y = UMAP.2), data = umap_df) +
   geom_point(data = bg, colour = scales::alpha("grey", 0.5), size = 0.25) +

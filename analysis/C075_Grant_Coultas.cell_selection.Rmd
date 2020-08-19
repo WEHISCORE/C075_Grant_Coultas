@@ -154,7 +154,7 @@ sce$cluster_colours <- cluster_colours[sce$cluster]
 
 There are `r nlevels(sce$cluster)` clusters detected, shown on the UMAP plot Figure \@ref(fig:clusterplot-umap) and broken down by experimental factors in Figure \@ref(fig:cluster-barplot).
 
-```{r clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
+```{r clusterplot-umap, fig.cap = "UMAP plot, where each point represents a cell and is coloured according to the legend.", fig.asp = 0.7}
 p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
   geom_point(aes(colour = cluster), size = 0.25) +
   scale_colour_manual(values = cluster_colours) + 
@@ -211,7 +211,7 @@ p3 <- ggcells(sce) +
 p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) + 
   geom_bar(aes(x = cluster, fill = cluster)) +
   coord_flip() +
-  ylab("Number of droplets") +
+  ylab("Number of cells") +
   scale_fill_manual(values = cluster_colours) +
   theme_cowplot(font_size = 8) + 
   guides(fill = FALSE)
@@ -519,7 +519,7 @@ sce$cluster_colours <- cluster_colours[sce$cluster]
 
 There are `r nlevels(sce$cluster)` clusters detected, shown on the UMAP plot Figure \@ref(fig:no-plate-specific-clusters-clusterplot-umap) and broken down by experimental factors in Figure \@ref(fig:no-plate-specific-clusters-cluster-barplot).
 
-```{r no-plate-specific-clusters-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
+```{r no-plate-specific-clusters-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a cell and is coloured according to the legend.", fig.asp = 0.7}
 p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
   geom_point(aes(colour = cluster), size = 0.25) +
   scale_colour_manual(values = cluster_colours) + 
@@ -576,7 +576,7 @@ p3 <- ggcells(sce) +
 p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) + 
   geom_bar(aes(x = cluster, fill = cluster)) +
   coord_flip() +
-  ylab("Number of droplets") +
+  ylab("Number of cells") +
   scale_fill_manual(values = cluster_colours) +
   theme_cowplot(font_size = 8) + 
   guides(fill = FALSE)
@@ -701,7 +701,7 @@ There are `r nlevels(sce$cluster)` clusters detected, shown on the UMAP plot Fig
 PDFs version of the panels in Figure \@ref(fig:mnn-corrected-clusterplot-umap), with and without legends, are available in [`output/umap_plots/](../output/umap_plots/).
 </aside>
 
-```{r mnn-corrected-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a droplet and is coloured according to the legend.", fig.asp = 0.7}
+```{r mnn-corrected-clusterplot-umap, fig.cap = "UMAP plot, where each point represents a cell and is coloured according to the legend.", fig.asp = 0.7}
 p1 <- ggcells(sce, aes(x = UMAP.1, y = UMAP.2)) +
   geom_point(aes(colour = cluster), size = 0.25) +
   scale_colour_manual(values = cluster_colours) + 
@@ -803,7 +803,7 @@ p3 <- ggcells(sce) +
 p4 <- ggplot(as.data.frame(colData(sce)[, "cluster", drop = FALSE])) + 
   geom_bar(aes(x = cluster, fill = cluster)) +
   coord_flip() +
-  ylab("Number of droplets") +
+  ylab("Number of cells") +
   scale_fill_manual(values = cluster_colours) +
   theme_cowplot(font_size = 8) + 
   guides(fill = FALSE)
