@@ -159,7 +159,7 @@ p5 <- ggcells(sce) +
 p6 <- ggcells(sce) + 
   geom_bar(aes(x = label, fill = label)) +
   coord_flip() +
-  ylab("Number of droplets") +
+  ylab("Number of cells") +
   scale_fill_manual(values = label_colours) +
   theme_cowplot(font_size = 8) + 
   guides(fill = FALSE)
@@ -193,8 +193,6 @@ p1 | p2
 
 # Differential abundance between conditions
 
-**TODO** Minimise redundancy with DE analysis section
-
 ## Overview
 
 In a DA analysis, we test for significant changes in per-label cell abundance across conditions.
@@ -203,26 +201,50 @@ The DA analysis has a long history in flow cytometry [@finak2015mast; @lun2017te
 By performing it here, we effectively treat scRNA-seq as a "super-FACS" technology for defining relevant subpopulations using the entire transcriptome.
 
 We prepare for the DA analysis by quantifying the number of cells assigned to each label.
+The table below and Figure \@ref(fig:cluster-barplot-by-plate) summarise the number of cells assigned to each label per plate.
+In this case, we are aiming to identify labels that change in abundance among the `Mutant` cells compared to the `Control` cells.
+Visually, `cluster_5` has a strong and consistent change in abundance between genotypes.
 
 ```{r}
 abundances <- table(sce$label, sce$sample)
 abundances <- unclass(abundances)
 
-tmp <- as.data.frame(colData(sce)) %>%
+abundances_df <- as.data.frame(colData(sce)) %>%
   dplyr::count(label, sample, genotype) %>%
   tidyr::pivot_wider(
     names_from = label,
-    id_cols = c(sample, genotype), 
+    id_cols = c(genotype, sample), 
     values_from = n,
-    values_fill = 0L)
+    values_fill = 0L) %>%
+  dplyr::arrange(genotype)
 knitr::kable(
-  tmp,
+  abundances_df,
   fig.cap = "Number of cells assigned to each label from each sample.")
 ```
 
-In this case, we are aiming to identify labels that change in abundance among the `Mutant` cells compared to the `Control` cells.
+```{r cluster-barplot-by-plate, fig.asp = 1 / 2, fig.cap = "Breakdown of labels by experimental factors.", layout = "l-page"}
+p1 <- ggcells(sce, aes(x = label, fill = genotype)) + 
+  geom_bar(position = position_fill(reverse = TRUE)) +
+  coord_flip() +
+  ylab("Frequency") +
+  scale_fill_manual(values = genotype_colours) +
+  theme_cowplot(font_size = 5) + 
+  facet_grid(~plate_number)
+
+p2 <- ggcells(sce, aes(x = label, fill = genotype)) + 
+  geom_bar() +
+  coord_flip() +
+  ylab("Number of cells") +
+  scale_fill_manual(values = genotype_colours) +
+  theme_cowplot(font_size = 5) + 
+  facet_grid(~plate_number)
+
+p1 / p2
+```
 
 ## Performing the DA anlaysis
+
+### Overview
 
 Our DA analysis will be performed with the `r BiocStyle::Biocpkg("edgeR")` package. 
 This allows us to take advantage of the negative binomial generalized linear model (NB GLM) methods to model overdispersed count data in the presence of limited replication - except that the counts are not of reads per gene, but of cells per label [@lun2017testing]. 
@@ -236,19 +258,76 @@ extra_info <- colData(sce)[match(colnames(abundances), sce$sample),]
 y_ab <- DGEList(abundances, samples = extra_info)
 ```
 
+### Statistical methodology
+
+#### Pre-processing
+
 We filter out low-abundance labels to avoid cluttering the result table with very rare subpopulations that contain only a handful of cells.
-However, for a DA analysis of cluster abundances, filtering is generally not required as most clusters will not be of low-abundance (otherwise there would not have been enough evidence to define the cluster in the first place).
 
 ```{r}
-keep <- filterByExpr(y_ab, group = y_ab$samples$genotype)
+# Constructing the design matrix.
+design <- model.matrix(~plate_number + genotype, y_ab$samples)
+colnames(design) <- sub("plate\\_number|genotype", "", colnames(design))
+
+keep <- filterByExpr(y_ab, design = design)
 y_ab <- y_ab[keep, ]
 ```
 
-In this case, we filter out `r names(which(!keep))`.
+For a DA analysis of cluster abundances, filtering is generally not required as most clusters will not be of low-abundance (otherwise there would not have been enough evidence to define the cluster in the first place), but in this case we filter out `r names(which(!keep))`.
 
-**TODO** UP TO HERE
+#### Statistical methodology
+
+Unlike a differential expression analyses, we do not perform an additional normalization step.
+This means that we are only normalizing based on the "library size", i.e., the total number of cells in each sample.
+Any changes we detect between conditions will subsequently represent differences in the proportion of cells in each cluster.
+The motivation behind this decision is discussed in more detail in [Handling composition effects].
+
+We set up the design matrix to block on the sample-to-sample differences across different mice and plates, while retaining an additive term that represents the effect of genotype.
+Here, the log-fold change in our model refers to the change in cell abundance associated with genotype, rather than the change in gene expression.
+
+<aside>
+Plate `LC279` effectively does not contribute to this analysis because it only contains `Control` cells.
+</aside>
+
+```{r}
+# NOTE: Design matrix actually constructed earlier.
+```
+
+We estimate the NB dispersion and QL dispersion for each label^[In estimating both the NB and QL dispersion we turn off the trend estimation as we do not have enough points for its stable estimation].
+
+```{r}
+y_ab <- estimateDisp(y_ab, design, trend = "none")
+fit_ab <- glmQLFit(y_ab, design, robust = TRUE, abundance.trend = FALSE)
+```
+
+## Analysis using cell labels
+
+```{r}
+fdr <- 0.05
+```
+
+We test for differences in abundance between `Mutant` and `Control` samples using
+`glmQLFTest()` function from the `r BiocStyle::Biocpkg("edgeR")` package to obtain a list of genotype-associated labels.
+
+```{r}
+res <- glmQLFTest(fit_ab, coef = "Mutant")
+```
+
+We find one label, `cluster_5`, is strongly associated with genotype at a false discovery rate of `r scales::percent(fdr)`, as shown in the table below.
+
+```{r}
+knitr::kable(
+  as.data.frame(topTags(res, n = Inf)), 
+  caption = "Results of DA analysis applied to each label.")
+```
 
 ## Handling composition effects
+
+Our default approach for normalization in a differential abundance analysis is to only normalize based on the total number of cells in each sample, which means that we are effectively testing for differential proportions between conditions.
+
+Unfortunately, the use of the total number of cells leaves us susceptible to composition effects.
+For example, a large increase in abundance for one cell subpopulation will introduce decreases in proportion for all other subpopulations - which is technically correct, but may be misleading if one concludes that those other subpopulations are decreasing in abundance of their own volition.
+If composition biases are proving problematic for interpretation of DA results, we have [several avenues for removing them or mitigating their impact](https://osca.bioconductor.org/multi-sample-comparisons.html#composition-effects).
 
 # Differential expression between conditions
 
@@ -280,7 +359,7 @@ At this point, it is worth reflecting on the motivations behind the use of pseud
 
 ## Performing the DE analysis
 
-### Introduction
+### Overview
 
 The DE analysis will be performed using quasi-likelihood (QL) methods from the `r BiocStyle::Biocpkg("edgeR")` package [@robinson2010edgeR;@chen2014differential].
 This uses a negative binomial generalized linear model (NB GLM) to handle overdispersed count data in experiments with limited replication.
@@ -348,7 +427,7 @@ To prepare for this, we filter out all sample-label combinations with insufficie
 summed_filt <- summed[, summed$ncells >= min_ncells]
 ```
 
-We then apply the `pseudoBulkDGE()` function from the `r BiocStyle::Biocpkg("scran")` package to obtain a list of genotype-assocate DE genes for each label.
+We then apply the `pseudoBulkDGE()` function from the `r BiocStyle::Biocpkg("scran")` package to obtain a list of genotype-associated DE genes for each label.
 This function puts some additional effort into automatically dealing with labels that are not represented in both `Mutant` and `Control` cells, for which a DE analysis between conditions is meaningless or are not represented in a sufficient number of replicate samples to enable modelling of biological variability.
 
 ```{r}
@@ -533,6 +612,25 @@ createDEGOutputs(outdir = deg_dir, de_results = de_results)
 Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets and interactive `r BiocStyle::Biocpkg("Glimma")` plots of these DEG lists.
 
 # Comments on interpretation
+
+## DA or DE? Two sides of the same coin
+
+While useful, the distinction between DA and DE analyses is inherently artificial for scRNA-seq data.
+This is because the labels used in the former are defined based on the genes to be tested in the latter.
+To illustrate, consider a scRNA-seq experiment involving two biological conditions with several shared cell types.
+We focus on a cell type $X$ that is present in both conditions but contains some DEGs between conditions.
+This leads to two possible outcomes:
+
+1. The DE between conditions causes $X$ to form two separate clusters (say, $X_1$ and $X_2$ in expression space. This manifests as DA where $X_1$ is enriched in one condition and $X_2$ is enriched in the other condition.
+2. The DE between conditions is not sufficient to split $X$ into two separate clusters, e.g., because the data integration procedure identifies them as corresponding cell types and merges them together. This means that the differences between conditions manifest as DE within the single cluster corresponding to $X$.
+
+We have described the example above in terms of clustering, but the same arguments apply for any labelling strategy based on the expression profiles, e.g., automated cell type assignment.
+Moreover, the choice between outcomes 1 and 2 is made implicitly by the combined effect of the data merging, clustering and label assignment procedures.
+For example, differences between conditions are more likely to manifest as DE for coarser clusters and as DA for finer clusters, but this is difficult to predict reliably.
+
+The moral of the story is that DA and DE analyses are simply two different perspectives on the same phenomena.
+For any comprehensive characterization of differences between populations, it is usually necessary to consider both analyses.
+Indeed, they complement each other almost by definition, e.g., clustering parameters that reduce DE will increase DA and vice versa.
 
 # Additional information {.appendix}
 
