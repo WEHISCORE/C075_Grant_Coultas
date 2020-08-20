@@ -269,7 +269,9 @@ We filter out low-abundance labels to avoid cluttering the result table with ver
 design <- model.matrix(~plate_number + genotype, y_ab$samples)
 colnames(design) <- sub("plate\\_number|genotype", "", colnames(design))
 
-keep <- filterByExpr(y_ab, design = design)
+# NOTE: The default `min.count = 10` excludes the one interesting label 
+#       (`cluster_5`).
+keep <- filterByExpr(y_ab, group = y_ab$samples$genotype, min.count = 5)
 y_ab <- y_ab[keep, ]
 ```
 
@@ -511,8 +513,11 @@ The `r BiocStyle::Biocpkg("Glimma")` plots show the pseudobulk data for that lab
 The single-cell data are plotted per sample using abbreviated sample labels, e.g., `C.LC280` means "control mouse on plate LC280", `M.LC280` means "mutate mouse on plate LC280", etc.
 
 <aside>
-Note that the spreadsheets contain all labels and genes whereas the Glimma plots only contain labels and genes actually tested for DE. The column names in the Glimma tables may be abbreviated.
+Note that the DEG list spreadsheets contain all labels and genes whereas the Glimma plots only contain labels and genes actually tested for DE. The column names in the Glimma tables may be abbreviated.
 </aside>
+
+This directory also contains spreadsheets of results from GO and KEGG analyses, using the `goana()` and `kegga()` functions from the `r BiocStyle::Biocpkg("limma")` package, of cluster-specific DEGs.
+Please note that these results do not take into account the directionality of the log-fold change.
 
 ## Analysis using 'coarser' labels
 
@@ -609,7 +614,56 @@ summarizeTestsPerLabel(is_de) %>%
 createDEGOutputs(outdir = deg_dir, de_results = de_results)
 ```
 
-Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets and interactive `r BiocStyle::Biocpkg("Glimma")` plots of these DEG lists.
+Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets, including results of GO and KEGG analyses, and interactive `r BiocStyle::Biocpkg("Glimma")` plots of these DEG lists.
+
+Finally, we perform 'rotation gene set tests' using the `fry()` function in the `r BiocStyle::Biocpkg("edgeR")` [@wu2010roast].
+This tests whether a set of genes is DE, assessing the set of genes as a whole. 
+Gene set tests consider all the genes in the specified set and do not depend on any pre-emptive significance cut off.
+The set of genes can be chosen to be representative of any pathway or phenotype of interest.
+Zoe sent me such a set of genes, shown below:
+
+<aside>
+The supplied gene list does not include log-fold changes, P-values, or any other form of directionality or ranking of the genes and therefore cannot be used to create a barcode plot.
+</aside>
+
+```{r}
+barcode_plot_genes <- readxl::read_excel(
+  here("data/zoes_marker_genes/20200728 barcode plot gene lists.xlsx"),
+  col_names = FALSE)
+colnames(barcode_plot_genes) <- "Gene"
+DT::datatable(
+  barcode_plot_genes,
+  caption = "Gene list supplied by Zoe for use in gene set testing (2020-07-28).")
+```
+
+The results of the `fry()` analysis are shown below.
+Each row of the output corresponds to a gene set:
+
+- The `NGenes` column provides the number of genes in each set.
+- The `Direction` column indicates the net direction of change.
+- The `PValue` column gives the two-sided p-value for testing whether the set is DE as a whole, either up or down. This column is appropriate when genes in the set are expected to be co-regulated, all or most changing expression in the same direction.
+- The `PValue.Mixed` column gives a p-value for testing whether genes in the set tend to be DE, without regard to direction. This column is appropriate when genes in the set are not necessarily co-regulated or may be regulated in different directions for the contrast in question. 
+
+```{r}
+# NOTE: Have to essentially re-do the analysis because `de_results` does not 
+#       contain the intermediate outputs (e.g., DGEList).
+y <- DGEList(counts(summed), samples = colData(summed))
+y <- y[, y$samples$ncells >= min_ncells]
+keep <- filterByExpr(y, group = summed$genotype)
+y <- y[keep, ]
+y <- calcNormFactors(y)
+y <- estimateDisp(y, design)
+fit <- glmQLFit(y, design, robust = TRUE)
+res <- glmQLFTest(fit, coef = "Mutant")
+
+fr <- fry(
+  y = y,
+  index = rownames(y) %in% barcode_plot_genes[[1]],
+  design = design,
+  contrast = "Mutant")
+
+knitr::kable(fr, caption = "Results of `fry()` analysis.")
+```
 
 # Comments on interpretation
 

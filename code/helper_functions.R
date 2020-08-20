@@ -265,7 +265,7 @@ createClusterMarkerOutputs <- function(prefix, outdir, markers, exprs_values, k,
   # Create CSVs
   message("Creating CSVs")
   for (cluster in names(markers)) {
-    message(cluster)
+    message("\t", cluster)
     gzout <- gzfile(
       description = file.path(
         outdir,
@@ -284,9 +284,9 @@ createClusterMarkerOutputs <- function(prefix, outdir, markers, exprs_values, k,
   message("Creating PDFs")
   o <- order(sce$cluster, sce$genotype)
   for (exprs_value in exprs_values) {
-    message(exprs_value)
+    message("\t", exprs_value)
     for (cluster in names(markers)) {
-      message(cluster)
+      message("\t\t", cluster)
       cluster_markers <- markers[[cluster]]
       # Filter genes
       cluster_markers <- cluster_markers[cluster_markers$FDR < 0.05, ]
@@ -368,11 +368,11 @@ my_cvd_grid <- function(plot = last_plot(), severity = 1) {
 }
 
 # NOTE: This function is customised for the C075_Grant_Coultas project.
-createDEGOutputs <- function(outdir, de_results) {
+createDEGOutputs <- function(outdir, de_results, fdr = 0.05) {
 
-  message("Creating CSVs")
+  message("Creating CSVs of DEGs")
   for (label in names(de_results)) {
-    message(label)
+    message("\t", label)
     gzout <- gzfile(
       description = file.path(outdir, paste0(label, ".DEGs.csv.gz")),
       open = "wb")
@@ -387,6 +387,7 @@ createDEGOutputs <- function(outdir, de_results) {
 
   message("Creating Glimma plots")
   for (label in names(de_results)) {
+    message("\t", label)
     x <- de_results[[label]]
     i <- rownames(x)[!is.na(x$logFC)]
     if (length(i)) {
@@ -416,7 +417,7 @@ createDEGOutputs <- function(outdir, de_results) {
         groups = group,
         samples = j,
         status = ifelse(
-          x[i, "FDR"] < 0.05,
+          x[i, "FDR"] < fdr,
           ifelse(x[i, "logFC"] > 0, 1, -1),
           0),
         transform = FALSE,
@@ -425,6 +426,47 @@ createDEGOutputs <- function(outdir, de_results) {
         path = here("output", "DEGs"),
         html = paste0(label, ".md-plot"),
         launch = FALSE)
+    }
+  }
+
+  message("Creating CSVs of GO and KEGG analyses")
+  for (label in names(de_results)) {
+    message("\t", label)
+    x <- de_results[[label]]
+    i <- rownames(x)[!is.na(x$logFC)]
+    if (length(i)) {
+      x <- x[i, ]
+      de <- rownames(x[x$FDR < fdr, ])
+      entrez <- unique(unlist(rowData(sce)[de, ]$NCBI.ENTREZID))
+      # TODO: Supply universe and if so what?
+      # universe <- na.omit(unique(unlist(rowData(sce)$NCBI.ENTREZID)))
+      # universe <- na.omit(unique(unlist(rowData(sce)[rownames(x), ]$NCBI.ENTREZID)))
+
+      # GO
+      go <- limma::goana(entrez, species = "Mm")
+      gzout <- gzfile(
+        description = file.path(outdir, paste0(label, ".GO.csv.gz")),
+        open = "wb")
+      write.csv(
+        go,
+        gzout,
+        # NOTE: quote = TRUE needed because some fields contain commas.
+        quote = TRUE,
+        row.names = TRUE)
+      close(gzout)
+
+      # KEGG
+      kegg <- limma::kegga(entrez, species = "Mm")
+      gzout <- gzfile(
+        description = file.path(outdir, paste0(label, ".KEGG.csv.gz")),
+        open = "wb")
+      write.csv(
+        kegg,
+        gzout,
+        # NOTE: quote = TRUE needed because some fields contain commas.
+        quote = TRUE,
+        row.names = TRUE)
+      close(gzout)
     }
   }
 }
