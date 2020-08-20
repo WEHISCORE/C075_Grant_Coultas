@@ -423,7 +423,7 @@ createDEGOutputs <- function(outdir, de_results, fdr = 0.05) {
         transform = FALSE,
         main = "Pseudobulk",
         sample.cols = sce[, j]$genotype_colours,
-        path = here("output", "DEGs"),
+        path = here("output"),
         html = paste0(label, ".md-plot"),
         launch = FALSE)
     }
