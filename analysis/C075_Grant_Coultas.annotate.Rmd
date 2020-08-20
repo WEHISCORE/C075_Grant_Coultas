@@ -297,6 +297,7 @@ mat[mat < zlim[1]] <- zlim[1]
 mat[mat > zlim[2]] <- zlim[2]
 p1 <- pheatmap(
   mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
   cluster_rows = FALSE,
   cluster_cols = FALSE,
   show_colnames = FALSE,
@@ -322,6 +323,7 @@ mat[mat < zlim[1]] <- zlim[1]
 mat[mat > zlim[2]] <- zlim[2]
 p2 <- pheatmap(
   mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
   cluster_rows = FALSE,
   cluster_cols = FALSE,
   show_colnames = FALSE,
@@ -1048,6 +1050,7 @@ mat[mat < zlim[1]] <- zlim[1]
 mat[mat > zlim[2]] <- zlim[2]
 p2 <- pheatmap(
   mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
   cluster_rows = FALSE,
   cluster_cols = FALSE,
   show_colnames = FALSE,
@@ -1341,6 +1344,7 @@ mat <- mat - rowMeans(mat)
 zlim <- c(-max(abs(mat)), max(abs(mat)))
 p1 <- pheatmap(
   mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
   cluster_rows = FALSE,
   cluster_cols = FALSE,
   show_colnames = FALSE,
@@ -1359,6 +1363,7 @@ mat <- mat - rowMeans(mat)
 zlim <- c(-max(abs(mat)), max(abs(mat)))
 p2 <- pheatmap(
   mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
   cluster_rows = FALSE,
   cluster_cols = FALSE,
   show_colnames = FALSE,
@@ -1401,6 +1406,7 @@ mat[mat < zlim[1]] <- zlim[1]
 mat[mat > zlim[2]] <- zlim[2]
 pheatmap(
   mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
   cluster_rows = FALSE,
   cluster_cols = FALSE,
   show_colnames = FALSE,
@@ -1440,6 +1446,7 @@ mat[mat < zlim[1]] <- zlim[1]
 mat[mat > zlim[2]] <- zlim[2]
 pheatmap(
   mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
   cluster_rows = FALSE,
   cluster_cols = FALSE,
   show_colnames = FALSE,
