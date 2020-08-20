@@ -616,14 +616,16 @@ createDEGOutputs(outdir = deg_dir, de_results = de_results)
 
 Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets, including results of GO and KEGG analyses, and interactive `r BiocStyle::Biocpkg("Glimma")` plots of these DEG lists.
 
-Finally, we perform 'rotation gene set tests' using the `fry()` function in the `r BiocStyle::Biocpkg("edgeR")` [@wu2010roast].
+### Futher gene set testing
+
+In addition to the GO and KEGG analyses, we perform 'rotation gene set tests' using the `fry()` function in the `r BiocStyle::Biocpkg("edgeR")` [@wu2010roast].
 This tests whether a set of genes is DE, assessing the set of genes as a whole. 
 Gene set tests consider all the genes in the specified set and do not depend on any pre-emptive significance cut off.
 The set of genes can be chosen to be representative of any pathway or phenotype of interest.
-Zoe sent me such a set of genes, shown below:
+Zoe sent me such a set of genes, shown below.
 
 <aside>
-The supplied gene list does not include log-fold changes, P-values, or any other form of directionality or ranking of the genes and therefore cannot be used to create a barcode plot.
+The supplied gene list does not include log-fold changes, P-values, or any other form of directionality or ranking of the genes.
 </aside>
 
 ```{r}
@@ -637,12 +639,6 @@ DT::datatable(
 ```
 
 The results of the `fry()` analysis are shown below.
-Each row of the output corresponds to a gene set:
-
-- The `NGenes` column provides the number of genes in each set.
-- The `Direction` column indicates the net direction of change.
-- The `PValue` column gives the two-sided p-value for testing whether the set is DE as a whole, either up or down. This column is appropriate when genes in the set are expected to be co-regulated, all or most changing expression in the same direction.
-- The `PValue.Mixed` column gives a p-value for testing whether genes in the set tend to be DE, without regard to direction. This column is appropriate when genes in the set are not necessarily co-regulated or may be regulated in different directions for the contrast in question. 
 
 ```{r}
 # NOTE: Have to essentially re-do the analysis because `de_results` does not 
@@ -662,7 +658,15 @@ fr <- fry(
   design = design,
   contrast = "Mutant")
 
-knitr::kable(fr, caption = "Results of `fry()` analysis.")
+knitr::kable(
+  fr, 
+  caption = "Results of `fry()` analysis. The `NGenes` column provides the number of genes in each set. The `Direction` column indicates the net direction of change. The `PValue` column gives the two-sided p-value for testing whether the set is DE as a whole, either up or down; this column is appropriate when genes in the set are expected to be co-regulated, all or most changing expression in the same direction. The `PValue.Mixed` column gives a p-value for testing whether genes in the set tend to be DE, without regard to direction; This column is appropriate when genes in the set are not necessarily co-regulated or may be regulated in different directions for the contrast in question.")
+```
+
+Figure \@ref(fig:barcode-plot) visualises the enrichment of the supplied gene set using a barcode enrichment plot.
+
+```{r barcode-plot, fig.cap = "Barcode plot of the gene set supplied by Zoe. An enrichment line shows the relative enrichment of the vertical bars in each part of the plot is displayed.", fig.asp = 1 / 2}
+barcodeplot(res$table$logFC, rownames(y) %in% barcode_plot_genes[["Gene"]])
 ```
 
 # Comments on interpretation
