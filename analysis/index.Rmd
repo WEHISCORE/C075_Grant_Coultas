@@ -18,7 +18,7 @@ bibliography: ref.bib
 In this analysis, we study a dataset of retinal epithelial cells from *Kat7* (a.k.a *Hbo1*) knockout and wildtype mice.
 
 After sequencing, expression was quantified by counting the number of UMIs mapped to each gene using `r BiocStyle::Biocpkg("scPipe")`[@tian2018scpipe].
-Count data for all endogeneous genes (GENCODE Release 28 (GRCh38.p12)) and spike-in transcripts (ERCC) are available in this repository.
+Count data for all endogeneous genes (GENCODE Release 28 (GRCm38.p6)) and spike-in transcripts (ERCC) are available in this repository.
 
 This analysis is adapted from the [**Orchestrating Single-Cell Analysis with Bioconductor book**](https://osca.bioconductor.org).
 
