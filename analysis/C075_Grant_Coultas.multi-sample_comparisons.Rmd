@@ -333,6 +333,11 @@ If composition biases are proving problematic for interpretation of DA results, 
 
 # Differential expression between conditions
 
+```{r}
+deg_dir <- here("output", "DEGs")
+dir.create(deg_dir)
+```
+
 ## Creating pseudo-bulk samples
 
 The most obvious differential analysis is to look for changes in expression between conditions.
@@ -446,6 +451,10 @@ de_results <- pseudoBulkDGE(
 Figure \@ref(fig:degs-heatmap) summarises the DEGs using a heatmap of pseudobulk-level log-expression values.
 In general, there seems to be little differential expression that is associated with genotype.
 
+<aside>
+A PDF version of Figure \@ref(fig:degs-heatmap) is available in [`output/DEGs/degs-heatmap.pdf`](../output/DEGs/degs-heatmap.pdf).
+</aside>
+
 ```{r degs-heatmap, fig.cap = "Heatmap of pseudobulk-level log-expression values normalized to the mean of all samples in the filtered data; rows correspond to genes, columns to label-sample combinations. Included is the union of DEGs detected (FDR < `r fdr`) across all labels. Data is split horizontally by label and rows are annotated to show in which label(s) each gene is DE.", fig.asp = 1.5}
 o <- order(summed_filt$label, summed_filt$genotype, summed_filt$sample)
 
@@ -455,6 +464,7 @@ all_features <- lapply(
 features <- unique(unlist(all_features))
 mat <- logcounts(summed_filt)[features, ]
 mat <- mat - rowMeans(mat)
+
 pheatmap(
   mat = mat[, o],
   color = hcl.colors(101, "Blue-Red 3"),
@@ -487,6 +497,43 @@ pheatmap(
   breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
   fontsize = 8,
   gaps_col = cumsum(runLength(Rle(summed_filt$label[o]))))
+
+# PDF version
+pheatmap(
+  mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_row = data.frame(
+    cluster_7 = ifelse(features %in% all_features$cluster_7, "DE", "not DE"),
+    cluster_5 = ifelse(features %in% all_features$cluster_5, "DE", "not DE"),
+    clusters_3_4_6 = ifelse(features %in% all_features$clusters_3_4_6, "DE", "not DE"),
+    cluster_2 = ifelse(features %in% all_features$cluster_2, "DE", "not DE"),
+    cluster_1 = ifelse(features %in% all_features$cluster_1, "DE", "not DE"),
+    row.names = features),
+  annotation_col = data.frame(
+    label = summed_filt$label[o],
+    genotype = summed_filt$genotype[o],
+    plate_number = summed_filt$plate_number[o],
+    sex = summed_filt$sex[o],
+    row.names = colnames(summed_filt)[o]),
+  annotation_colors = list(
+    label = label_colours[levels(summed_filt$label)],
+    genotype = genotype_colours,
+    plate_number = plate_number_colours,
+    sex = sex_colours,
+    cluster_1 = c("not DE" = "white", "DE" = label_colours[["cluster_1"]]),
+    cluster_2 = c("not DE" = "white", "DE" = label_colours[["cluster_2"]]),
+    clusters_3_4_6 = c("not DE" = "white", "DE" = label_colours[["clusters_3_4_6"]]),
+    cluster_5 = c("not DE" = "white", "DE" = label_colours[["cluster_5"]]),
+    cluster_7 = c("not DE" = "white", "DE" = label_colours[["cluster_7"]])),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize = 8,
+  gaps_col = cumsum(runLength(Rle(summed_filt$label[o]))),
+  filename = file.path(deg_dir, "degs-heatmap.pdf"),
+  width = 7,
+  height = 10)
 ```
 
 The following table gives the number of DEGs at a FDR of `r scales::percent(fdr)` for each label.
@@ -500,13 +547,12 @@ summarizeTestsPerLabel(is_de) %>%
 
 ```{r, message = FALSE}
 # Create outputs
-deg_dir <- here("output", "DEGs")
-dir.create(deg_dir)
 createDEGOutputs(outdir = deg_dir, de_results = de_results)
 ```
 
-Note that genes listed as `NA` in the above table were either filtered out as low-abundance genes for a given label’s analysis, or the comparison of interest was not possible for a particular label, e.g., due to lack of residual degrees of freedom or an absence of samples from both conditions.
-If it is necessary to extract statistics in the absence of replicates, several strategies can be applied such as reducing the complexity of the model or using a predefined value for the NB dispersion. We could also consider reducing the minimum number of cells per sample, although we are already using a rather low minimum.
+Note that genes listed as `NA` in the above table were either filtered out as low-abundance genes for a given label's analysis, or the comparison of interest was not possible for a particular label, e.g., due to lack of residual degrees of freedom or an absence of samples from both conditions.
+If it is necessary to extract statistics in the absence of replicates, several strategies can be applied such as reducing the complexity of the model or using a predefined value for the NB dispersion.
+We could also consider reducing the minimum number of cells per sample, although we are already using a rather low minimum.
 
 Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets of these DEG lists, including results of GO and KEGG analyses using the `goana()` and `kegga()` functions from the `r BiocStyle::Biocpkg("limma")` package^[Please note that these results do not take into account the directionality of the log-fold change.], and [`output/glimma-plots`](../output/glimma-plots/) for interactive `r BiocStyle::Biocpkg("Glimma")` plots of the differential expression results.
 The `r BiocStyle::Biocpkg("Glimma")` plots show the pseudobulk data for that label on the left-hand side and the single-cell data for that label on the right-hand side.
@@ -569,6 +615,10 @@ de_results <- pseudoBulkDGE(
 Figure \@ref(fig:degs-ignoring-clusters-heatmap) summarises the DEGs using a heatmap of pseudobulk-level log-expression values.
 There are more DEGs detected when we use the 'coarser' labels.
 
+<aside>
+A PDF version of Figure \@ref(fig:degs-ignoring-clusters-heatmap) is available in [`output/DEGs/degs-ignoring-clusters-heatmap.pdf`](../output/DEGs/degs-ignoring-clusters-heatmap.pdf).
+</aside>
+
 ```{r degs-ignoring-clusters-heatmap, fig.cap = "Heatmap of pseudobulk-level log-expression values normalized to the mean of all samples in the filtered data; rows correspond to genes, columns to label-sample combinations. Included is the union of DEGs detected (FDR < `r fdr`).", fig.asp = 1.8}
 o <- order(summed_filt$label, summed_filt$genotype, summed_filt$sample)
 
@@ -578,6 +628,7 @@ all_features <- lapply(
 features <- unique(unlist(all_features))
 mat <- logcounts(summed_filt)[features, ]
 mat <- mat - rowMeans(mat)
+
 pheatmap(
   mat = mat[, o],
   color = hcl.colors(101, "Blue-Red 3"),
@@ -595,6 +646,28 @@ pheatmap(
     sex = sex_colours),
   breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
   fontsize = 6)
+
+# PDF version
+pheatmap(
+  mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    genotype = summed_filt$genotype[o],
+    plate_number = summed_filt$plate_number[o],
+    sex = summed_filt$sex[o],
+    row.names = colnames(summed_filt)[o]),
+  annotation_colors = list(
+    genotype = genotype_colours,
+    plate_number = plate_number_colours,
+    sex = sex_colours),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize = 6,
+  filename = file.path(deg_dir, "degs-ignoring-clusters-heatmap.pdf"),
+  width = 7,
+  height = 12)
 ```
 
 The following table gives the number of DEGs at a FDR of `r scales::percent(fdr)`.
@@ -679,7 +752,7 @@ go <- dplyr::left_join(
 go <- tibble::column_to_rownames(go, "GO")
 
 gzout <- gzfile(
-  description = file.path(outdir, "ignoring_clusters.directional.GO.csv.gz"),
+  description = file.path(deg_dir, "ignoring_clusters.directional.GO.csv.gz"),
   open = "wb")
 write.csv(
   go,
@@ -727,7 +800,7 @@ kegg <- kegg %>%
   tibble::column_to_rownames("PATH")
 
 gzout <- gzfile(
-  description = file.path(outdir, "ignoring_clusters.directional.KEGG.csv.gz"),
+  description = file.path(deg_dir, "ignoring_clusters.directional.KEGG.csv.gz"),
   open = "wb")
 write.csv(
   kegg,
@@ -786,12 +859,11 @@ Figure \@ref(fig:barcode-plot) visualises the enrichment of the each gene set us
 A PDF version of Figure \@ref(fig:barcode-plot) is available in [`output/DEGs/barcode_plots.pdf`](../output/DEGs/barcode_plots.pdf).
 </aside>
 
-```{r barcode-plot, fig.cap = "Barcode plot of the gene set supplied by Zoe. An enrichment line shows the relative enrichment of the vertical bars in each part of the plot is displayed.", fig.asp = 1 / 3}
-par(mfrow = c(2, 3))
+```{r barcode-plot, fig.cap = "Barcode plot of the gene set supplied by Zoe. An enrichment line shows the relative enrichment of the vertical bars in each part of the plot is displayed.", fig.asp = 3 / 2, results = "hide"}
+par(mfrow = c(3, 2))
 lapply(names(index), function(n) {
   barcodeplot(res$table$logFC, index = index[[n]], main = n)
 })
-
 par(mfrow = c(1, 1))
 pdf(here("output", "DEGs", "barcode_plots.pdf"))
 lapply(names(index), function(n) {
