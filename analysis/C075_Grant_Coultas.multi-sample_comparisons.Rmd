@@ -617,32 +617,15 @@ The single-cell data are plotted per sample using abbreviated sample labels, e.g
 
 ### Futher gene set testing
 
-In addition to the GO and KEGG analyses, we perform 'rotation gene set tests' using the `fry()` function in the `r BiocStyle::Biocpkg("edgeR")` [@wu2010roast].
-This tests whether a set of genes is DE, assessing the set of genes as a whole. 
-Gene set tests consider all the genes in the specified set and do not depend on any pre-emptive significance cut off.
-The set of genes can be chosen to be representative of any pathway or phenotype of interest.
-Zoe sent me such a set of genes, shown below.
-
-<aside>
-The supplied gene list does not include log-fold changes, P-values, or any other form of directionality or ranking of the genes.
-</aside>
-
-```{r}
-barcode_plot_genes <- readxl::read_excel(
-  here("data/zoes_marker_genes/20200728 barcode plot gene lists.xlsx"),
-  col_names = FALSE)
-colnames(barcode_plot_genes) <- "Gene"
-DT::datatable(
-  barcode_plot_genes,
-  caption = "Gene list supplied by Zoe for use in gene set testing (2020-07-28).")
-```
-
-The results of the `fry()` analysis are shown below.
-
 ```{r}
 # NOTE: Have to essentially re-do the analysis because `de_results` does not 
-#       contain the intermediate outputs (e.g., DGEList).
-y <- DGEList(counts(summed), samples = colData(summed))
+#       contain the intermediate outputs (e.g., DGEList). This will not be 
+#       necessary from BioC 3.12 because scran::pseudoBulkDGE() will include 
+#       these intermediate outputs.
+y <- DGEList(
+  counts(summed),
+  samples = colData(summed),
+  genes = flattenDF(rowData(summed)))
 y <- y[, y$samples$ncells >= min_ncells]
 keep <- filterByExpr(y, group = summed$genotype)
 y <- y[keep, ]
@@ -650,22 +633,171 @@ y <- calcNormFactors(y)
 y <- estimateDisp(y, design)
 fit <- glmQLFit(y, design, robust = TRUE)
 res <- glmQLFTest(fit, coef = "Mutant")
+```
 
+As noted above, the GO and KEGG results computed so far have been non-directional (i.e. they don't incorporate the direction of the log-fold change).
+With a bit more work we can incorporate the log-fold change to create more specific GO and KEGG analyses.
+Please see the CSV files with "directional" in the file name in [`output/DEGs/`](../output/DEGs/) for spreadsheets of directional GO and KEGG results^[Note that the number of `Up` and `Down` genes may not match the number of entires in `upGeneSymbols` and `downGeneSymbol` in these spreadsheets. This is because we have performed our analysis using the Ensembl gene ID as the features whereas the GO and KEGG analyses using Entrez gene IDs. There is no one-to-one mapping between the Ensembl gene IDs, Entrez gene IDs, and NCBI gene symbols, which leads to the slight variations of the gene numbers in these spreadsheets.].
+
+```{r}
+# Run GO analysis
+# NOTE: Features map to multiple ENTREZID, so just select the first.
+geneid <- sapply(strsplit(res$genes$NCBI.ENTREZID, ";"), "[[", 1)
+go <- goana(res, coef = "Mutant", species = "Mm", geneid = geneid)
+
+# Get gene symbols associated with each GO term.
+library(org.Mm.eg.db)
+go_symbol_df <- select(
+  org.Mm.eg.db,
+  keys = rownames(go),
+  columns = "SYMBOL", 
+  # NOTE: `keytype = "GO"` returns 'incomplete' results whereas 
+  #       `keytype = "GOALL"` returns the 'complete' results.
+  #       I think this is the same issue described in the goseq vignette 
+  #       (section 6.7): 
+  #       "It is important to use the org.*.egGO2ALLEGS and NOT the org.*.egGO
+  #       object to create the mapping between GO categories and gene
+  #        identifiers, as the latter does not include the links to genes
+  #        arising from 'child' GO categories."
+  keytype = "GOALL")
+go_symbol_df <- dplyr::left_join(
+  go_symbol_df, 
+  as.data.frame(topTags(res, n = Inf))[, c("logFC", "FDR", "NCBI.SYMBOL")],
+  by = c("SYMBOL" = "NCBI.SYMBOL"))
+
+# Extract gene symbols in each GO term that are up- or down-regulated.
+go <- dplyr::left_join(
+  go %>% tibble::rownames_to_column("GO"),
+  go_symbol_df %>%
+    dplyr::group_by(GOALL) %>%
+    dplyr::summarise(
+      upGeneSymbols = 
+        paste(unique(SYMBOL[which(logFC > 0 & FDR < fdr)]), collapse = ", "),
+      downGeneSymbols = 
+        paste(unique(SYMBOL[which(logFC < 0 & FDR < fdr)]), collapse = ", ")),
+  by = c("GO" = "GOALL"))
+go <- tibble::column_to_rownames(go, "GO")
+
+gzout <- gzfile(
+  description = file.path(outdir, "ignoring_clusters.directional.GO.csv.gz"),
+  open = "wb")
+write.csv(
+  go,
+  gzout,
+  # NOTE: quote = TRUE needed because some fields contain commas.
+  quote = TRUE,
+  row.names = TRUE)
+close(gzout)
+```
+
+```{r}
+# Run KEGG analysis
+# NOTE: Features map to multiple ENTREZID, so just select the first.
+geneid <- sapply(strsplit(res$genes$NCBI.ENTREZID, ";"), "[[", 1)
+kegg <- kegga(res, coef = "Mutant", species = "Mm", geneid = geneid)
+
+# Get gene symbols associated with each KEGG pathway.
+library(org.Mm.eg.db)
+kegg_symbol_df <- select(
+  org.Mm.eg.db,
+  # NOTE: The org.MM.eg.db does not use the 'path:mmu'-prefix.
+  keys = sub("path:mmu", "", rownames(kegg)),
+  columns = "SYMBOL", 
+  keytype = "PATH")
+kegg_symbol_df <- dplyr::left_join(
+  kegg_symbol_df, 
+  as.data.frame(topTags(res, n = Inf))[, c("logFC", "FDR", "NCBI.SYMBOL")],
+  by = c("SYMBOL" = "NCBI.SYMBOL"))
+
+# Extract gene symbols in each KEGG pathway that are up- or down-regulated.
+kegg <- dplyr::left_join(
+  kegg %>% 
+    tibble::rownames_to_column("PATH") %>%
+    dplyr::mutate(PATH = sub("path:mmu", "", PATH)),
+  kegg_symbol_df %>%
+    dplyr::group_by(PATH) %>%
+    dplyr::summarise(
+      upGeneSymbols = 
+        paste(unique(SYMBOL[which(logFC > 0 & FDR < fdr)]), collapse = ", "),
+      downGeneSymbols = 
+        paste(unique(SYMBOL[which(logFC < 0 & FDR < fdr)]), collapse = ", ")),
+  by = c("PATH" = "PATH"))
+kegg <- kegg %>%
+  dplyr::mutate(PATH = paste0("path:mmu", PATH)) %>%
+  tibble::column_to_rownames("PATH")
+
+gzout <- gzfile(
+  description = file.path(outdir, "ignoring_clusters.directional.KEGG.csv.gz"),
+  open = "wb")
+write.csv(
+  kegg,
+  gzout,
+  # NOTE: quote = TRUE needed because some fields contain commas.
+  quote = TRUE,
+  row.names = TRUE)
+close(gzout)
+```
+
+In addition to the GO and KEGG analyses, we perform 'rotation gene set tests' using the `fry()` function in the `r BiocStyle::Biocpkg("edgeR")` [@wu2010roast].
+This tests whether a set of genes is DE, assessing the set of genes as a whole. 
+Gene set tests consider all the genes in the specified set and do not depend on any pre-emptive significance cut off.
+The set of genes can be chosen to be representative of any pathway or phenotype of interest.
+Zoe sent me such a set of genes (see [`data/zoes_marker_genes/20200728 barcode plot gene lists.xlsx`](../data/zoes_marker_genes/20200728 barcode plot gene lists.xlsx)).
+
+<aside>
+The supplied gene list does not include log-fold changes, P-values, or any other form of directionality or ranking of the genes.
+</aside>
+
+```{r}
+sheet_names <- readxl::excel_sheets(
+  here("data", "zoes_marker_genes", "20200728 barcode plot gene lists.xlsx"))
+barcode_plot_genes <- lapply(sheet_names, function(sheet) {
+  unlist(
+    readxl::read_excel(
+      here("data", "zoes_marker_genes", "20200728 barcode plot gene lists.xlsx"),
+      sheet = sheet,
+      col_names = FALSE),
+    use.names = FALSE)
+})
+names(barcode_plot_genes) <- sub("^[0-9]\\. ", "", sheet_names)
+```
+
+The results of the `fry()` analysis are shown below.
+
+```{r}
+index <- lapply(barcode_plot_genes, function(x) {
+  rownames(y) %in% x
+})
 fr <- fry(
   y = y,
-  index = rownames(y) %in% barcode_plot_genes[[1]],
+  index = index,
   design = design,
   contrast = "Mutant")
 
 knitr::kable(
-  fr, 
-  caption = "Results of `fry()` analysis. The `NGenes` column provides the number of genes in each set. The `Direction` column indicates the net direction of change. The `PValue` column gives the two-sided p-value for testing whether the set is DE as a whole, either up or down; this column is appropriate when genes in the set are expected to be co-regulated, all or most changing expression in the same direction. The `PValue.Mixed` column gives a p-value for testing whether genes in the set tend to be DE, without regard to direction; This column is appropriate when genes in the set are not necessarily co-regulated or may be regulated in different directions for the contrast in question.")
+  fr %>%
+    tibble::rownames_to_column("Gene set"), 
+  caption = "Results of `fry()` analysis. The row name provides the name of the gene set. The `NGenes` column provides the number of genes in each set. The `Direction` column indicates the net direction of change. The `PValue` column gives the two-sided p-value for testing whether the set is DE as a whole, either up or down; this column is appropriate when genes in the set are expected to be co-regulated, all or most changing expression in the same direction. The `PValue.Mixed` column gives a p-value for testing whether genes in the set tend to be DE, without regard to direction; This column is appropriate when genes in the set are not necessarily co-regulated or may be regulated in different directions for the contrast in question.")
 ```
 
-Figure \@ref(fig:barcode-plot) visualises the enrichment of the supplied gene set using a barcode enrichment plot.
+Figure \@ref(fig:barcode-plot) visualises the enrichment of the each gene set using a barcode enrichment plot.
 
-```{r barcode-plot, fig.cap = "Barcode plot of the gene set supplied by Zoe. An enrichment line shows the relative enrichment of the vertical bars in each part of the plot is displayed.", fig.asp = 1 / 2}
-barcodeplot(res$table$logFC, rownames(y) %in% barcode_plot_genes[["Gene"]])
+<aside>
+A PDF version of Figure \@ref(fig:barcode-plot) is available in [`output/DEGs/barcode_plots.pdf`](../output/DEGs/barcode_plots.pdf).
+</aside>
+
+```{r barcode-plot, fig.cap = "Barcode plot of the gene set supplied by Zoe. An enrichment line shows the relative enrichment of the vertical bars in each part of the plot is displayed.", fig.asp = 1 / 3}
+par(mfrow = c(2, 3))
+lapply(names(index), function(n) {
+  barcodeplot(res$table$logFC, index = index[[n]], main = n)
+})
+
+par(mfrow = c(1, 1))
+pdf(here("output", "DEGs", "barcode_plots.pdf"))
+lapply(names(index), function(n) {
+  barcodeplot(res$table$logFC, index = index[[n]], main = n)
+})
+dev.off()
 ```
 
 # Comments on interpretation

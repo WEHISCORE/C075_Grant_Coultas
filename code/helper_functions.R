@@ -437,13 +437,19 @@ createDEGOutputs <- function(outdir, de_results, fdr = 0.05) {
     if (length(i)) {
       x <- x[i, ]
       de <- rownames(x[x$FDR < fdr, ])
-      entrez <- unique(unlist(rowData(sce)[de, ]$NCBI.ENTREZID))
-      # TODO: Supply universe and if so what?
-      # universe <- na.omit(unique(unlist(rowData(sce)$NCBI.ENTREZID)))
-      # universe <- na.omit(unique(unlist(rowData(sce)[rownames(x), ]$NCBI.ENTREZID)))
+      entrez <- as.vector(
+        na.omit(
+          unique(unlist(rowData(sce)[de, ]$NCBI.ENTREZID))))
+      # NOTE: Supply the universe of genes actually tested for DE rather than
+      #       using all genes. This mimics what would happen if goana()/kegga()
+      #       were passed the DGELRT object underlying this analysis ( but
+      #       which isn't available).
+      universe <- as.vector(
+        na.omit(
+          unique(unlist(rowData(sce)[rownames(x), ]$NCBI.ENTREZID))))
 
       # GO
-      go <- limma::goana(entrez, species = "Mm")
+      go <- goana(entrez, species = "Mm", universe = universe)
       gzout <- gzfile(
         description = file.path(outdir, paste0(label, ".GO.csv.gz")),
         open = "wb")
@@ -456,7 +462,7 @@ createDEGOutputs <- function(outdir, de_results, fdr = 0.05) {
       close(gzout)
 
       # KEGG
-      kegg <- limma::kegga(entrez, species = "Mm")
+      kegg <- kegga(entrez, species = "Mm", universe = universe)
       gzout <- gzfile(
         description = file.path(outdir, paste0(label, ".KEGG.csv.gz")),
         open = "wb")
