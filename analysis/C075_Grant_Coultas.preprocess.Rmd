@@ -1002,7 +1002,7 @@ plot_grid(
 
 ## Summary
 
-To conclude, Figure \@ref(fig:qcplot-post-outlier-removal) shows that post-QC that most samples have similar QC metrics, as is to be expected, and Figure \@ref(fig: breakdown-by-plate-number-post-qc) summarises the experimental design following QC.
+To conclude, Figure \@ref(fig:qcplot-post-outlier-removal) shows that post-QC that most samples have similar QC metrics, as is to be expected, and Figure \@ref(fig:breakdown-by-plate-number-post-qc) summarises the experimental design following QC.
 
 <aside>
 A PDF version of Figure \@ref(fig:qcplot-post-outlier-removal) **but with LC294 and LC358 excluded and only showing the single cells** is available in [`output/qc_plots/qc_plots_after.pdf`](../output/qc_plots/qc_plots_after.pdf).
