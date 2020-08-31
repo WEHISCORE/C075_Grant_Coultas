@@ -24,8 +24,8 @@
   
   
   <!--  https://schema.org/Article -->
-  <meta property="article:published" itemprop="datePublished" content="2020-08-28"/>
-  <meta property="article:created" itemprop="dateCreated" content="2020-08-28"/>
+  <meta property="article:published" itemprop="datePublished" content="2020-08-31"/>
+  <meta property="article:created" itemprop="dateCreated" content="2020-08-31"/>
   <meta name="article:author" content="Peter Hickey"/>
   
   <!--  https://developers.facebook.com/docs/sharing/webmasters#markup -->
@@ -48,7 +48,7 @@
   <!--radix_placeholder_rmarkdown_metadata-->
   
   <script type="text/json" id="radix-rmarkdown-metadata">
-  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output","editor_options","bibliography"]}},"value":[{"type":"character","attributes":{},"value":["Multi-sample comparisons with Grant (C075) retinal epithelial cells data set"]},{"type":"NULL"},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","affiliation","affiliation_url"]}},"value":[{"type":"character","attributes":{},"value":["Peter Hickey"]},{"type":"character","attributes":{},"value":["https://peterhickey.org"]},{"type":"character","attributes":{},"value":["Single Cell Open Research Endeavour (SCORE), WEHI"]},{"type":"character","attributes":{},"value":["https://www.wehi.edu.au/people/shalin-naik/3310/score"]}]}]},{"type":"character","attributes":{},"value":["2020-08-28"]},{"type":"character","attributes":{},"value":["distill::distill_article"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["chunk_output_type"]}},"value":[{"type":"character","attributes":{},"value":["console"]}]},{"type":"character","attributes":{},"value":["ref.bib"]}]}
+  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output","editor_options","bibliography"]}},"value":[{"type":"character","attributes":{},"value":["Multi-sample comparisons with Grant (C075) retinal epithelial cells data set"]},{"type":"NULL"},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","affiliation","affiliation_url"]}},"value":[{"type":"character","attributes":{},"value":["Peter Hickey"]},{"type":"character","attributes":{},"value":["https://peterhickey.org"]},{"type":"character","attributes":{},"value":["Single Cell Open Research Endeavour (SCORE), WEHI"]},{"type":"character","attributes":{},"value":["https://www.wehi.edu.au/people/shalin-naik/3310/score"]}]}]},{"type":"character","attributes":{},"value":["2020-08-31"]},{"type":"character","attributes":{},"value":["distill::distill_article"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["chunk_output_type"]}},"value":[{"type":"character","attributes":{},"value":["console"]}]},{"type":"character","attributes":{},"value":["ref.bib"]}]}
   </script>
   <!--/radix_placeholder_rmarkdown_metadata-->
   <!--radix_placeholder_navigation_in_header-->
@@ -1289,7 +1289,7 @@
 <!--radix_placeholder_front_matter-->
 
 <script id="distill-front-matter" type="text/json">
-{"title":"Multi-sample comparisons with Grant (C075) retinal epithelial cells data set","authors":[{"author":"Peter Hickey","authorURL":"https://peterhickey.org","affiliation":"Single Cell Open Research Endeavour (SCORE), WEHI","affiliationURL":"https://www.wehi.edu.au/people/shalin-naik/3310/score"}],"publishedDate":"2020-08-28T00:00:00.000+10:00","citationText":"Hickey, 2020"}
+{"title":"Multi-sample comparisons with Grant (C075) retinal epithelial cells data set","authors":[{"author":"Peter Hickey","authorURL":"https://peterhickey.org","affiliation":"Single Cell Open Research Endeavour (SCORE), WEHI","affiliationURL":"https://www.wehi.edu.au/people/shalin-naik/3310/score"}],"publishedDate":"2020-08-31T00:00:00.000+10:00","citationText":"Hickey, 2020"}
 </script>
 
 <!--/radix_placeholder_front_matter-->
@@ -1338,7 +1338,7 @@ Supplementary files
 <div class="d-byline">
   Peter Hickey <a href="https://peterhickey.org" class="uri">https://peterhickey.org</a> (Single Cell Open Research Endeavour (SCORE), WEHI)<a href="https://www.wehi.edu.au/people/shalin-naik/3310/score" class="uri">https://www.wehi.edu.au/people/shalin-naik/3310/score</a>
   
-<br/>2020-08-28
+<br/>2020-08-31
 </div>
 
 <div class="d-article">
@@ -1643,7 +1643,7 @@ Plate <code>LC279</code> effectively does not contribute to this analysis becaus
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>A typical step in bulk RNA-seq data analyses is to remove samples with very low library sizes due to failed library preparation or sequencing. The very low counts in these samples can be troublesome in downstream steps such as normalization or for some statistical approximations used in the DE analysis. In our situation, this is equivalent to removing label-sample combinations that have very few or lowly-sequenced cells. The exact definition of “very low” will vary, but in this case we remove combinations containing fewer than 10 cells. This is lower than generally recommended<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a> but here we are limited by the small numbers of cells/sample that were processed.</p>
+<p>A typical step in bulk RNA-seq data analyses is to remove samples with very low library sizes due to failed library preparation or sequencing. The very low counts in these samples can be troublesome in downstream steps such as normalization or for some statistical approximations used in the DE analysis. In our situation, this is equivalent to removing label-sample combinations that have very few or lowly-sequenced cells. The exact definition of “very low” will vary, but in this case we remove combinations containing fewer than 2 cells. This is much lower than generally recommended<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a> but here we are limited by the small numbers of cells/sample that were processed.</p>
 <p>Another typical step in bulk RNA-seq analyses is to remove genes that are lowly expressed. This reduces computational work, improves the accuracy of mean-variance trend modelling and decreases the severity of the multiple testing correction. Genes are discarded if they are not expressed above a log-CPM threshold in a minimum number of samples (determined from the size of the smallest treatment group in the experimental design).</p>
 <p>Finally, we correct for composition biases by computing normalization factors with the trimmed mean of M-values method <span class="citation" data-cites="robinson2010scaling">(Robinson and Oshlack <a href="#ref-robinson2010scaling" role="doc-biblioref">2010</a>)</span>. We do not need the bespoke single-cell methods used earlier in this analysis, as the counts for our pseudo-bulk samples are large enough to apply bulk normalization methods.</p>
 <h4 id="statistical-modelling">Statistical modelling</h4>
@@ -1695,30 +1695,30 @@ Figure 5: Heatmap of pseudobulk-level log-expression values normalized to the me
 <tr class="odd">
 <td style="text-align: left;">cluster_1</td>
 <td style="text-align: right;">2</td>
-<td style="text-align: right;">6454</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">27199</td>
+<td style="text-align: right;">6698</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">26954</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">cluster_2</td>
-<td style="text-align: right;">5</td>
-<td style="text-align: right;">8039</td>
-<td style="text-align: right;">11</td>
-<td style="text-align: right;">25600</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">7806</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">25849</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">cluster_5</td>
 <td style="text-align: right;">0</td>
+<td style="text-align: right;">4399</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">33655</td>
+<td style="text-align: right;">29256</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">cluster_7</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">33655</td>
+<td style="text-align: right;">1521</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">32132</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">clusters_3_4_6</td>
@@ -1733,13 +1733,13 @@ Figure 5: Heatmap of pseudobulk-level log-expression values normalized to the me
 <div class="layout-chunk" data-layout="l-body">
 
 </div>
-<p>Note that genes listed as <code>NA</code> in the above table were either filtered out as low-abundance genes for a given label’s analysis, or the comparison of interest was not possible for a particular label, e.g., due to lack of residual degrees of freedom or an absence of samples from both conditions. If it is necessary to extract statistics in the absence of replicates, several strategies can be applied such as reducing the complexity of the model or using a predefined value for the NB dispersion. We could also consider reducing the minimum number of cells per sample, although we are already using a rather low minimum.</p>
+<p>Note that genes listed as <code>NA</code> in the above table were either filtered out as low-abundance genes for a given label’s analysis, or the comparison of interest was not possible for a particular label, e.g., due to lack of residual degrees of freedom or an absence of samples from both conditions. If it is necessary to extract statistics in the absence of replicates, several strategies can be applied such as reducing the complexity of the model or using a predefined value for the NB dispersion.</p>
 <p>Please see <a href="../output/DEGs/"><code>output/DEGs/</code></a> for spreadsheets of these DEG lists, including results of GO and KEGG analyses using the <code>goana()</code> and <code>kegga()</code> functions from the <em><a href="https://bioconductor.org/packages/3.11/limma">limma</a></em> package<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a>, and <a href="../output/glimma-plots/"><code>output/glimma-plots</code></a> for interactive <em><a href="https://bioconductor.org/packages/3.11/Glimma">Glimma</a></em> plots of the differential expression results. The <em><a href="https://bioconductor.org/packages/3.11/Glimma">Glimma</a></em> plots show the pseudobulk data for that label on the left-hand side and the single-cell data for that label on the right-hand side. The single-cell data are plotted per sample using abbreviated sample labels, e.g., <code>C.LC280</code> means “control mouse on plate LC280”, <code>M.LC280</code> means “mutate mouse on plate LC280”, etc.</p>
 <aside>
 Note that the DEG list spreadsheets contain all labels and genes whereas the Glimma plots only contain labels and genes actually tested for DE. The column names in the Glimma tables may be abbreviated.
 </aside>
 <h2 id="analysis-using-coarser-labels">Analysis using ‘coarser’ labels</h2>
-<p>As noted in <a href="#pre-processing-1">Pre-processing</a>, by only requiring 10 cells/label/mouse we are using fewer cells/label/sample than the generally recommended minimum of 100. If we had more cells/label/sample then we would expect to increase our true positive rate, i.e. we would have greater statistical power to identify DEGs <span class="citation" data-cites="crowell2019discovery">(Crowell et al. <a href="#ref-crowell2019discovery" role="doc-biblioref">2019</a>)</span>. Fortunately, <span class="citation" data-cites="crowell2019discovery">Crowell et al. (<a href="#ref-crowell2019discovery" role="doc-biblioref">2019</a>)</span> also found that the false discovery rate is not greatly affected by the choice of minimum number of cells, so we are probably not at risk of making more false discoveries by using a low minimum number of cells/label/sample.</p>
+<p>As noted in <a href="#pre-processing-1">Pre-processing</a>, by only requiring 2 cells/label/mouse we are using fewer cells/label/sample than the generally recommended minimum of 100. If we had more cells/label/sample then we would expect to increase our true positive rate, i.e. we would have greater statistical power to identify DEGs <span class="citation" data-cites="crowell2019discovery">(Crowell et al. <a href="#ref-crowell2019discovery" role="doc-biblioref">2019</a>)</span>. Fortunately, <span class="citation" data-cites="crowell2019discovery">Crowell et al. (<a href="#ref-crowell2019discovery" role="doc-biblioref">2019</a>)</span> also found that the false discovery rate is not greatly affected by the choice of minimum number of cells, so we are probably not at risk of making more false discoveries by using a low minimum number of cells/label/sample.</p>
 <p>To increase the number of cells/label/sample would require one or more of:</p>
 <ol type="1">
 <li>The acquisition of additional cells (i.e. more experiments)</li>
@@ -1915,7 +1915,7 @@ Figure 7: Barcode plot of the gene set supplied by Zoe. An enrichment line shows
  collate  en_US.UTF-8                 
  ctype    en_US.UTF-8                 
  tz       Australia/Melbourne         
- date     2020-08-28                  
+ date     2020-08-31                  
 
 ─ Packages ─────────────────────────────────────────────────────────
  ! package              * version  date       lib source        
@@ -2021,7 +2021,7 @@ Figure 7: Barcode plot of the gene set supplied by Zoe. An enrichment line shows
  P zlibbioc               1.34.0   2020-04-27 [?] Bioconductor  
 
 [1] /stornext/General/data/user_managed/grpu_mritchie_1/hickey/SCORE/C075_Grant_Coultas/renv/library/R-4.0/x86_64-pc-linux-gnu
-[2] /tmp/RtmpwP39zw/renv-system-library
+[2] /tmp/RtmpWaHIfN/renv-system-library
 [3] /stornext/System/data/apps/R/R-4.0.0/lib64/R/library
 
  P ── Loaded and on-disk path mismatch.</code></pre>
