@@ -380,14 +380,14 @@ Moreover, label-specific batch effects would not be easily handled with a single
 #### Pre-processing
 
 ```{r}
-min_ncells <- 10
+min_ncells <- 2
 ```
 
 A typical step in bulk RNA-seq data analyses is to remove samples with very low library sizes due to failed library preparation or sequencing.
 The very low counts in these samples can be troublesome in downstream steps such as normalization or for some statistical approximations used in the DE analysis.
 In our situation, this is equivalent to removing label-sample combinations that have very few or lowly-sequenced cells.
 The exact definition of "very low" will vary, but in this case we remove combinations containing fewer than `r min_ncells` cells.
-This is lower than generally recommended^[E.g., Crowell *et al*. note that "$\approx100$ cells is sufficient to reach decent performance" with pseudobulk DE methods and that "there is a sizable gain in performance in going from 50 to 100 cells" per label per sample.] but here we are limited by the small numbers of cells/sample that were processed.
+This is much lower than generally recommended^[E.g., Crowell *et al*. note that "$\approx100$ cells is sufficient to reach decent performance" with pseudobulk DE methods and that "there is a sizable gain in performance in going from 50 to 100 cells" per label per sample.] but here we are limited by the small numbers of cells/sample that were processed.
 
 Another typical step in bulk RNA-seq analyses is to remove genes that are lowly expressed.
 This reduces computational work, improves the accuracy of mean-variance trend modelling and decreases the severity of the multiple testing correction.
@@ -552,7 +552,6 @@ createDEGOutputs(outdir = deg_dir, de_results = de_results)
 
 Note that genes listed as `NA` in the above table were either filtered out as low-abundance genes for a given label's analysis, or the comparison of interest was not possible for a particular label, e.g., due to lack of residual degrees of freedom or an absence of samples from both conditions.
 If it is necessary to extract statistics in the absence of replicates, several strategies can be applied such as reducing the complexity of the model or using a predefined value for the NB dispersion.
-We could also consider reducing the minimum number of cells per sample, although we are already using a rather low minimum.
 
 Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets of these DEG lists, including results of GO and KEGG analyses using the `goana()` and `kegga()` functions from the `r BiocStyle::Biocpkg("limma")` package^[Please note that these results do not take into account the directionality of the log-fold change.], and [`output/glimma-plots`](../output/glimma-plots/) for interactive `r BiocStyle::Biocpkg("Glimma")` plots of the differential expression results.
 The `r BiocStyle::Biocpkg("Glimma")` plots show the pseudobulk data for that label on the left-hand side and the single-cell data for that label on the right-hand side.
