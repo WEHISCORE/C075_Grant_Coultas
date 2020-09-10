@@ -304,6 +304,7 @@ createClusterMarkerOutputs <- function(prefix, outdir, markers, exprs_values, k,
         mat[mat > zlim[2]] <- zlim[2]
         pheatmap(
           mat = mat[, o],
+          color = hcl.colors(101, "Blue-Red 3"),
           cluster_rows = TRUE,
           cluster_cols = FALSE,
           show_colnames = FALSE,
