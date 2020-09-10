@@ -1082,7 +1082,7 @@ cyclin_markers <- findMarkers(
   sce, 
   subset.row = sort(cyclin_genes), 
   group = sce$cluster, 
-  block = sce$Sample, 
+  block = sce$block, 
   direction = "up", 
   pval.type = "any",
   test.type = "wilcox")
