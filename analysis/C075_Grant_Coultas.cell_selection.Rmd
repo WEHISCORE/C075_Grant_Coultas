@@ -429,11 +429,12 @@ pheatmap(
 This result was discussed with Zoe^[Meeting between Daniela, Zoe and I on 2020-03-06 and in email on 2020-07-19.].
 Zoe characterised the genes expressed exclusively by cells on plates LC294 and LC358 as being "abnormal for the cells I collected (i.e. ... epithelial cell markers)" and noted that "there was nothing obviously different about the phenotype or the way that [she] prepared these samples that would explain these differences".
 
+Subsequent analysis identified that plates LC294 and LC358 were contaminated by RNA from a separate project (C078_Wang; see [slides](https://docs.google.com/presentation/d/1-o64cGlLqrcP1GRKs1s9c7jaZJVrwZ6tui4chkDROtg/edit?usp=sharing)).
+SCORE was not able to determine the root cause of this contamination, but the diagnosis is clear and it was therefore decided to exclude cells from plates on LC294 and LC358 from further analysis.
+
 ```{r}
 keep <- !sce$plate_number %in% c("LC294", "LC358")
 ```
-
-It was therefore decided to exclude cells from plates on LC294 and LC358 from further analysis.
 
 ```{r}
 sce <- sce[, keep]
@@ -591,6 +592,24 @@ Notably:
 - Still, some of the clusters are highly plate-specific (i.e. potential batch effects). 
 
 We therefore proceed to [Data integration] to remove these plate-specific differences
+
+# Low-level within-plate contamination
+
+Figure \@ref(fig:xist) shows that some of the cells from male samples have non-zero expression of *Xist*, afemale-specific gene.
+Notably, this only occurs in male samples on plates that also contain a female sample, which suggests that there is some low-level within-plate contamination.
+This within-plate contamination may be caused by well barcode swaps or by dirty tools at the time of sample dissection.
+Whilst somewhat concerning, it is difficult to remove this contamination and its effect is hopefully moderate compared to the wanted sources of biological variation.
+
+```{r xist, fig.cap = "Expression of Xist in each sample."}
+plotExpression(
+  sce,
+  "Xist",
+  x = I(paste0(sce$plate_number, ".", sce$mouse)),
+  colour_by = "sex") + 
+  scale_fill_manual(values = sex_colours, name = "sex") + 
+  xlab("Plate.mouse") + 
+  theme_cowplot(font_size = 8)
+```
 
 # Data integration
 
