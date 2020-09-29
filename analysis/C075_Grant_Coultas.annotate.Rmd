@@ -1761,6 +1761,174 @@ Used this way, the provided cluster marker gene lists can help develop biologica
 We strongly recommend that you visualise the expression patterns of any genes of interest to better understand what is driving their inclusion in the marker gene lists.
 </aside>
 
+## Heatmaps
+
+Zoe went through the above gene lists to arrive at a gene list that characterises the clusters.
+
+```{r}
+cluster_markers <- read.csv(
+  here("data", "zoes_marker_genes", "cluster_markers.csv"))
+all_features <- split(cluster_markers$Gene, cluster_markers$Cluster)
+
+summed <- aggregateAcrossCells(
+  sce, 
+  ids = colData(sce)[, "cluster", drop = FALSE], coldata_merge = FALSE)
+colnames(summed) <- summed$cluster
+assay(summed, "logCPM") <- edgeR::cpm(counts(summed), log = TRUE)
+```
+
+Figures \@ref(fig:summary-heatmap-with-duplicate-genes) and \@ref(fig:summary-heatmap-no-duplicate-genes) are heatmaps of this gene list (with and without duplicate genes).
+
+<aside>
+PDF versions of Figures \@ref(fig:summary-heatmap-with-duplicate-genes) and \@ref(fig:summary-heatmap-no-duplicate-genes) are available in [`output/cluster_marker_genes/summary_heatmap_with_duplicate_genes.pdf`](../output/qc_plots/summary_heatmap_with_duplicate_genes.pdf) and [`output/cluster_marker_genes/summary_heatmap_no_duplicate_genes.pdf`](../output/qc_plots/summary_heatmap_no_duplicate_genes.pdf) .
+</aside>
+
+```{r summary-heatmap-with-duplicate-genes, fig.cap = "Heatmap of Zoe's cluster marker gene list.", fig.asp = 2}
+features <- unlist(all_features, use.names = FALSE)
+mat <- assay(summed, "logCPM")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-3, 3)
+mat[mat < zlim[1]] <- zlim[1]
+mat[mat > zlim[2]] <- zlim[2]
+pheatmap(
+  mat = mat,
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    cluster = summed$cluster,
+    row.names = colnames(summed)),
+  annotation_colors = list(cluster = cluster_colours),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize_row = 4,
+  main = "Pseudobulked (per-cluster)")
+
+pheatmap(
+  mat = mat,
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    cluster = summed$cluster,
+    row.names = colnames(summed)),
+  annotation_colors = list(cluster = cluster_colours),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize_row = 4,
+  main = "Pseudobulked (per-cluster)",
+  filename = here(
+    "output",
+    "cluster_marker_genes",
+    "summary_heatmap_with_duplicate_genes.pdf"),
+  height = 15,
+  width = 5)
+```
+
+```{r}
+features <- unique(features)
+mat <- assay(summed, "logCPM")[features, ]
+mat <- mat - rowMeans(mat)
+zlim <- c(-3, 3)
+mat[mat < zlim[1]] <- zlim[1]
+mat[mat > zlim[2]] <- zlim[2]
+pheatmap(
+  mat = mat,
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_row = data.frame(
+    cluster_7 = ifelse(features %in% all_features$`7`, "up_some", "not_up_some"),
+    cluster_6 = ifelse(features %in% all_features$`6`, "up_some", "not_up_some"),
+    cluster_5 = ifelse(features %in% all_features$`5`, "up_some", "not_up_some"),
+    cluster_4 = ifelse(features %in% all_features$`4`, "up_some", "not_up_some"),
+    cluster_3 = ifelse(features %in% all_features$`3`, "up_some", "not_up_some"),
+    cluster_2 = ifelse(features %in% all_features$`2`, "up_some", "not_up_some"),
+    cluster_1 = ifelse(features %in% all_features$`1`, "up_some", "not_up_some"),
+    row.names = features),
+  annotation_col = data.frame(
+    cluster = summed$cluster,
+    row.names = colnames(summed)),
+  annotation_colors = list(
+    cluster = cluster_colours,
+    cluster_1 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["1"]]),
+    cluster_2 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["2"]]),
+    cluster_3 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["3"]]),
+    cluster_4 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["4"]]),
+    cluster_5 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["5"]]),
+    cluster_6 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["6"]]),
+    cluster_7 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["7"]])),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize_row = 4,
+  main = "Pseudobulked (per-cluster)")
+
+pheatmap(
+  mat = mat,
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_row = data.frame(
+    cluster_7 = ifelse(features %in% all_features$`7`, "up_some", "not_up_some"),
+    cluster_6 = ifelse(features %in% all_features$`6`, "up_some", "not_up_some"),
+    cluster_5 = ifelse(features %in% all_features$`5`, "up_some", "not_up_some"),
+    cluster_4 = ifelse(features %in% all_features$`4`, "up_some", "not_up_some"),
+    cluster_3 = ifelse(features %in% all_features$`3`, "up_some", "not_up_some"),
+    cluster_2 = ifelse(features %in% all_features$`2`, "up_some", "not_up_some"),
+    cluster_1 = ifelse(features %in% all_features$`1`, "up_some", "not_up_some"),
+    row.names = features),
+  annotation_col = data.frame(
+    cluster = summed$cluster,
+    row.names = colnames(summed)),
+  annotation_colors = list(
+    cluster = cluster_colours,
+    cluster_1 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["1"]]),
+    cluster_2 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["2"]]),
+    cluster_3 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["3"]]),
+    cluster_4 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["4"]]),
+    cluster_5 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["5"]]),
+    cluster_6 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["6"]]),
+    cluster_7 = c(
+      "not_up_some" = "white",
+      "up_some" = cluster_colours[["7"]])),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize_row = 4,
+  main = "Pseudobulked (per-cluster)",
+  filename = here(
+    "output",
+    "cluster_marker_genes",
+    "summary_heatmap_no_duplicate_genes.pdf"),
+  height = 15,
+  width = 5)
+```
+
 # Concluding remarks
 
 Zoe requested that clusters 3, 4, and 6 be aggregated for the purposes of differential analyses.
