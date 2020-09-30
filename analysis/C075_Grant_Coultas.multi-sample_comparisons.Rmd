@@ -419,7 +419,7 @@ As noted in [Setting up the data], we start by using the aggregated cluster labe
 
 ```{r}
 # Pulling out a sample-level 'targets' data.frame.
-targets <- colData(summed)[!duplicated(summed$sample),]
+targets <- colData(summed)[!duplicated(summed$sample), ]
 
 # Constructing the design matrix.
 design <- model.matrix(~plate_number + genotype, targets)
@@ -449,7 +449,7 @@ de_results <- pseudoBulkDGE(
 ```
 
 Figure \@ref(fig:degs-heatmap) summarises the DEGs using a heatmap of pseudobulk-level log-expression values.
-In general, there seems to be little differential expression that is associated with genotype.
+In general, there seems to be little differential expression that is associated with genotype, except within `clusters_3_4_6`.
 
 <aside>
 A PDF version of Figure \@ref(fig:degs-heatmap) is available in [`output/DEGs/degs-heatmap.pdf`](../output/DEGs/degs-heatmap.pdf).
@@ -593,7 +593,7 @@ summed <- aggregateAcrossCells(
 summed <- logNormCounts(summed)
 colnames(summed) <- paste0(summed$label, ".", summed$sample)
 
-targets <- colData(summed)[!duplicated(summed$sample),]
+targets <- colData(summed)[!duplicated(summed$sample), ]
 
 # Constructing the design matrix.
 design <- model.matrix(~plate_number + genotype, targets)
@@ -615,7 +615,7 @@ Figure \@ref(fig:degs-ignoring-clusters-heatmap) summarises the DEGs using a hea
 There are more DEGs detected when we use the 'coarser' labels.
 
 <aside>
-A PDF version of Figure \@ref(fig:degs-ignoring-clusters-heatmap) is available in [`output/DEGs/degs-ignoring-clusters-heatmap.pdf`](../output/DEGs/degs-ignoring-clusters-heatmap.pdf).
+A PDF version of Figure \@ref(fig:degs-ignoring-clusters-heatmap) is available in [`output/DEGs/degs-ignoring-clusters-heatmap.pdf`](../output/DEGs/degs-ignoring-clusters-heatmap.pdf) and a version showing just the top-60 DEGs by FDR in [`output/DEGs/degs-ignoring-clusters-heatmap-top-60.pdf`](../output/DEGs/degs-ignoring-clusters-heatmap-top-60.pdf).
 </aside>
 
 ```{r degs-ignoring-clusters-heatmap, fig.cap = "Heatmap of pseudobulk-level log-expression values normalized to the mean of all samples in the filtered data; rows correspond to genes, columns to label-sample combinations. Included is the union of DEGs detected (FDR < `r fdr`).", fig.asp = 1.8}
@@ -667,6 +667,35 @@ pheatmap(
   filename = file.path(deg_dir, "degs-ignoring-clusters-heatmap.pdf"),
   width = 7,
   height = 12)
+
+# PDF version retricted to top-60 genes by FDR (requested by Zoe in email on 
+# 2020-09-19)
+all_features <- lapply(
+  de_results, 
+  function(x) head(rownames(x[order(x$FDR), ]), 60))
+features <- unique(unlist(all_features))
+mat <- logcounts(summed_filt)[features, ]
+mat <- mat - rowMeans(mat)
+pheatmap(
+  mat = mat[, o],
+  color = hcl.colors(101, "Blue-Red 3"),
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  show_colnames = FALSE,
+  annotation_col = data.frame(
+    genotype = summed_filt$genotype[o],
+    plate_number = summed_filt$plate_number[o],
+    sex = summed_filt$sex[o],
+    row.names = colnames(summed_filt)[o]),
+  annotation_colors = list(
+    genotype = genotype_colours,
+    plate_number = plate_number_colours,
+    sex = sex_colours),
+  breaks = seq(-max(abs(mat)), max(abs(mat)), length.out = 101),
+  fontsize = 8,
+  filename = file.path(deg_dir, "degs-ignoring-clusters-heatmap-top-60.pdf"),
+  width = 7,
+  height = 12)
 ```
 
 The following table gives the number of DEGs at a FDR of `r scales::percent(fdr)`.
@@ -699,7 +728,7 @@ y <- DGEList(
   samples = colData(summed),
   genes = flattenDF(rowData(summed)))
 y <- y[, y$samples$ncells >= min_ncells]
-keep <- filterByExpr(y, group = summed$genotype)
+keep <- filterByExpr(y, group = y$samples$genotype)
 y <- y[keep, ]
 y <- calcNormFactors(y)
 y <- estimateDisp(y, design)
