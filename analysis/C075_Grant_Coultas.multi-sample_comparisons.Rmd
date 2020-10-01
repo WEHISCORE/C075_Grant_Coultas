@@ -602,7 +602,7 @@ rownames(design) <- targets$sample
 
 summed_filt <- summed[, summed$ncells >= min_ncells]
 
-de_results <- pseudoBulkDGE(
+de_results_ignoring_clusters <- pseudoBulkDGE(
   summed_filt, 
   sample = summed_filt$sample,
   label = summed_filt$label,
@@ -622,7 +622,7 @@ A PDF version of Figure \@ref(fig:degs-ignoring-clusters-heatmap) is available i
 o <- order(summed_filt$label, summed_filt$genotype, summed_filt$sample)
 
 all_features <- lapply(
-  de_results, 
+  de_results_ignoring_clusters, 
   function(x) rownames(x[which(x$FDR < fdr), ]))
 features <- unique(unlist(all_features))
 mat <- logcounts(summed_filt)[features, ]
@@ -701,7 +701,7 @@ pheatmap(
 The following table gives the number of DEGs at a FDR of `r scales::percent(fdr)`.
 
 ```{r}
-is_de <- decideTestsPerLabel(de_results, threshold = fdr)
+is_de <- decideTestsPerLabel(de_results_ignoring_clusters, threshold = fdr)
 summarizeTestsPerLabel(is_de) %>%
   knitr::kable(
     caption = "Number of DEGs per label. Each row corresponds to a label and each column corresponds to the number of downregulated genes (`-1`), the number of non-differentially expressed genes (`0`), the number of upregulated genes (`1`), and the number of genes not tested (`NA`).")
@@ -709,7 +709,7 @@ summarizeTestsPerLabel(is_de) %>%
 
 ```{r, message = FALSE}
 # Create outputs
-createDEGOutputs(outdir = deg_dir, de_results = de_results)
+createDEGOutputs(outdir = deg_dir, de_results = de_results_ignoring_clusters)
 ```
 
 Please see [`output/DEGs/`](../output/DEGs/) for spreadsheets of these DEG lists, including results of GO and KEGG analyses using the `goana()` and `kegga()` functions from the `r BiocStyle::Biocpkg("limma")` package^[Please note that these results do not take into account the directionality of the log-fold change.], and [`output/glimma-plots`](../output/glimma-plots/) for interactive `r BiocStyle::Biocpkg("Glimma")` plots of the differential expression results.
@@ -896,6 +896,39 @@ par(mfrow = c(1, 1))
 pdf(here("output", "DEGs", "barcode_plots.pdf"))
 lapply(names(index), function(n) {
   barcodeplot(res$table$logFC, index = index[[n]], main = n)
+})
+dev.off()
+```
+
+Finally, Figure \@ref(fig:barcode-plot-ignoring-clusters-degs) visualises the enrichment of the `ignoring_clusters` DEGs amongst the within-label DE results using barcode enrichment plots.
+
+<aside>
+A PDF version of Figure \@ref(fig:barcode-plot-ignoring-clusters-degs) is available in [`output/DEGs/barcode_plots_ignoring_clusters_degs.pdf`](../output/DEGs/barcode_plots_ignoring_clusters_degs.pdf).
+</aside>
+
+```{r barcode-plot-ignoring-clusters-degs, fig.cap = "Barcode plot of the `ignoring_clusters` DEGs amongst the within-label DE analyses. An enrichment line shows the relative enrichment of the vertical bars in each part of the plot is displayed.", fig.asp = 3 / 2, results = "hide"}
+ignoring_clusters_degs <- de_results_ignoring_clusters[[1]][
+  which(de_results_ignoring_clusters[[1]]$FDR < 0.05), ]
+barcode_plot_genes <- split(
+  rownames(ignoring_clusters_degs),
+  sign(ignoring_clusters_degs$logFC))
+
+par(mfrow = c(3, 2))
+lapply(names(de_results), function(n) {
+  res <- de_results[[n]]
+  index <- lapply(barcode_plot_genes, function(x) {
+    rownames(res) %in% x
+  })
+  barcodeplot(res$logFC, index = index[["1"]], index2 = index[["-1"]], main = n)
+})
+par(mfrow = c(1, 1))
+pdf(here("output", "DEGs", "barcode_plots_ignoring_clusters_degs.pdf"))
+lapply(names(de_results), function(n) {
+  res <- de_results[[n]]
+  index <- lapply(barcode_plot_genes, function(x) {
+    rownames(res) %in% x
+  })
+  barcodeplot(res$logFC, index = index[["1"]], index2 = index[["-1"]], main = n)
 })
 dev.off()
 ```
