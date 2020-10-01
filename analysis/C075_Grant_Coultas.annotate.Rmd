@@ -1825,7 +1825,7 @@ pheatmap(
   width = 5)
 ```
 
-```{r}
+```{r summary-heatmap-no-duplicate-genes, fig.cap = "Heatmap of Zoe's cluster marker gene list without duplicate genes.", fig.asp = 2}
 features <- unique(features)
 mat <- assay(summed, "logCPM")[features, ]
 mat <- mat - rowMeans(mat)
